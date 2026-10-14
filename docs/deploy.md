@@ -1,6 +1,6 @@
 # Despliegue por plataforma
 
-`./scripts/simcore-up.sh` elige la configuración automáticamente; aquí está qué necesita cada plataforma y cómo comprobar que todo va bien. Todas las imágenes son multi-arquitectura (amd64 y arm64) y se construyen en la propia máquina.
+`./scripts/simcore-up.sh` elige la configuración automáticamente y arranca en segundo plano (`--fg` para quedarse con los logs; `./scripts/simcore-up.sh logs -f` para verlos después y `./scripts/simcore-up.sh down` para parar); aquí está qué necesita cada plataforma y cómo comprobar que todo va bien. Todas las imágenes son multi-arquitectura (amd64 y arm64) y se construyen en la propia máquina.
 
 Requisitos comunes: Docker y **Docker Compose 2.24 o superior** (`docker compose version`).
 

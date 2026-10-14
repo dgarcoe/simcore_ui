@@ -25,7 +25,9 @@ Todo el arte (tiles, personajes, muebles, emotes) se dibuja por código en `src/
 
 ```bash
 cp .env.example .env          # opcional: claves de LLM, puertos, versión de Simcore
-./scripts/simcore-up.sh       # detecta el hardware y arranca todo → http://localhost:8080
+./scripts/simcore-up.sh       # detecta el hardware y arranca todo en segundo plano → http://localhost:8080
+./scripts/simcore-up.sh logs -f   # ver los logs (Ctrl+C deja de mirarlos, no para nada)
+./scripts/simcore-up.sh down      # parar
 ```
 
 El mismo comando sirve en un PC o servidor x86, en una NVIDIA Jetson y en un Mac. Antes de arrancar, el script detecta dónde puede correr el LLM local y lo muestra (`--dry-run` solo muestra la detección):
@@ -43,6 +45,7 @@ El mismo comando sirve en un PC o servidor x86, en una NVIDIA Jetson y en un Mac
   - `--cpu`: ignorar la GPU.
   - `--model llama3.2:3b`: elegir otro modelo.
   - `--no-host`: no reutilizar el Ollama del host.
+  - `--fg`: arrancar en primer plano con los logs en la terminal (Ctrl+C lo para todo).
   - Cualquier otro comando de compose con los mismos ficheros, por ejemplo `./scripts/simcore-up.sh down` o `./scripts/simcore-up.sh logs -f ollama`.
 
 Detalles por plataforma (Jetson, NVIDIA, Mac, WSL2) y cómo comprobar que se usa la GPU: [docs/deploy.md](docs/deploy.md).

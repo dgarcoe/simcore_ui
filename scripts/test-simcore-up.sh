@@ -52,7 +52,7 @@ check() {
   while [[ $1 != -- ]]; do expect+=("$1"); shift; done
   shift
   local out dry=(--dry-run)
-  [[ " $* " == *" doctor "* ]] && dry=()  # doctor runs its checks against the stubs
+  [[ " $* " == *" doctor "* || -n ${NODRY:-} ]] && dry=()  # run for real against the stubs
   out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" \
     SIMCORE_NVIDIA_SMI="${NVSMI:-$TMP/bin/nvidia-smi}" \
     SIMCORE_UNAME_S="${OS:-Linux}" SIMCORE_UNAME_M="${ARCH:-x86_64}" \
@@ -118,6 +118,11 @@ OS=Darwin ARCH=arm64 NVSMI=$TMP/none check "macOS sin Ollama nativo → CPU + co
 FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' check "--demo no levanta Ollama" \
   "sin LLM local" "!--profile ollama" "!OLLAMA_MODEL" -- --demo
 
+check "por defecto arranca en segundo plano" "up --build -d" --
+meminfo 16
+NODRY=1 NVSMI=$TMP/none check "arranque real: vuelve al terminal con instrucciones" \
+  "docker compose" "up --build -d" "En marcha en segundo plano" "logs -f ollama-pull" "doctor" "down" --
+check "--fg se queda en primer plano" "up --build" "!--build -d" -- --fg
 check "otros comandos de compose se pasan tal cual" "logs -f" "!--build" -- logs -f
 
 FAKE_COMPOSE=2.20.0 check "compose antiguo → error claro" "2.24" --

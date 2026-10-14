@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Starts Simcore + Simcore Pixel with the best LLM setup for this machine.
 #
-#   ./scripts/simcore-up.sh              # detect and start (docker compose up --build)
+#   ./scripts/simcore-up.sh              # detect and start in the background (up --build -d)
+#   ./scripts/simcore-up.sh --fg         # same, but stay attached to the logs
 #   ./scripts/simcore-up.sh --dry-run    # only show what was detected and the command
 #   ./scripts/simcore-up.sh down         # any other compose command, same files
 #
@@ -19,14 +20,16 @@ Opciones:
   --no-host        No reutilizar un Ollama que ya esté corriendo en el host.
   --model NOMBRE   Modelo de Ollama a descargar (p. ej. qwen2.5:7b, llama3.2:3b).
   --no-alias       No publicar el modelo como qwen2.5:7b para los escenarios incluidos.
+  --fg             Arranca en primer plano mostrando los logs (Ctrl+C para todo).
   --dry-run        Solo muestra la detección y el comando, sin ejecutar nada.
   -h, --help       Esta ayuda.
 
 Comando "doctor": comprueba si los agentes están usando de verdad el LLM
 (modo demo, Ollama accesible, modelo descargado, respuesta de prueba, GPU/CPU).
 
-Comando por defecto: "up --build". Cualquier otro (down, logs -f, ps…) se ejecuta
-con los mismos ficheros de compose. Los argumentos extra se pasan a compose (p. ej. -d).
+Comando por defecto: "up --build -d" (en segundo plano). Cualquier otro (down,
+logs -f, ps, restart…) se ejecuta con los mismos ficheros de compose, y los
+argumentos extra se pasan a compose tal cual.
 EOF
 }
 
@@ -44,7 +47,7 @@ HOST_OLLAMA_URL=${SIMCORE_HOST_OLLAMA_URL:-http://localhost:11434}
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DEFAULT_SCENARIO_MODEL=qwen2.5:7b
 
-demo=0 force_cpu=0 use_host=1 dry_run=0 alias_on=1 model=""
+demo=0 force_cpu=0 use_host=1 dry_run=0 alias_on=1 foreground=0 model=""
 args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,12 +58,17 @@ while [[ $# -gt 0 ]]; do
     --model=*) model=${1#--model=} ;;
     --no-alias) alias_on=0 ;;
     --dry-run) dry_run=1 ;;
+    --fg | --foreground) foreground=1 ;;
     -h | --help) usage; exit 0 ;;
     *) args+=("$1") ;;
   esac
   shift
 done
-[[ ${#args[@]} -eq 0 ]] && args=(up --build)
+default_up=0
+if [[ ${#args[@]} -eq 0 ]]; then
+  default_up=1
+  if ((foreground)); then args=(up --build); else args=(up --build -d); fi
+fi
 
 warn() { printf '⚠  %s\n' "$*" >&2; }
 die() { printf '✖  %s\n' "$*" >&2; exit 1; }
@@ -195,7 +203,7 @@ doctor() {
   local state
   state=$("$CURL" -sf --max-time 5 "$api/state" 2>/dev/null || true)
   if [[ -z $state ]]; then
-    bad "Simcore no responde en $api (¿está arrancado? ./scripts/simcore-up.sh -d)"
+    bad "Simcore no responde en $api (¿está arrancado? ./scripts/simcore-up.sh)"
   elif [[ $state == *'"error"'* ]]; then
     ok "Simcore responde, pero no hay ninguna simulación en marcha (lanza un escenario y repite)"
   elif [[ $state =~ \"mode\":\ *\"demo\" ]]; then
@@ -305,4 +313,15 @@ fi
 ((dry_run)) && exit 0
 cd "$ROOT"
 ((is_doctor)) && { doctor; exit $?; }
+if ((default_up && !foreground)); then
+  "${cmd[@]}"
+  me="./scripts/$(basename "$0")"
+  echo
+  echo "✔ En marcha en segundo plano: http://localhost:${UI_PORT:-8080}"
+  echo "  Logs:         $me logs -f            (Ctrl+C solo deja de mirarlos)"
+  [[ ${profile[*]-} == *ollama* ]] && echo "  Modelo:       $me logs -f ollama-pull   (la primera vez descarga $model)"
+  echo "  Diagnóstico:  $me doctor"
+  echo "  Parar:        $me down"
+  exit 0
+fi
 exec "${cmd[@]}"
