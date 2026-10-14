@@ -48,6 +48,27 @@ export interface Banner {
 
 export type RunStatus = 'idle' | 'running' | 'ended';
 
+/** What Simcore is doing for agent decisions: demo mock, a real LLM, or a failing LLM. */
+export interface LlmStatus {
+  mode: 'unknown' | 'demo' | 'llm';
+  calls: number;
+  cacheHits: number;
+  /** Decisions that came back as `LLM error: …` since the run started. */
+  errors: number;
+  lastError: string;
+  lastErrorTick: number;
+  /** Consecutive ticks in which every decision failed. */
+  failingTicks: number;
+  tickDecisions: number;
+  tickErrors: number;
+}
+
+export function initialLlm(): LlmStatus {
+  return { mode: 'unknown', calls: 0, cacheHits: 0, errors: 0, lastError: '', lastErrorTick: -1, failingTicks: 0, tickDecisions: 0, tickErrors: 0 };
+}
+
+const LLM_ERROR = /^LLM error:\s*/;
+
 export interface SimSnapshot {
   sim: SimState | null;
   scenarioName: string;
@@ -57,6 +78,7 @@ export interface SimSnapshot {
   posts: Post[];
   reflections: Record<string, { tick: number; text: string }[]>;
   banner: Banner | null;
+  llm: LlmStatus;
   seq: number;
   recent: SimEvent[];
 }
@@ -76,6 +98,7 @@ export function initialSnapshot(): SimSnapshot {
     posts: [],
     reflections: {},
     banner: null,
+    llm: initialLlm(),
     seq: 0,
     recent: [],
   };
@@ -119,9 +142,14 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         feed: pushFeed(next.feed, feedItem(seq, e, '■ Simulation finished')),
       };
     case 'tick_start':
-      return { ...next, status: 'running' };
+      return { ...next, status: 'running', llm: { ...s.llm, tickDecisions: 0, tickErrors: 0 } };
     case 'tick_end':
-      return { ...next, sim: e.data as SimState, status: s.status === 'idle' ? 'running' : s.status };
+      return {
+        ...next,
+        sim: e.data as SimState,
+        status: s.status === 'idle' ? 'running' : s.status,
+        llm: llmAfterTick(s.llm, (e.data as SimState).llm_stats),
+      };
     case 'scheduled_event':
     case 'injected_event': {
       const text = String(e.data.description ?? '');
@@ -160,7 +188,11 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     case 'agent_action':
     case 'agent_post': {
       const action = parseAction(e.data.action);
-      next = { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, String(e.data.action ?? '')), action }) };
+      next = {
+        ...next,
+        llm: llmAfterDecision(s.llm, e),
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, String(e.data.action ?? '')), action }),
+      };
       if (action.kind === 'speak') {
         next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target: action.target, kind: 'speak', text: action.content });
       } else if (action.kind === 'post') {
@@ -171,6 +203,32 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     default:
       return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, JSON.stringify(e.data))) };
   }
+}
+
+function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {
+  const reasoning = String(e.data.reasoning ?? '');
+  const failed = LLM_ERROR.test(reasoning);
+  return {
+    ...llm,
+    tickDecisions: llm.tickDecisions + 1,
+    tickErrors: llm.tickErrors + (failed ? 1 : 0),
+    errors: llm.errors + (failed ? 1 : 0),
+    lastError: failed ? reasoning.replace(LLM_ERROR, '') : llm.lastError,
+    lastErrorTick: failed ? e.tick : llm.lastErrorTick,
+  };
+}
+
+function llmAfterTick(llm: LlmStatus, stats: Record<string, unknown> | undefined): LlmStatus {
+  const allFailed = llm.tickDecisions > 0 && llm.tickErrors === llm.tickDecisions;
+  return {
+    ...llm,
+    mode: !stats ? llm.mode : stats.mode === 'demo' ? 'demo' : 'llm',
+    calls: Number(stats?.total_calls ?? llm.calls),
+    cacheHits: Number(stats?.cache_hits ?? llm.cacheHits),
+    failingTicks: allFailed ? llm.failingTicks + 1 : llm.tickErrors === 0 ? 0 : llm.failingTicks,
+    tickDecisions: 0,
+    tickErrors: 0,
+  };
 }
 
 function feedItem(id: number, e: SimEvent, text: string): FeedItem {

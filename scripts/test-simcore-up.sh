@@ -14,6 +14,10 @@ cat >"$TMP/bin/docker" <<'STUB'
 case "$*" in
   "compose version --short") echo "${FAKE_COMPOSE:-2.29.1}" ;;
   info*) echo "${FAKE_RUNTIMES:-{\"runc\":{}}}" ;;
+  *"exec -T ollama ollama list"*) printf '%b' "${FAKE_OLLAMA_LIST:-}" ;;
+  *"exec -T ollama ollama ps"*) printf '%b' "${FAKE_OLLAMA_PS:-}" ;;
+  *"exec -T ollama ollama run"*) [[ -n ${FAKE_OLLAMA_LIST:-} ]] && echo hola ;;
+  *"logs --since"*) printf '%b' "${FAKE_SIMCORE_LOGS:-}" ;;
   *) echo "docker $*" ;;
 esac
 STUB
@@ -28,8 +32,13 @@ esac
 STUB
 cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
-[[ ${FAKE_HOST_OLLAMA:-0} == 1 ]] || exit 7
-echo "{\"models\":[${FAKE_HOST_MODELS:-}]}"
+for a in "$@"; do url=$a; done
+for a in "$@"; do [[ $a == http* ]] && url=$a; done
+case "$url" in
+  */api/state) [[ -n ${FAKE_STATE:-} ]] && echo "$FAKE_STATE" || exit 7 ;;
+  *) [[ ${FAKE_HOST_OLLAMA:-0} == 1 ]] || exit 7
+     echo "{\"models\":[${FAKE_HOST_MODELS:-}]}" ;;
+esac
 STUB
 chmod +x "$TMP/bin/"*
 
@@ -42,12 +51,13 @@ check() {
   local expect=()
   while [[ $1 != -- ]]; do expect+=("$1"); shift; done
   shift
-  local out
+  local out dry=(--dry-run)
+  [[ " $* " == *" doctor "* ]] && dry=()  # doctor runs its checks against the stubs
   out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" \
     SIMCORE_NVIDIA_SMI="${NVSMI:-$TMP/bin/nvidia-smi}" \
     SIMCORE_UNAME_S="${OS:-Linux}" SIMCORE_UNAME_M="${ARCH:-x86_64}" \
     SIMCORE_TEGRA_RELEASE="${TEGRA:-$TMP/none}" SIMCORE_DT_MODEL="${DTMODEL:-$TMP/none}" \
-    SIMCORE_MEMINFO="$TMP/meminfo" bash "$UP" --dry-run "$@" 2>&1) || true
+    SIMCORE_MEMINFO="$TMP/meminfo" bash "$UP" ${dry[@]+"${dry[@]}"} "$@" 2>&1) || true
   local ok=1 p
   for p in "${expect[@]}"; do
     if [[ $p == !* ]]; then
@@ -111,6 +121,37 @@ FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' check "--demo no levanta Ollama" \
 check "otros comandos de compose se pasan tal cual" "logs -f" "!--build" -- logs -f
 
 FAKE_COMPOSE=2.20.0 check "compose antiguo → error claro" "2.24" --
+
+# ── doctor ──
+meminfo 16
+LIST='NAME\nqwen2.5:3b\nqwen2.5:7b\n'
+NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 0, "mode": "demo"}}' FAKE_OLLAMA_LIST=$LIST check "doctor detecta el modo demo" \
+  "MODO DEMO" "Modelo disponible: qwen2.5:3b" "!Comando:" -- doctor
+
+NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 42, "cache_hits": 3}}' FAKE_OLLAMA_LIST=$LIST \
+  FAKE_OLLAMA_PS='NAME  ID  SIZE  PROCESSOR  UNTIL\nqwen2.5:3b  x  3 GB  100% CPU  4 minutes\n' check "doctor con LLM real en CPU" \
+  "usa un LLM real (42 llamadas" "Respuesta de prueba de qwen2.5:3b" "corre en CPU (no se detectó" "Todo correcto." -- doctor
+
+FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' FAKE_STATE='{"llm_stats": {"total_calls": 9}}' FAKE_OLLAMA_LIST=$LIST \
+  FAKE_OLLAMA_PS='NAME  PROCESSOR\nqwen2.5:7b  100% CPU\n' check "doctor avisa si hay GPU pero el modelo está en CPU" \
+  "corre en CPU aunque se detectó nvidia" -- doctor
+
+meminfo 8
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_RUNTIMES='{"nvidia":{}}' FAKE_STATE='{"llm_stats": {"total_calls": 9}}' \
+  FAKE_OLLAMA_LIST=$LIST FAKE_OLLAMA_PS='NAME  PROCESSOR\nqwen2.5:3b  100% GPU\n' check "doctor en Jetson con el modelo en GPU" \
+  "El modelo está en la GPU: 100% GPU" -- doctor
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_RUNTIMES='{"nvidia":{}}' FAKE_STATE='{"llm_stats": {"total_calls": 9}}' \
+  FAKE_OLLAMA_LIST=$LIST FAKE_OLLAMA_PS='NAME  PROCESSOR\nqwen2.5:7b  41%/59% CPU/GPU\n' check "doctor avisa si el modelo no cabe en la GPU" \
+  "no cabe entero en la GPU (parte en CPU: 41%/59% CPU/GPU)" -- doctor
+
+meminfo 16
+NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 12}}' FAKE_OLLAMA_LIST='NAME\nqwen2.5:3b\n' \
+  FAKE_SIMCORE_LOGS='simcore  | WARNING LLM call failed: litellm.APIConnectionError: OllamaException - model "qwen2.5:7b" not found. Returning WAIT action.\n' \
+  check "doctor señala el modelo que falta y los fallos" \
+  "Falta el modelo qwen2.5:7b" "llamadas fallidas" "not found" -- doctor
+
+NVSMI=$TMP/none check "doctor sin Simcore arrancado" "Simcore no responde" "El contenedor de Ollama no responde" -- doctor
 
 echo
 echo "$pass correctos, $fail fallidos"

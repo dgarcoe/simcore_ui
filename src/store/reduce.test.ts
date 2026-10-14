@@ -78,4 +78,29 @@ describe('reduce', () => {
     expect(s.scenarioName).toBe('Again');
     expect(s.status).toBe('running');
   });
+
+  it('reports demo mode from llm_stats', () => {
+    expect(run(fixture).llm.mode).toBe('demo');
+  });
+
+  it('tracks a real LLM and its failures', () => {
+    const stats = (calls: number) => ({ llm_stats: { total_calls: calls, cache_hits: 1, cache_hit_rate: 0.1 } });
+    const fail = (src: string, tick: number) =>
+      ev('agent_action', tick, { action: 'waits', reasoning: 'LLM error: Connection refused (ollama:11434)' }, src);
+    let s = run([
+      ev('tick_start', 1, {}),
+      ev('agent_action', 1, { action: 'rests', reasoning: 'tired' }, 'Ann'),
+      ev('tick_end', 1, stats(2)),
+    ]);
+    expect(s.llm).toMatchObject({ mode: 'llm', calls: 2, cacheHits: 1, errors: 0, failingTicks: 0 });
+
+    s = run([ev('tick_start', 2, {}), fail('Ann', 2), fail('Bob', 2), ev('tick_end', 2, stats(4))], s);
+    expect(s.llm).toMatchObject({ errors: 2, failingTicks: 1, lastError: 'Connection refused (ollama:11434)', lastErrorTick: 2 });
+
+    s = run([ev('tick_start', 3, {}), fail('Ann', 3), ev('agent_action', 3, { action: 'rests', reasoning: 'ok' }, 'Bob'), ev('tick_end', 3, stats(6))], s);
+    expect(s.llm.failingTicks).toBe(1);
+
+    s = run([ev('tick_start', 4, {}), ev('agent_action', 4, { action: 'rests', reasoning: 'ok' }, 'Bob'), ev('tick_end', 4, stats(7))], s);
+    expect(s.llm).toMatchObject({ failingTicks: 0, errors: 3 });
+  });
 });

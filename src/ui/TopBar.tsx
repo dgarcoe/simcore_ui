@@ -1,4 +1,5 @@
 import { bus } from '../store/bus';
+import { LlmChip } from './LlmStatus';
 import { useSim } from '../store/simStore';
 import { control, leave, restartReplay } from '../store/sources';
 import type { ThemeSource } from '../themes/registry';
@@ -45,6 +46,7 @@ export function TopBar({ theme, detected }: { theme: ThemePack; detected: { them
         <span className={`chip ${s.connected ? 'ok' : 'bad'}`}>
           {live ? (s.connected ? '● EN VIVO' : '○ SIN CONEXIÓN') : '▶ REPETICIÓN'}
         </span>
+        <LlmChip />
         {s.status === 'ended' ? (
           <span className="chip">FIN</span>
         ) : s.paused ? (

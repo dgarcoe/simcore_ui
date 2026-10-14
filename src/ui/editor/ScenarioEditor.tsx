@@ -11,6 +11,7 @@ import { EventsTab } from './EventsTab';
 import { GeneralTab } from './GeneralTab';
 import { LocationsTab } from './LocationsTab';
 import { MapPreview } from './MapPreview';
+import { useDemoPref } from '../demoPref';
 
 type Tab = 'general' | 'places' | 'agents' | 'events';
 
@@ -21,7 +22,7 @@ export function ScenarioEditor() {
   const [selectedLoc, setSelectedLoc] = useState<number | null>(null);
   const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [demo, setDemo] = useState(true);
+  const [demo, setDemo] = useDemoPref();
   const [speed, setSpeed] = useState(2);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -114,7 +115,7 @@ export function ScenarioEditor() {
             {willCopy ? 'Guardar copia' : 'Guardar'}
           </button>
           <label className="toggle">
-            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo
+            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo (sin LLM)
           </label>
           <input className="input tiny" type="number" min={0} step={0.5} value={speed} title="Segundos por tick" onChange={(e) => setSpeed(Number(e.target.value))} />
           <button className="btn btn-accent" disabled={busy || issues.length > 0} onClick={saveAndRun}>

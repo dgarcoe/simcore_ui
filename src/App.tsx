@@ -3,6 +3,7 @@ import { useWorld } from './game/useWorld';
 import { useSim } from './store/simStore';
 import { Banner } from './ui/Banner';
 import { EndCard } from './ui/EndCard';
+import { LlmAlert } from './ui/LlmStatus';
 import { ScenarioEditor } from './ui/editor/ScenarioEditor';
 import { Sidebar } from './ui/Sidebar';
 import { StartScreen } from './ui/StartScreen';
@@ -24,6 +25,7 @@ export function App() {
           <PhaserGame map={map} theme={theme} />
           {!hasSim && <div className="waiting">Esperando a que la simulación empiece…</div>}
           <Banner />
+          <LlmAlert />
           <EndCard />
           <div className="hint">Arrastra para mover · rueda para zoom · clic en un agente</div>
         </section>

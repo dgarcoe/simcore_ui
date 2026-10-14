@@ -978,3 +978,46 @@ details summary {
     min-height: 50vh;
   }
 }
+
+/* ── LLM status ────────────────────────────────────────────── */
+
+.chip.warn-chip {
+  color: var(--ink);
+  background: var(--accent);
+}
+
+.llm-alert {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: min(640px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--panel);
+  border: 4px solid var(--ink);
+  outline: 2px solid var(--bad);
+  padding: 10px 14px;
+}
+
+.llm-alert strong {
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--bad);
+}
+
+.llm-alert .close {
+  position: absolute;
+  right: 6px;
+  top: 2px;
+  background: none;
+  border: 0;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.llm-error {
+  color: var(--dim);
+  font-size: 16px;
+}

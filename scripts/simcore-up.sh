@@ -22,6 +22,9 @@ Opciones:
   --dry-run        Solo muestra la detección y el comando, sin ejecutar nada.
   -h, --help       Esta ayuda.
 
+Comando "doctor": comprueba si los agentes están usando de verdad el LLM
+(modo demo, Ollama accesible, modelo descargado, respuesta de prueba, GPU/CPU).
+
 Comando por defecto: "up --build". Cualquier otro (down, logs -f, ps…) se ejecuta
 con los mismos ficheros de compose. Los argumentos extra se pasan a compose (p. ej. -d).
 EOF
@@ -176,6 +179,95 @@ esac
 export OLLAMA_MODEL=$model OLLAMA_ALIAS=$alias_name OLLAMA_NUM_PARALLEL=$parallel
 [[ -n $jetpack ]] && export JETSON_JETPACK=$jetpack
 
+# ── Doctor ──────────────────────────────────────────────────────────────
+ok() { printf '  ✓ %s\n' "$*"; }
+bad() { printf '  ✗ %s\n' "$*"; problems=$((problems + 1)); }
+info() { printf '    %s\n' "$*"; }
+
+doctor() {
+  local dc=("$DOCKER" compose "${files[@]}" ${profile[@]+"${profile[@]}"})
+  local api="http://localhost:${UI_PORT:-8080}/api"
+  problems=0
+  echo
+  echo "Diagnóstico del LLM"
+
+  # 1. What the running simulation reports (llm_stats comes with every tick).
+  local state
+  state=$("$CURL" -sf --max-time 5 "$api/state" 2>/dev/null || true)
+  if [[ -z $state ]]; then
+    bad "Simcore no responde en $api (¿está arrancado? ./scripts/simcore-up.sh -d)"
+  elif [[ $state == *'"error"'* ]]; then
+    ok "Simcore responde, pero no hay ninguna simulación en marcha (lanza un escenario y repite)"
+  elif [[ $state =~ \"mode\":\ *\"demo\" ]]; then
+    bad "La simulación está en MODO DEMO: respuestas de ejemplo, no se llama al LLM."
+    info "Vuelve a ejecutar el escenario con la casilla «Modo demo» desmarcada."
+  else
+    local calls
+    calls=$(grep -o '"total_calls": *[0-9]*' <<<"$state" | grep -o '[0-9]*$' || echo 0)
+    ok "La simulación usa un LLM real (${calls:-0} llamadas hasta ahora)"
+  fi
+
+  # 2. Is Ollama reachable, and which models does it have?
+  if [[ $accel == none ]]; then
+    info "Arrancado con --demo: no hay Ollama local que comprobar."
+    return "$problems"
+  fi
+  local list ps
+  if [[ $accel == host ]]; then
+    list=$("$CURL" -sf --max-time 5 "$HOST_OLLAMA_URL/api/tags" 2>/dev/null || true)
+    if [[ -n $list ]]; then ok "Ollama del host responde en $HOST_OLLAMA_URL"; else bad "Ollama del host no responde en $HOST_OLLAMA_URL"; fi
+  else
+    list=$("${dc[@]}" exec -T ollama ollama list 2>/dev/null || true)
+    if [[ -n $list ]]; then ok "El contenedor de Ollama responde"; else bad "El contenedor de Ollama no responde (¿arrancaste con --demo? Si no: ./scripts/simcore-up.sh logs ollama)"; fi
+  fi
+  if [[ -n $list ]]; then
+    local want
+    for want in ${model:+"$model"} "$DEFAULT_SCENARIO_MODEL"; do
+      if grep -q "${want}" <<<"$list"; then ok "Modelo disponible: $want"
+      else bad "Falta el modelo $want (./scripts/simcore-up.sh logs ollama-pull, o 'ollama pull $want')"; fi
+    done
+
+    # 3. A real generation, timed, and where the model ended up (GPU/CPU).
+    local test_model=${model:-$DEFAULT_SCENARIO_MODEL} start end reply
+    start=$(date +%s)
+    if [[ $accel == host ]]; then
+      reply=$("$CURL" -sf --max-time 300 "$HOST_OLLAMA_URL/api/generate" \
+        -d "{\"model\":\"$test_model\",\"prompt\":\"Responde solo: hola\",\"stream\":false}" 2>/dev/null || true)
+    else
+      reply=$("${dc[@]}" exec -T ollama ollama run "$test_model" "Responde solo: hola" 2>/dev/null || true)
+    fi
+    end=$(date +%s)
+    if [[ -n $reply ]]; then ok "Respuesta de prueba de $test_model en $((end - start)) s"
+    else bad "$test_model no respondió a una petición de prueba"; fi
+
+    if [[ $accel != host ]]; then
+      ps=$("${dc[@]}" exec -T ollama ollama ps 2>/dev/null || true)
+      if grep -q "CPU/GPU" <<<"$ps"; then
+        bad "El modelo no cabe entero en la GPU (parte en CPU: $(grep -o '[0-9]*%/[0-9]*% CPU/GPU' <<<"$ps" | head -n1)); usa uno más pequeño con --model"
+      elif grep -q "GPU" <<<"$ps"; then ok "El modelo está en la GPU: $(grep -o '[0-9]*% *GPU' <<<"$ps" | head -n1)"
+      elif [[ -n $ps ]]; then
+        if [[ $accel == cpu ]]; then ok "El modelo corre en CPU (no se detectó GPU utilizable)"
+        else bad "El modelo corre en CPU aunque se detectó $accel: revisa 'logs ollama' (CUDA) y docs/deploy.md"; fi
+      fi
+      [[ -n $ps ]] && while IFS= read -r l; do info "$l"; done <<<"$ps"
+    fi
+  fi
+
+  # 4. Recent failures logged by Simcore.
+  local fails
+  fails=$("${dc[@]}" logs --since 15m simcore 2>/dev/null | grep "LLM call failed" || true)
+  if [[ -n $fails ]]; then
+    bad "Simcore registró $(wc -l <<<"$fails" | tr -d ' ') llamadas fallidas en los últimos 15 min. Última:"
+    info "$(tail -n1 <<<"$fails" | sed 's/.*LLM call failed: //' | cut -c1-200)"
+  else
+    ok "Sin llamadas fallidas en los registros de Simcore (15 min)"
+  fi
+
+  echo
+  if ((problems == 0)); then echo "Todo correcto."; else echo "$problems problema(s) encontrados."; fi
+  return "$problems"
+}
+
 # ── Summary ─────────────────────────────────────────────────────────────
 label() {
   case $accel in
@@ -199,13 +291,18 @@ elif [[ $accel == host ]]; then
 fi
 echo "  UI:       http://localhost:${UI_PORT:-8080}"
 
+is_doctor=0
+[[ ${args[0]} == doctor ]] && is_doctor=1
 cmd=("$DOCKER" compose "${files[@]}" ${profile[@]+"${profile[@]}"} "${args[@]}")
-printf '  Comando:  '
-[[ -n $model ]] && printf 'OLLAMA_MODEL=%s OLLAMA_ALIAS=%s OLLAMA_NUM_PARALLEL=%s ' "$model" "$alias_name" "$parallel"
-[[ -n $jetpack ]] && printf 'JETSON_JETPACK=%s ' "$jetpack"
-printf '%q ' "${cmd[@]}"
-echo
+if ((!is_doctor)); then
+  printf '  Comando:  '
+  [[ -n $model ]] && printf 'OLLAMA_MODEL=%s OLLAMA_ALIAS=%s OLLAMA_NUM_PARALLEL=%s ' "$model" "$alias_name" "$parallel"
+  [[ -n $jetpack ]] && printf 'JETSON_JETPACK=%s ' "$jetpack"
+  printf '%q ' "${cmd[@]}"
+  echo
+fi
 
 ((dry_run)) && exit 0
 cd "$ROOT"
+((is_doctor)) && { doctor; exit $?; }
 exec "${cmd[@]}"

@@ -57,6 +57,33 @@ Para usar un Ollama de otra máquina de la red:
 OLLAMA_API_BASE=http://192.168.1.50:11434 docker compose -f docker-compose.yml -f docker/compose.host-ollama.yml up --build
 ```
 
+## ¿Están usando el LLM los agentes?
+
+Si todos los agentes repiten frases como «Hey X, how's business today?» o «The weather's been interesting lately», la simulación está en **modo demo**: son respuestas de ejemplo de Simcore y no se llama a ningún LLM.
+
+- **En la UI:** la barra superior muestra el estado del LLM:
+  - `DEMO · sin LLM`: modo demo.
+  - `LLM · qwen2.5:7b · N`: LLM real, con el número de llamadas hechas.
+  - `LLM con errores`: el LLM falla. Además aparece un aviso con el error real y una pista para resolverlo.
+- **Casilla «Modo demo»:** al ejecutar un escenario viene desmarcada por defecto, y la UI recuerda tu elección.
+- **Diagnóstico completo:**
+  ```bash
+  ./scripts/simcore-up.sh doctor
+  ```
+  Comprueba:
+  - el modo de la simulación en curso;
+  - que Ollama responde y tiene el modelo (y el alias `qwen2.5:7b`);
+  - una respuesta de prueba, con su tiempo;
+  - si el modelo está en GPU, en CPU o repartido entre ambas (`ollama ps`);
+  - las llamadas fallidas recientes en los registros de Simcore.
+- **Lo mismo a mano:**
+  ```bash
+  curl -s localhost:8080/api/state | python3 -c "import json,sys; print(json.load(sys.stdin)['llm_stats'])"   # "mode": "demo" = demo
+  ./scripts/simcore-up.sh logs -f ollama            # con LLM real: un POST /api/chat por agente y tick
+  ./scripts/simcore-up.sh exec ollama ollama ps     # PROCESSOR: 100% GPU / CPU / x%/y% CPU/GPU
+  ./scripts/simcore-up.sh logs simcore | grep "LLM call failed"
+  ```
+
 ## Rendimiento orientativo
 
 Simcore pide una decisión por agente y tick, todas a la vez, y una reflexión cada 12 ticks. El tiempo de cada tick depende del modelo y del acelerador: desde unos segundos con GPU y modelos de 3B hasta minutos en CPU con 7B. Para que el LLM marque el ritmo, pon `s/tick` a 0 al lanzar; la UI escalona las animaciones de cada tick.

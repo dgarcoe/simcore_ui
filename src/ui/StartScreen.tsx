@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as api from '../api/client';
 import type { ScenarioRecord } from '../api/types';
 import { runScenario, startLive, startReplay } from '../store/sources';
+import { useDemoPref } from './demoPref';
 import { openEditor } from './editor/draft';
 
 interface Fixture {
@@ -16,7 +17,7 @@ export function StartScreen() {
   const [running, setRunning] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
-  const [demo, setDemo] = useState(true);
+  const [demo, setDemo] = useDemoPref();
   const [speed, setSpeed] = useState(2);
   const [busy, setBusy] = useState(false);
 
@@ -71,7 +72,7 @@ export function StartScreen() {
               </button>
               <div className="row opts">
                 <label className="toggle">
-                  <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> Modo demo (sin LLM)
+                  <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> Modo demo: respuestas de ejemplo, sin LLM
                 </label>
                 <label className="toggle">
                   s/tick
@@ -83,7 +84,7 @@ export function StartScreen() {
                   <li key={s.id}>
                     <div>
                       <strong>{s.meta.name}</strong>
-                      <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration}</span>
+                      <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration} · {demo ? 'demo' : s.meta.llm_model || 'sin modelo'}</span>
                       <p className="dim">{s.meta.description}</p>
                     </div>
                     <span className="row nowrap">
