@@ -1,0 +1,7 @@
+[
+  { "file": "epidemic.json", "name": "Outbreak", "theme": "Pueblo", "description": "Una enfermedad misteriosa se propaga por un pueblo (escenario incluido en Simcore)." },
+  { "file": "spaceship.json", "name": "Derelict Signal", "theme": "Nave espacial", "description": "La tripulación de una nave recibe una señal de socorro de un pecio." },
+  { "file": "warehouse.json", "name": "Peak Season", "theme": "Almacén", "description": "Un almacén logístico en plena campaña de Navidad." },
+  { "file": "factory.json", "name": "The Strike", "theme": "Fábrica", "description": "Rumores de despidos y una posible huelga en una fábrica." },
+  { "file": "space-battle.json", "name": "Battle of Kepler Belt", "theme": "Batalla espacial", "description": "Dos flotas se enfrentan en un cinturón de asteroides." }
+]

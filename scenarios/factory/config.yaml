@@ -1,0 +1,183 @@
+# Example scenario for simcore_ui's 'factory' theme.
+# Run: python -m simcore.cli run <path-to-this-file> --dashboard --demo --port 8420
+simulation:
+  name: The Strike
+  description: Workers at a car parts factory hear rumours of layoffs. Management wants overtime; the union talks about a
+    strike.
+  time_step: 1 hour
+  duration: 2 days
+  seed: 21
+  language: en
+llm:
+  model: gpt-4o-mini
+  cache: true
+  temperature: 0.8
+environment:
+  type: grid
+  size:
+  - 12
+  - 12
+  global_state:
+    ui_theme: factory
+    production_target: 500
+    union_mood: uneasy
+  locations:
+  - name: Assembly Line
+    type: industrial
+    position:
+    - 6
+    - 2
+    capacity: 25
+    properties:
+      description: The main line; loud, hot and never stops
+  - name: Foundry
+    type: industrial
+    position:
+    - 10
+    - 2
+    capacity: 10
+    properties:
+      description: Molten metal and the oldest machines in the plant
+  - name: Control Room
+    type: administrative
+    position:
+    - 2
+    - 2
+    capacity: 6
+    properties:
+      description: Management watches the numbers from here
+  - name: Canteen
+    type: social
+    position:
+    - 2
+    - 7
+    capacity: 30
+    properties:
+      description: Where workers eat and talk
+  - name: Maintenance Shop
+    type: engineering
+    position:
+    - 6
+    - 7
+    capacity: 8
+    properties:
+      description: Tools, spare parts and the union bulletin board
+  - name: Shipping Bay
+    type: transport
+    position:
+    - 10
+    - 7
+    capacity: 12
+    properties:
+      description: Finished parts wait here for trucks
+  - name: Union Chat
+    type: social
+    position:
+    - 0
+    - 0
+    capacity: 99
+    properties:
+      description: Group chat for the workers
+    virtual: true
+agents:
+- name: Mr. Hale
+  age: 55
+  profession: plant manager
+  starting_location: Control Room
+  personality:
+    openness: 0.3
+    conscientiousness: 0.9
+    extraversion: 0.5
+    agreeableness: 0.3
+    neuroticism: 0.5
+  goals:
+  - hit the quarterly target
+  - avoid a strike at all costs
+  backstory: Under pressure from headquarters to cut costs.
+  resources: {}
+- name: Rosa Diaz
+  age: 42
+  profession: union representative
+  starting_location: Canteen
+  personality:
+    openness: 0.6
+    conscientiousness: 0.7
+    extraversion: 0.8
+    agreeableness: 0.6
+    neuroticism: 0.4
+  goals:
+  - protect jobs
+  - organize the workers
+  backstory: Grew up in this town; her father worked the same line.
+  resources: {}
+- name: Tomasz
+  age: 36
+  profession: line operator
+  starting_location: Assembly Line
+  personality:
+    openness: 0.4
+    conscientiousness: 0.7
+    extraversion: 0.4
+    agreeableness: 0.7
+    neuroticism: 0.6
+  goals:
+  - keep his job
+  - support his family
+  backstory: Two kids and a mortgage; afraid of losing everything.
+  resources: {}
+- name: Ines
+  age: 29
+  profession: maintenance technician
+  starting_location: Maintenance Shop
+  personality:
+    openness: 0.8
+    conscientiousness: 0.6
+    extraversion: 0.6
+    agreeableness: 0.6
+    neuroticism: 0.3
+  goals:
+  - keep the machines safe
+  - expose safety shortcuts
+  backstory: Has reported the Foundry's broken safety valve three times.
+  resources: {}
+- name: Okafor
+  age: 60
+  profession: foundry foreman
+  starting_location: Foundry
+  personality:
+    openness: 0.3
+    conscientiousness: 0.8
+    extraversion: 0.5
+    agreeableness: 0.5
+    neuroticism: 0.4
+  goals:
+  - keep the foundry running
+  - train the young workers
+  backstory: Respected by everyone; nobody knows which side he'll take.
+  resources: {}
+- name: Kit
+  age: 22
+  profession: apprentice
+  starting_location: Shipping Bay
+  personality:
+    openness: 0.9
+    conscientiousness: 0.4
+    extraversion: 0.8
+    agreeableness: 0.7
+    neuroticism: 0.5
+  goals:
+  - learn the trade
+  - fit in
+  backstory: First job out of school; posts about everything.
+  resources: {}
+events:
+  scheduled:
+  - tick: 3
+    type: revelation
+    description: 'A memo leaks: headquarters plans to close one of the two shifts.'
+  - tick: 15
+    type: crisis
+    description: The safety valve in the Foundry fails; a worker is lightly burned.
+  - tick: 30
+    type: turning_point
+    description: 'The union calls a vote: strike tomorrow morning or keep working.'

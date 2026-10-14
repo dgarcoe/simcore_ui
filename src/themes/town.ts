@@ -1,0 +1,51 @@
+import { HAIR, P, SKIN } from './palette';
+import type { ThemePack } from './types';
+
+export const town: ThemePack = {
+  id: 'town',
+  label: 'Pueblo',
+  layout: 'outdoor',
+  keywords: [/\btown\b|village|pueblo|aldea|vila|city|ciudad|cidade|neighbo|barrio|bairro/gi, /market|plaza|pra[cç]a|farm|granja|school|escuela|church|iglesia|igreja|clinic/gi],
+  background: '#2f9e57',
+  ground: { base: '#3aa760', alt: '#34995a', detail: '#5cc46f' },
+  path: { base: P.tan, edge: '#b98551' },
+  plaza: { base: '#b9c3cc', alt: '#9eaab5' },
+  wall: { top: P.slate, face: P.charcoal, trim: P.silver },
+  floors: {
+    generic: { pattern: 'tiles', base: '#b9c3cc', alt: '#9eaab5' },
+    agriculture: { pattern: 'soil', base: '#7a4a2e', alt: '#5e3822' },
+    leisure: { pattern: 'tiles', base: '#5cc46f', alt: '#3aa760' },
+  },
+  buildings: {
+    generic: { wall: '#d8cbb0', roof: P.brown },
+    medical: { wall: P.white, roof: P.red },
+    commerce: { wall: P.yellow, roof: P.blue },
+    social: { wall: '#e8dcc8', roof: P.plum },
+    education: { wall: P.orange, roof: P.navy },
+    quarters: { wall: P.tan, roof: '#8f3b3b' },
+    command: { wall: P.silver, roof: P.charcoal },
+    production: { wall: P.slate, roof: P.charcoal },
+    storage: { wall: P.brown, roof: P.slate },
+    engineering: { wall: P.slate, roof: P.orange },
+    transit: { wall: '#d8cbb0', roof: P.teal },
+    combat: { wall: '#7c7f6a', roof: '#4b4f3a' },
+    agriculture: { wall: P.wood, roof: P.red },
+    leisure: { wall: P.green, roof: P.teal },
+  },
+  decor: { generic: ['bench', 'plant', 'barrel', 'crate'] },
+  propColors: {
+    o: P.ink, g: '#2a8f50', G: '#1e6646', l: '#7fd47a', t: P.brown,
+    r: P.silver, R: P.slate, f: P.yellow, F: P.orange,
+    w: P.wood, W: P.brown, m: P.silver, M: P.slate, a: P.sky, A: P.navy, k: P.charcoal, x: P.white, X: P.silver,
+  },
+  agent: {
+    outfits: [P.red, P.blue, P.yellow, P.green, P.orange, P.plum, P.sky, P.white],
+    hair: HAIR,
+    skin: SKIN,
+    pants: [P.navy, P.charcoal, P.brown, P.slate],
+    headgear: [null, null, null, 'cap'],
+    headgearColor: P.red,
+  },
+  ambient: 'none',
+  ui: { accent: P.yellow, label: P.white, labelBg: 'rgba(26,28,44,0.75)' },
+};

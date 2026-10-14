@@ -1,0 +1,83 @@
+import { useState } from 'react';
+import type { EventType } from '../api/types';
+import { mapLocations } from '../game/map/model';
+import { bus } from '../store/bus';
+import { useSim } from '../store/simStore';
+import { inject } from '../store/sources';
+
+const ICON: Partial<Record<EventType, string>> = {
+  agent_move: '➜',
+  agent_speak: '💬',
+  agent_action: '•',
+  agent_post: '📣',
+  interaction: '⇄',
+  scheduled_event: '⚑',
+  injected_event: '⚡',
+  reflection: '☁',
+  simulation_start: '▶',
+  simulation_end: '■',
+};
+
+const FILTERS: Array<[string, EventType[] | null]> = [
+  ['Todo', null],
+  ['Diálogo', ['agent_speak', 'interaction', 'agent_post']],
+  ['Movimiento', ['agent_move']],
+  ['Mundo', ['scheduled_event', 'injected_event', 'simulation_start', 'simulation_end']],
+  ['Reflexión', ['reflection']],
+];
+
+export function EventsPanel() {
+  const feed = useSim((s) => s.feed);
+  const sim = useSim((s) => s.sim);
+  const selectAgent = useSim((s) => s.selectAgent);
+  const [filter, setFilter] = useState(0);
+  const [text, setText] = useState('');
+  const [location, setLocation] = useState('');
+  const types = FILTERS[filter][1];
+  const items = feed.filter((f) => !types || types.includes(f.type)).slice(-200).reverse();
+
+  return (
+    <div className="panel-body">
+      <form
+        className="inject"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!text.trim()) return;
+          void inject(text.trim(), location);
+          setText('');
+        }}
+      >
+        <input className="input" placeholder="Inyectar suceso: «Se declara un incendio…»" value={text} onChange={(e) => setText(e.target.value)} />
+        <div className="row">
+          <select className="select" value={location} onChange={(e) => setLocation(e.target.value)}>
+            <option value="">Todo el mundo</option>
+            {sim && mapLocations(sim.environment).map((l) => <option key={l.name}>{l.name}</option>)}
+          </select>
+          <button className="btn btn-accent" type="submit">Inyectar</button>
+        </div>
+      </form>
+      <div className="filters">
+        {FILTERS.map(([label], i) => (
+          <button key={label} className={`chip-btn ${i === filter ? 'on' : ''}`} onClick={() => setFilter(i)}>{label}</button>
+        ))}
+      </div>
+      {items.length === 0 && <p className="empty">Sin sucesos todavía.</p>}
+      <ul className="feed">
+        {items.map((f) => (
+          <li key={f.id} className={`feed-item t-${f.type}`}>
+            <span className="tick">t{f.tick}</span>
+            <span className="icon">{ICON[f.type] ?? '·'}</span>
+            <span>
+              {f.source && (
+                <button className="link" onClick={() => { selectAgent(f.source); bus.emit('focusAgent', f.source); }}>
+                  {f.source}
+                </button>
+              )}{' '}
+              {f.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

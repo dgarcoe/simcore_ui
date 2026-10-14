@@ -1,0 +1,159 @@
+# Example scenario for simcore_ui's 'warehouse' theme.
+# Run: python -m simcore.cli run <path-to-this-file> --dashboard --demo --port 8420
+simulation:
+  name: Peak Season
+  description: 'A logistics warehouse on the week before the holidays: orders double, a forklift breaks and the night shift
+    is short-staffed.'
+  time_step: 1 hour
+  duration: 2 days
+  seed: 5
+  language: en
+llm:
+  model: gpt-4o-mini
+  cache: true
+  temperature: 0.8
+environment:
+  type: grid
+  size:
+  - 12
+  - 12
+  global_state:
+    ui_theme: warehouse
+    orders_pending: 1200
+    late_trucks: 0
+  locations:
+  - name: Loading Dock
+    type: transport
+    position:
+    - 2
+    - 2
+    capacity: 20
+    properties:
+      description: Trucks back in here; everything leaves through these doors
+  - name: Aisle A
+    type: storage
+    position:
+    - 6
+    - 2
+    capacity: 15
+    properties:
+      description: Pallet racks for bulky goods
+  - name: Aisle B
+    type: storage
+    position:
+    - 10
+    - 2
+    capacity: 15
+    properties:
+      description: Small parcels and fragile goods
+  - name: Packing Station
+    type: industrial
+    position:
+    - 6
+    - 7
+    capacity: 12
+    properties:
+      description: Conveyor and packing tables
+  - name: Shift Office
+    type: administrative
+    position:
+    - 10
+    - 7
+    capacity: 6
+    properties:
+      description: The supervisor's office with the order board
+  - name: Break Room
+    type: social
+    position:
+    - 2
+    - 7
+    capacity: 15
+    properties:
+      description: Coffee machine, vending machine, a sad plant
+agents:
+- name: Marta
+  age: 47
+  profession: shift supervisor
+  starting_location: Shift Office
+  personality:
+    openness: 0.4
+    conscientiousness: 0.9
+    extraversion: 0.6
+    agreeableness: 0.5
+    neuroticism: 0.6
+  goals:
+  - ship every order on time
+  - keep the team from burning out
+  backstory: Twenty years in logistics; has seen every kind of rush.
+  resources: {}
+- name: Deshawn
+  age: 31
+  profession: forklift driver
+  starting_location: Aisle A
+  personality:
+    openness: 0.5
+    conscientiousness: 0.6
+    extraversion: 0.7
+    agreeableness: 0.7
+    neuroticism: 0.3
+  goals:
+  - move the heavy pallets
+  - get the broken forklift fixed
+  backstory: Fastest forklift driver in the building and he knows it.
+  resources: {}
+- name: Aiko
+  age: 23
+  profession: picker
+  starting_location: Aisle B
+  personality:
+    openness: 0.7
+    conscientiousness: 0.7
+    extraversion: 0.4
+    agreeableness: 0.8
+    neuroticism: 0.5
+  goals:
+  - hit her picking targets
+  - save money for university
+  backstory: Seasonal hire. Quiet, quick and observant.
+  resources: {}
+- name: Big Lou
+  age: 58
+  profession: packer
+  starting_location: Packing Station
+  personality:
+    openness: 0.3
+    conscientiousness: 0.6
+    extraversion: 0.8
+    agreeableness: 0.6
+    neuroticism: 0.3
+  goals:
+  - keep the line moving
+  - make it to retirement
+  backstory: Knows everyone's name and everyone's gossip.
+  resources: {}
+- name: Priya
+  age: 35
+  profession: dock coordinator
+  starting_location: Loading Dock
+  personality:
+    openness: 0.6
+    conscientiousness: 0.8
+    extraversion: 0.6
+    agreeableness: 0.4
+    neuroticism: 0.5
+  goals:
+  - keep the trucks on schedule
+  - get promoted to supervisor
+  backstory: Ambitious and blunt; clashes with Marta.
+  resources: {}
+events:
+  scheduled:
+  - tick: 4
+    type: crisis
+    description: The main forklift breaks down in Aisle A with a pallet still raised.
+  - tick: 14
+    type: market_change
+    description: A big client doubles its order and wants it shipped tonight.
+  - tick: 28
+    type: escalation
+    description: Two trucks arrive at the same time and the dock is full.

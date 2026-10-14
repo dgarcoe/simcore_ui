@@ -1,0 +1,151 @@
+# Example scenario for simcore_ui's 'space-battle' theme.
+# Run: python -m simcore.cli run <path-to-this-file> --dashboard --demo --port 8420
+simulation:
+  name: Battle of Kepler Belt
+  description: Two fleets clash in an asteroid belt. Captains and pilots must decide when to fight, when to retreat and whom
+    to trust.
+  time_step: 1 hour
+  duration: 1 day
+  seed: 3
+  language: en
+llm:
+  model: gpt-4o-mini
+  cache: true
+  temperature: 0.8
+environment:
+  type: grid
+  size:
+  - 16
+  - 16
+  global_state:
+    ui_theme: space-battle
+    enemy_strength: unknown
+    fleet_morale: high
+  locations:
+  - name: Flagship Resolute
+    type: command
+    position:
+    - 3
+    - 8
+    capacity: 20
+    properties:
+      description: Command ship of the fleet
+  - name: Frigate Valiant
+    type: military
+    position:
+    - 8
+    - 3
+    capacity: 10
+    properties:
+      description: Fast escort frigate, heavily armed
+  - name: Carrier Aurora
+    type: transport
+    position:
+    - 8
+    - 13
+    capacity: 25
+    properties:
+      description: Launches the fighter squadrons
+  - name: Medical Station Hope
+    type: healthcare
+    position:
+    - 1
+    - 14
+    capacity: 12
+    properties:
+      description: Field hospital ship behind the lines
+  - name: Enemy Cruiser
+    type: military
+    position:
+    - 14
+    - 8
+    capacity: 15
+    properties:
+      description: The enemy's main warship
+agents:
+- name: Admiral Vance
+  age: 60
+  profession: fleet admiral
+  starting_location: Flagship Resolute
+  personality:
+    openness: 0.4
+    conscientiousness: 0.9
+    extraversion: 0.5
+    agreeableness: 0.4
+    neuroticism: 0.3
+  goals:
+  - win the battle
+  - lose as few ships as possible
+  backstory: Legendary tactician on her last campaign.
+  resources: {}
+- name: Captain Idris
+  age: 44
+  profession: frigate captain
+  starting_location: Frigate Valiant
+  personality:
+    openness: 0.6
+    conscientiousness: 0.6
+    extraversion: 0.7
+    agreeableness: 0.5
+    neuroticism: 0.4
+  goals:
+  - protect the flagship
+  - earn the admiral's trust
+  backstory: Bold to the point of recklessness.
+  resources: {}
+- name: Wing Leader Sato
+  age: 30
+  profession: fighter pilot
+  starting_location: Carrier Aurora
+  personality:
+    openness: 0.7
+    conscientiousness: 0.6
+    extraversion: 0.8
+    agreeableness: 0.6
+    neuroticism: 0.5
+  goals:
+  - bring his squadron home
+  - take down the enemy cruiser
+  backstory: Best pilot in the fleet; haunted by a lost wingman.
+  resources: {}
+- name: Dr. Reyes
+  age: 50
+  profession: field surgeon
+  starting_location: Medical Station Hope
+  personality:
+    openness: 0.7
+    conscientiousness: 0.8
+    extraversion: 0.4
+    agreeableness: 0.9
+    neuroticism: 0.5
+  goals:
+  - save every life she can
+  - end the war
+  backstory: Treats friend and enemy alike.
+  resources: {}
+- name: Commander Kael
+  age: 47
+  profession: enemy commander
+  starting_location: Enemy Cruiser
+  personality:
+    openness: 0.5
+    conscientiousness: 0.8
+    extraversion: 0.4
+    agreeableness: 0.3
+    neuroticism: 0.4
+  goals:
+  - hold the asteroid belt
+  - find a weakness in the fleet
+  backstory: Cold, patient and curious about his opponents.
+  resources: {}
+events:
+  scheduled:
+  - tick: 2
+    type: crisis
+    description: Enemy fighters emerge from behind the asteroids and attack the carrier.
+  - tick: 8
+    type: escalation
+    description: The Frigate Valiant takes a direct hit; its shields are down.
+  - tick: 16
+    type: turning_point
+    description: The enemy commander requests a ceasefire to recover the wounded.

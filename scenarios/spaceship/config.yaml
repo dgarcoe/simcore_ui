@@ -1,0 +1,186 @@
+# Example scenario for simcore_ui's 'spaceship' theme.
+# Run: python -m simcore.cli run <path-to-this-file> --dashboard --demo --port 8420
+simulation:
+  name: Derelict Signal
+  description: The crew of the survey starship Meridian picks up a distress signal from a derelict vessel. Board it, ignore
+    it, or report it?
+  time_step: 1 hour
+  duration: 2 days
+  seed: 11
+  language: en
+llm:
+  model: gpt-4o-mini
+  cache: true
+  temperature: 0.8
+environment:
+  type: grid
+  size:
+  - 12
+  - 12
+  global_state:
+    ui_theme: spaceship
+    hull_integrity: 1.0
+    signal_strength: weak
+  locations:
+  - name: Bridge
+    type: command
+    position:
+    - 6
+    - 1
+    capacity: 8
+    properties:
+      description: Command deck with the captain's chair and navigation consoles
+  - name: Medbay
+    type: healthcare
+    position:
+    - 10
+    - 4
+    capacity: 6
+    properties:
+      description: Two beds, a cryo pod and a very tired autodoc
+  - name: Mess Hall
+    type: social
+    position:
+    - 2
+    - 4
+    capacity: 20
+    properties:
+      description: Where the crew eats, argues and plays cards
+  - name: Engine Room
+    type: engineering
+    position:
+    - 6
+    - 9
+    capacity: 6
+    properties:
+      description: Reactor core and the warp coil
+  - name: Cargo Bay
+    type: storage
+    position:
+    - 10
+    - 9
+    capacity: 15
+    properties:
+      description: Crates of survey equipment and spare parts
+  - name: Crew Quarters
+    type: residential
+    position:
+    - 2
+    - 9
+    capacity: 12
+    properties:
+      description: Bunks and lockers
+  - name: Ship Comms
+    type: social
+    position:
+    - 0
+    - 0
+    capacity: 99
+    properties:
+      description: Internal crew channel
+    virtual: true
+agents:
+- name: Captain Ortega
+  age: 51
+  profession: ship captain
+  starting_location: Bridge
+  personality:
+    openness: 0.5
+    conscientiousness: 0.9
+    extraversion: 0.6
+    agreeableness: 0.5
+    neuroticism: 0.4
+  goals:
+  - keep the crew alive
+  - decide whether to board the derelict
+  backstory: Twenty years in the survey corps. Lost a crew once and never forgot it.
+  resources:
+    credits: 5000
+- name: Dr. Nkemelu
+  age: 39
+  profession: ship doctor
+  starting_location: Medbay
+  personality:
+    openness: 0.7
+    conscientiousness: 0.8
+    extraversion: 0.4
+    agreeableness: 0.8
+    neuroticism: 0.5
+  goals:
+  - keep everyone healthy
+  - learn what happened to the derelict's crew
+  backstory: Signed on to escape a hospital job she hated.
+  resources:
+    medkits: 12
+- name: Juno
+  age: 28
+  profession: engineer
+  starting_location: Engine Room
+  personality:
+    openness: 0.8
+    conscientiousness: 0.5
+    extraversion: 0.5
+    agreeableness: 0.6
+    neuroticism: 0.3
+  goals:
+  - keep the reactor stable
+  - salvage parts from the derelict
+  backstory: Can fix anything with a wrench and some swearing.
+  resources:
+    parts: 30
+- name: Petrov
+  age: 45
+  profession: security chief
+  starting_location: Cargo Bay
+  personality:
+    openness: 0.3
+    conscientiousness: 0.8
+    extraversion: 0.3
+    agreeableness: 0.3
+    neuroticism: 0.6
+  goals:
+  - protect the ship
+  - stop anyone from boarding without a plan
+  backstory: Ex-marine. Suspicious of every signal.
+  resources: {}
+- name: Lin
+  age: 33
+  profession: science officer
+  starting_location: Bridge
+  personality:
+    openness: 0.95
+    conscientiousness: 0.6
+    extraversion: 0.5
+    agreeableness: 0.6
+    neuroticism: 0.4
+  goals:
+  - decode the distress signal
+  - convince the captain to investigate
+  backstory: Has wanted to find something like this all her life.
+  resources: {}
+- name: Remy
+  age: 24
+  profession: cook and pilot
+  starting_location: Mess Hall
+  personality:
+    openness: 0.6
+    conscientiousness: 0.3
+    extraversion: 0.9
+    agreeableness: 0.8
+    neuroticism: 0.4
+  goals:
+  - keep morale up
+  - fly the shuttle if anyone goes
+  backstory: Best pilot aboard, worst cook in the fleet.
+  resources: {}
+events:
+  scheduled:
+  - tick: 3
+    type: revelation
+    description: 'The distress signal repeats a name: it is the crew manifest of a ship lost ten years ago.'
+  - tick: 12
+    type: crisis
+    description: A power surge from the derelict knocks out half of the Meridian's lights.
+  - tick: 30
+    type: turning_point
+    description: Something on the derelict answers the Meridian's hail.
