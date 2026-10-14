@@ -19,6 +19,9 @@ services:
         required: false
     environment:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://ollama:11434}
+      # Scenarios asking for a cloud model whose API key is missing use this
+      # local model instead (set by scripts/simcore-up.sh; empty = disabled).
+      SIMCORE_FALLBACK_MODEL: ${SIMCORE_FALLBACK_MODEL:-}
     extra_hosts:
       # lets Simcore reach an Ollama running on the host (docker/compose.host-ollama.yml)
       - "host.docker.internal:host-gateway"

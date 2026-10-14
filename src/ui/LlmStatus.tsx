@@ -38,7 +38,10 @@ export function llmHint(error: string): string {
     return 'El modelo no está descargado en Ollama: revisa `ollama list` (con scripts/simcore-up.sh se descarga solo) o cambia el modelo del escenario en el editor.';
   if (/connect|refused|resolve|name or service|timed? ?out|unreachable|11434/.test(e))
     return 'Simcore no llega a Ollama: arráncalo con scripts/simcore-up.sh (sin --demo) o revisa OLLAMA_API_BASE.';
-  if (/api[_ ]?key|auth|401|403/.test(e)) return 'Falta o no es válida la clave del proveedor: revisa .env (OPENAI_API_KEY / ANTHROPIC_API_KEY).';
+  if (/missing credentials|api[_ ]?key|auth|401|403/.test(e)) {
+    const model = useSim.getState().scenarioConfig?.llm?.model ?? 'un modelo de nube';
+    return `El escenario pide ${model}, un modelo de nube, y no hay clave configurada. Cámbialo en el editor (✎) a ollama/qwen2.5:7b, añade la clave en .env (OPENAI_API_KEY / ANTHROPIC_API_KEY), o arranca con scripts/simcore-up.sh, que usa el modelo local como sustituto.`;
+  }
   return 'Ejecuta scripts/simcore-up.sh doctor para diagnosticar el LLM.';
 }
 

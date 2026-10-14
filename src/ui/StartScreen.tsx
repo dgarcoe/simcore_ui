@@ -84,7 +84,8 @@ export function StartScreen() {
                   <li key={s.id}>
                     <div>
                       <strong>{s.meta.name}</strong>
-                      <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration} · {demo ? 'demo' : s.meta.llm_model || 'sin modelo'}</span>
+                      <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration} · </span>
+                      <ModelTag model={s.meta.llm_model} demo={demo} />
                       <p className="dim">{s.meta.description}</p>
                     </div>
                     <span className="row nowrap">
@@ -129,5 +130,20 @@ export function StartScreen() {
         </section>
       </div>
     </main>
+  );
+}
+
+/** Local models run on this machine; anything else needs a cloud API key (or the local fallback). */
+function ModelTag({ model, demo }: { model: string; demo: boolean }) {
+  if (demo) return <span className="dim">demo</span>;
+  if (!model) return <span className="dim">sin modelo</span>;
+  if (model.startsWith('ollama')) return <span className="dim">{model}</span>;
+  return (
+    <span
+      className="cloud-model"
+      title={`${model} es un modelo de nube: necesita su clave en .env. Si arrancaste con scripts/simcore-up.sh y no hay clave, se usa el modelo local en su lugar. También puedes cambiarlo con ✎.`}
+    >
+      ☁ {model}
+    </span>
   );
 }

@@ -1021,3 +1021,8 @@ details summary {
   color: var(--dim);
   font-size: 16px;
 }
+
+.cloud-model {
+  color: var(--accent);
+  cursor: help;
+}

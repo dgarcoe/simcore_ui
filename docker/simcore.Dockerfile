@@ -25,6 +25,10 @@ RUN pip install --no-cache-dir -e .
 # Example scenarios for the UI themes (spaceship, warehouse, factory, space battle).
 COPY scenarios/ /app/scenarios/
 
+# Local fallback for cloud models without API keys (see docker/sitecustomize.py).
+COPY docker/sitecustomize.py /opt/simcore-ui/sitecustomize.py
+ENV PYTHONPATH=/opt/simcore-ui
+
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8420
 # `manage` serves the API without a running simulation; the UI lists and launches scenarios.

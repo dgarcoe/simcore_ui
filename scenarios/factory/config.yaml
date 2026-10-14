@@ -9,7 +9,8 @@ simulation:
   seed: 21
   language: en
 llm:
-  model: gpt-4o-mini
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
   cache: true
   temperature: 0.8
 environment:

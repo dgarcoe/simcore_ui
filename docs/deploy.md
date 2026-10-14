@@ -33,14 +33,31 @@ Requiere **JetPack 6** (L4T r36) o **JetPack 5** (r35). Las Jetson Nano original
 
 Comprobación: `docker compose logs ollama` debe mencionar CUDA y la GPU, y `tegrastats` muestra `GR3D_FREQ` alto mientras los agentes deciden.
 
-**Si el contenedor de Ollama no detecta la GPU** (hay casos reportados en algunas versiones de JetPack 6.x), instala Ollama nativo, que soporta Jetson oficialmente:
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen2.5:3b && ollama cp qwen2.5:3b qwen2.5:7b
-./scripts/simcore-up.sh        # detecta el Ollama del host y lo usa
-```
+**Si el contenedor de Ollama no detecta la GPU** (hay casos reportados en algunas versiones de JetPack 6.x), instala Ollama nativo, que soporta Jetson oficialmente. Ver [Ollama instalado en el host](#ollama-instalado-en-el-host).
 
 La UI se puede abrir en la propia Jetson o desde otro equipo de la red: `http://<ip-de-la-jetson>:8080`.
+
+## Ollama instalado en el host
+
+Si ya hay un Ollama corriendo en la máquina (instalado con `curl -fsSL https://ollama.com/install.sh | sh`, la app de macOS…), el script lo reutiliza en vez de levantar uno en un contenedor:
+- **Modelo:** lo elige según el hardware (en la Orin Nano, `qwen2.5:3b`). Si falta, lo descarga en ese Ollama y lo publica también como `qwen2.5:7b`. Nunca sobreescribe un `qwen2.5:7b` real.
+- **Descarga manual:** `./scripts/simcore-up.sh pull [modelo]`.
+- **Logs:** no hay servicios `ollama` ni `ollama-pull`. Los logs de Ollama se ven con `journalctl -u ollama -f`, y los modelos cargados con `ollama ps`.
+- **Linux, acceso desde los contenedores:** el Ollama nativo solo escucha en `127.0.0.1` por defecto, y el contenedor de Simcore no puede llegar a él. El script lo comprueba y, si hace falta, indica cómo cambiarlo:
+  ```bash
+  sudo systemctl edit ollama
+  #   [Service]
+  #   Environment="OLLAMA_HOST=0.0.0.0:11434"
+  sudo systemctl restart ollama
+  ```
+  O usa `--no-host` para levantar Ollama en un contenedor.
+
+## Escenarios con modelos de nube (gpt-4o-mini…)
+
+Cada escenario indica su modelo en `llm.model`. Los locales empiezan por `ollama/`. En la pantalla de inicio, los que piden un modelo de nube aparecen marcados con ☁.
+- **Con la clave en `.env`** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`…): se usa el modelo de nube.
+- **Sin clave y arrancado con el script:** Simcore usa en su lugar el modelo local (`SIMCORE_FALLBACK_MODEL`) y lo anota en su log. Se desactiva con `--no-fallback`.
+- **Cambiarlo de forma permanente:** desde el editor (✎), poniendo `ollama/qwen2.5:7b`. Siempre con el prefijo `ollama/`: sin él, LiteLLM lo trata como un modelo de OpenAI.
 
 ## macOS (Apple Silicon o Intel)
 

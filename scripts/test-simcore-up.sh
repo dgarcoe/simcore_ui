@@ -14,11 +14,14 @@ cat >"$TMP/bin/docker" <<'STUB'
 case "$*" in
   "compose version --short") echo "${FAKE_COMPOSE:-2.29.1}" ;;
   info*) echo "${FAKE_RUNTIMES:-{\"runc\":{}}}" ;;
+  "network inspect"*) echo "${FAKE_GATEWAY:-172.17.0.1}" ;;
+  *"exec -T ollama ollama pull"*) echo "STUB container pull ${*: -1}" ;;
+  *"exec -T ollama ollama cp"*) echo "STUB container cp ${*: -2}" ;;
   *"exec -T ollama ollama list"*) printf '%b' "${FAKE_OLLAMA_LIST:-}" ;;
   *"exec -T ollama ollama ps"*) printf '%b' "${FAKE_OLLAMA_PS:-}" ;;
   *"exec -T ollama ollama run"*) [[ -n ${FAKE_OLLAMA_LIST:-} ]] && echo hola ;;
   *"logs --since"*) printf '%b' "${FAKE_SIMCORE_LOGS:-}" ;;
-  *) echo "docker $*" ;;
+  *) echo "STUB-DOCKER $*" ;;
 esac
 STUB
 cat >"$TMP/bin/nvidia-smi" <<'STUB'
@@ -32,13 +35,20 @@ esac
 STUB
 cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
-for a in "$@"; do url=$a; done
 for a in "$@"; do [[ $a == http* ]] && url=$a; done
 case "$url" in
   */api/state) [[ -n ${FAKE_STATE:-} ]] && echo "$FAKE_STATE" || exit 7 ;;
+  *172.17.0.1*) [[ ${FAKE_HOST_OLLAMA:-0} == 1 && ${FAKE_HOST_BIND:-all} == all ]] || exit 7
+     echo '{"models":[]}' ;;
+  */api/pull) echo "STUB http pull $*" ;;
+  */api/copy) echo "STUB http copy $*" ;;
   *) [[ ${FAKE_HOST_OLLAMA:-0} == 1 ]] || exit 7
      echo "{\"models\":[${FAKE_HOST_MODELS:-}]}" ;;
 esac
+STUB
+cat >"$TMP/bin/ollama" <<'STUB'
+#!/usr/bin/env bash
+echo "STUB cli $* (OLLAMA_HOST=$OLLAMA_HOST)"
 STUB
 chmod +x "$TMP/bin/"*
 
@@ -53,7 +63,7 @@ check() {
   shift
   local out dry=(--dry-run)
   [[ " $* " == *" doctor "* || -n ${NODRY:-} ]] && dry=()  # run for real against the stubs
-  out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" \
+  out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" SIMCORE_OLLAMA="${OLLAMACLI:-$TMP/bin/ollama}" \
     SIMCORE_NVIDIA_SMI="${NVSMI:-$TMP/bin/nvidia-smi}" \
     SIMCORE_UNAME_S="${OS:-Linux}" SIMCORE_UNAME_M="${ARCH:-x86_64}" \
     SIMCORE_TEGRA_RELEASE="${TEGRA:-$TMP/none}" SIMCORE_DT_MODEL="${DTMODEL:-$TMP/none}" \
@@ -104,11 +114,44 @@ ARCH=aarch64 TEGRA=$TMP/tegra32 DTMODEL=$TMP/dtmodel32 FAKE_RUNTIMES='{"nvidia":
 ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel check "Jetson sin runtime nvidia → CPU con aviso" \
   "runtime 'nvidia'" "LLM:      CPU" --
 
-FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"qwen2.5:7b"}' FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' check "Ollama del host tiene prioridad" \
-  "Ollama del host" "compose.host-ollama.yml" "!--profile ollama" "!OLLAMA_MODEL=" "!Tu Ollama no tiene" --
+FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"qwen2.5:7b"}' FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' check "Ollama del host tiene prioridad (y elige modelo por la GPU)" \
+  "Ollama del host" "NVIDIA Fake GPU" "compose.host-ollama.yml" "!--profile ollama" "Modelo:   qwen2.5:7b" "!se descargará" --
 
-FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"llama3.2:3b"}' check "Ollama del host sin el modelo de los escenarios → aviso" \
-  "ollama pull qwen2.5:7b" --
+meminfo 8
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"llama3.2:3b"}' \
+  check "Jetson con Ollama nativo → 3b, aviso de descarga" \
+  "Ollama del host" "Jetson Orin Nano" "Modelo:   qwen2.5:3b (también como qwen2.5:7b" "se descargará al arrancar" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"llama3.2:3b"}' NODRY=1 \
+  check "arranque con Ollama nativo: descarga + alias y arranca" \
+  "STUB cli pull qwen2.5:3b" "STUB cli cp qwen2.5:3b qwen2.5:7b" "up --build -d" "journalctl -u ollama" "!logs -f ollama-pull" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"qwen2.5:3b"},{"name":"qwen2.5:7b"}' NODRY=1 \
+  check "no pisa un qwen2.5:7b real ni descarga lo que ya hay" \
+  "qwen2.5:3b ya está" "qwen2.5:7b ya existe" "!STUB cli pull" "!STUB cli cp" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"llama3.2:3b"}' NODRY=1 OLLAMACLI=$TMP/none \
+  check "sin CLI de ollama usa la API HTTP" "usando la API HTTP" "Publicando qwen2.5:3b también como qwen2.5:7b" "En marcha" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost NODRY=1 \
+  check "Ollama nativo solo en 127.0.0.1 → error con la solución" \
+  "solo escucha en 127.0.0.1" "OLLAMA_HOST=0.0.0.0:11434" "!STUB-DOCKER" "!En marcha" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 NODRY=1 \
+  check "logs ollama-pull con Ollama nativo → explicación" \
+  "no hay servicio 'ollama' ni 'ollama-pull'" "journalctl -u ollama -f" "!STUB-DOCKER" -- logs ollama-pull
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_MODELS='{"name":"qwen2.5:3b"}' NODRY=1 \
+  check "pull MODELO en el Ollama nativo" "STUB cli pull llama3.2:3b" "STUB cli cp llama3.2:3b qwen2.5:7b" -- pull llama3.2:3b
+
+meminfo 16
+NVSMI=$TMP/none NODRY=1 check "pull en el contenedor" \
+  "--profile ollama up -d ollama" "STUB container pull qwen2.5:3b" "STUB container cp" -- pull
+
+NVSMI=$TMP/none check "sustituto de modelos de nube" \
+  "Nube:     escenarios con modelos de nube sin clave (gpt-4o-mini…) usan ollama/qwen2.5:7b" --
+NVSMI=$TMP/none check "--no-fallback lo desactiva" "!Nube:" -- --no-fallback
+NVSMI=$TMP/none check "con --no-alias el sustituto es el propio modelo" "usan ollama/qwen2.5:3b" -- --no-alias
 
 FAKE_HOST_OLLAMA=1 check "--no-host ignora el Ollama del host" "LLM:      CPU" "!host-ollama" -- --no-host
 
@@ -139,7 +182,7 @@ NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 42, "cache_hits": 3}}'
 
 FAKE_VRAM=24576 FAKE_RUNTIMES='{"nvidia":{}}' FAKE_STATE='{"llm_stats": {"total_calls": 9}}' FAKE_OLLAMA_LIST=$LIST \
   FAKE_OLLAMA_PS='NAME  PROCESSOR\nqwen2.5:7b  100% CPU\n' check "doctor avisa si hay GPU pero el modelo está en CPU" \
-  "corre en CPU aunque se detectó nvidia" -- doctor
+  "corre en CPU aunque se detectó GPU (nvidia)" -- doctor
 
 meminfo 8
 ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_RUNTIMES='{"nvidia":{}}' FAKE_STATE='{"llm_stats": {"total_calls": 9}}' \
