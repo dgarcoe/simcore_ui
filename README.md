@@ -19,7 +19,26 @@ Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`), s
 
 Todo el arte (tiles, personajes, muebles, emotes) se dibuja por código en `src/game/art/`, así que no hay dependencias de assets externos.
 
-## Uso
+## Docker (Simcore + UI)
+
+```bash
+cp .env.example .env        # opcional: claves de LLM, puertos, versión de Simcore
+docker compose up --build   # http://localhost:8080
+```
+
+- **`simcore`**: imagen construida desde [elisonfrank/simcore](https://github.com/elisonfrank/simcore), fijada a un commit (`SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la pantalla de inicio de la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados por API se guardan en un volumen. La API también queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
+- **`ui`**: build de producción servido por nginx, que redirige `/api` y `/ws` a `simcore`.
+- **LLM**: con "Modo demo" marcado no hace falta ninguno. Para usar OpenAI o Anthropic, pon las claves en `.env` y usa escenarios cuyo `llm.model` apunte a ese proveedor. Para un LLM local:
+
+  ```bash
+  docker compose --profile ollama up --build   # descarga OLLAMA_MODEL (qwen2.5:7b por defecto)
+  ```
+
+  Los escenarios incluidos en Simcore ya usan `ollama/qwen2.5:7b`.
+
+Para añadir un escenario propio, crea `scenarios/<nombre>/config.yaml` y vuelve a ejecutar `docker compose up --build`.
+
+## Desarrollo
 
 ```bash
 npm install

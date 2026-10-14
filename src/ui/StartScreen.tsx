@@ -57,8 +57,8 @@ export function StartScreen() {
           <h2>En vivo</h2>
           {apiError ? (
             <p className="warn">
-              No hay servidor Simcore en <code>/api</code> ({apiError}). Arráncalo con
-              <code>python -m simcore.cli run scenarios/epidemic/config.yaml --dashboard --demo --port 8420</code>
+              No hay servidor Simcore en <code>/api</code> ({apiError}). Levántalo todo con <code>docker compose up</code> o
+              arranca Simcore con <code>simcore manage --port 8420</code>
             </p>
           ) : (
             <>

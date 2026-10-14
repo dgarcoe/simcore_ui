@@ -1,0 +1,60 @@
+# Simcore + Simcore Pixel.
+#   cp .env.example .env      # optional: API keys, ports, Simcore version
+#   docker compose up --build
+#   open http://localhost:8080
+# Local LLM: docker compose --profile ollama up --build
+
+services:
+  simcore:
+    build:
+      context: .
+      dockerfile: docker/simcore.Dockerfile
+      args:
+        SIMCORE_REF: ${SIMCORE_REF:-896875746c8ba251da4c7b8ea8f4efa3cddb5bc4}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://ollama:11434}
+    volumes:
+      - simcore-user-scenarios:/app/scenarios_user
+    ports:
+      - "${SIMCORE_PORT:-8420}:8420"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/scenarios')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui.Dockerfile
+    ports:
+      - "${UI_PORT:-8080}:80"
+    depends_on:
+      simcore:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: [ollama]
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+  # One-shot: downloads the model used by Simcore's built-in scenarios.
+  ollama-pull:
+    image: ollama/ollama:0.12.6
+    profiles: [ollama]
+    depends_on: [ollama]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull ${OLLAMA_MODEL:-qwen2.5:7b}"]
+    restart: "no"
+
+volumes:
+  simcore-user-scenarios:
+  ollama-models:
