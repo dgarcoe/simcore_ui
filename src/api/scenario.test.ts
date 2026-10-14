@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, setModel, validateScenario, type ScenarioConfig } from './scenario';
+import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, setModel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -77,5 +77,14 @@ describe('setModel', () => {
     b.llm = { model: 'x', reflection_model: 'big' };
     setModel(b, 'y');
     expect(b.llm?.reflection_model).toBe('big');
+  });
+});
+
+describe('uniqueName', () => {
+  it('numbers copies instead of stacking suffixes', () => {
+    expect(uniqueName('Habitante', ['Habitante'])).toBe('Habitante 2');
+    expect(uniqueName('Habitante 2', ['Habitante', 'Habitante 2'])).toBe('Habitante 3');
+    expect(uniqueName('Habitante 2 2 2', ['Habitante', 'Habitante 2', 'Habitante 3'])).toBe('Habitante 4');
+    expect(uniqueName('Dr. Amara', ['Dr. Amara'])).toBe('Dr. Amara 2');
   });
 });

@@ -103,4 +103,48 @@ describe('reduce', () => {
     s = run([ev('tick_start', 4, {}), ev('agent_action', 4, { action: 'rests', reasoning: 'ok' }, 'Bob'), ev('tick_end', 4, stats(7))], s);
     expect(s.llm).toMatchObject({ failingTicks: 0, errors: 3 });
   });
+
+  it('drops leftovers of the previous run that arrive after a new start', () => {
+    const agents = (names: string[]) => Object.fromEntries(names.map((n) => [n.toLowerCase(), { name: n }]));
+    let s = run([
+      ev('simulation_start', 0, { config: 'Outbreak' }),
+      ev('tick_start', 1, {}),
+      ev('tick_end', 1, { clock: { tick: 1 }, agents: agents(['Rosa', 'Frank']) }),
+    ]);
+    // A new scenario starts while Outbreak's tick 32 is still waiting on the LLM.
+    s = run(
+      [
+        ev('simulation_start', 0, { config: 'Zombies' }),
+        ev('agent_action', 32, { action: 'observes surroundings' }, 'Rosa'),
+        ev('tick_end', 32, { clock: { tick: 32 }, agents: agents(['Rosa', 'Frank']) }),
+        ev('simulation_end', 32, {}),
+        ev('tick_start', 1, {}),
+        ev('agent_action', 1, { action: 'observes surroundings' }, 'Zombie'),
+        ev('tick_end', 1, { clock: { tick: 1, max_ticks: 24 }, agents: agents(['Zombie', 'Ana']) }),
+      ],
+      s,
+    );
+    expect(s.scenarioName).toBe('Zombies');
+    expect(s.status).toBe('running');
+    expect(s.sim?.clock.tick).toBe(1);
+    expect(s.feed.map((f) => f.source || f.text)).toEqual(['▶ Zombies started', 'Zombie']);
+    expect(s.runAgents).toEqual(['Zombie', 'Ana']);
+    // a late Outbreak action with a plausible tick is still caught by its agent
+    expect(reduce(s, ev('agent_action', 2, { action: 'rests' }, 'Frank'))).toBeNull();
+    // and its simulation_end, even with a tick that fits the new run
+    expect(reduce(s, ev('simulation_end', 1, {}))).toBeNull();
+    // the new run ends normally at its last tick, or early if this UI stopped it
+    expect(reduce({ ...s, lastTick: 23 }, ev('simulation_end', 24, {}))?.status).toBe('ended');
+    expect(reduce({ ...s, stopRequested: true }, ev('simulation_end', 1, {}))?.status).toBe('ended');
+  });
+
+  it('ignores an end that arrives before the new run has a tick', () => {
+    const s = run([ev('simulation_start', 0, { config: 'B' }), ev('simulation_end', 1, {})]);
+    expect(s.status).toBe('running');
+  });
+
+  it('keeps everything when joining a run mid-way', () => {
+    const s = run([ev('agent_action', 40, { action: 'rests' }, 'Ann'), ev('tick_start', 41, {})]);
+    expect(s.feed).toHaveLength(1);
+  });
 });

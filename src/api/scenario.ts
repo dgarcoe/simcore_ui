@@ -126,6 +126,16 @@ export function setModel(cfg: ScenarioConfig, model: string): void {
   llm.model = model;
 }
 
+/**
+ * A name not used yet, based on `name`: "Habitante" → "Habitante 2",
+ * "Habitante 2" → "Habitante 3" (trailing numbers are replaced, not stacked).
+ */
+export function uniqueName(name: string, taken: string[]): string {
+  const base = name.replace(/(\s+\d+)+\s*$/, '').trim() || name.trim() || 'Agente';
+  const used = new Set(taken);
+  for (let n = 2; ; n++) if (!used.has(`${base} ${n}`)) return `${base} ${n}`;
+}
+
 /** The environment Simcore would build from this config (as /api/state reports it). */
 export function configToEnvironment(cfg: ScenarioConfig): Environment {
   const [width, height] = cfg.environment.size ?? [20, 20];

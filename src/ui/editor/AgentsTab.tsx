@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DEFAULT_PERSONALITY, type AgentConfig, type PersonalityConfig } from '../../api/scenario';
+import { DEFAULT_PERSONALITY, uniqueName, type AgentConfig, type PersonalityConfig } from '../../api/scenario';
 import { archetypeFor } from '../../game/art/archetypes';
 import type { ThemePack } from '../../themes/types';
 import { Portrait } from '../Portrait';
@@ -54,9 +54,9 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
     update((d) => {
       d.agents.push(
         base
-          ? { ...structuredClone(base), name: `${base.name} 2` }
+          ? { ...structuredClone(base), name: uniqueName(base.name, d.agents.map((a) => a.name)) }
           : {
-              name: `Agente ${d.agents.length + 1}`,
+              name: uniqueName('Agente', d.agents.map((a) => a.name)),
               age: 30,
               profession: '',
               personality: { ...DEFAULT_PERSONALITY },

@@ -62,7 +62,12 @@ export const useSim = create<UIState>()((set, get) => ({
     if (!next) return;
     const patch: Partial<UIState> = next;
     if (next.scenarioName !== prev.scenarioName) patch.themeChoice = loadThemeChoice(next.scenarioName);
-    if (e.type === 'simulation_start') patch.paused = false;
+    if (e.type === 'simulation_start') {
+      patch.paused = false;
+      // Launched from this UI: we already know who takes part in the new run.
+      const cfg = prev.scenarioConfig;
+      if (cfg && cfg.simulation.name === next.scenarioName) patch.runAgents = cfg.agents.map((a) => a.name);
+    }
     set(patch);
     if (!silent) bus.emit('event', e);
   },

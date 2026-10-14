@@ -98,6 +98,7 @@ export async function control(action: 'pause' | 'resume' | 'stop'): Promise<void
     else if (action === 'resume') replay.resume();
     else replay.dispose();
   } else if (mode === 'live') {
+    if (action === 'stop') useSim.getState().set({ stopRequested: true });
     await api.control(action);
   }
   useSim.getState().set({ paused: action === 'pause' });

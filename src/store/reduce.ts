@@ -79,6 +79,14 @@ export interface SimSnapshot {
   reflections: Record<string, { tick: number; text: string }[]>;
   banner: Banner | null;
   llm: LlmStatus;
+  /** Last tick of the current run (-1 = unknown, e.g. joined mid-run). */
+  lastTick: number;
+  /** Agent names of the current run, once known. */
+  runAgents: string[] | null;
+  /** max_ticks of the current run, once a tick of it has been seen. */
+  runMaxTicks: number | null;
+  /** Set when this UI asked Simcore to stop, so an early simulation_end is expected. */
+  stopRequested: boolean;
   seq: number;
   recent: SimEvent[];
 }
@@ -99,6 +107,10 @@ export function initialSnapshot(): SimSnapshot {
     reflections: {},
     banner: null,
     llm: initialLlm(),
+    lastTick: -1,
+    runAgents: null,
+    runMaxTicks: null,
+    stopRequested: false,
     seq: 0,
     recent: [],
   };
@@ -116,9 +128,37 @@ function isDuplicate(recent: SimEvent[], e: SimEvent): boolean {
   );
 }
 
-/** Returns null when the event is a duplicate and must be ignored. */
+function namesOf(state: SimState): string[] | null {
+  const names = Object.values(state.agents ?? {}).map((a) => a.name);
+  return names.length ? names : null;
+}
+
+const AGENT_EVENTS = new Set<string>(['agent_speak', 'agent_move', 'agent_action', 'agent_post', 'interaction', 'reflection']);
+
+/**
+ * When a new scenario is launched, Simcore asks the old engine to stop, but a
+ * tick already waiting on a slow LLM still finishes and its events (tick_end,
+ * actions, simulation_end) arrive after the new simulation_start. Events that
+ * jump ahead of the current run or come from agents not in it are leftovers.
+ */
+export function isStale(s: SimSnapshot, e: SimEvent): boolean {
+  if (e.type === 'simulation_start' || s.lastTick < 0) return false;
+  if (e.tick > s.lastTick + 1) return true;
+  // A run only ends early when someone stops it; otherwise at its last tick.
+  if (e.type === 'simulation_end' && !s.stopRequested && (s.runMaxTicks === null || e.tick < s.runMaxTicks)) return true;
+  if (!s.runAgents?.length) return false;
+  if (AGENT_EVENTS.has(e.type) && e.source && !s.runAgents.includes(e.source)) return true;
+  if (e.type === 'tick_end') {
+    const names = Object.values((e.data as SimState).agents ?? {}).map((a) => a.name);
+    return names.length > 0 && names.some((n) => !s.runAgents!.includes(n));
+  }
+  return false;
+}
+
+/** Returns null when the event is a duplicate or a leftover and must be ignored. */
 export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
   if (e.type !== 'tick_end' && isDuplicate(s.recent, e)) return null;
+  if (isStale(s, e)) return null;
   const recent = e.type === 'tick_end' ? s.recent : [...s.recent.slice(-30), e];
   const seq = s.seq + 1;
   let next: SimSnapshot = { ...s, recent, seq };
@@ -130,6 +170,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         sim: s.sim,
         scenarioName: String(e.data.config ?? ''),
         status: 'running',
+        lastTick: 0,
         seq,
         recent: [e],
         feed: [feedItem(seq, e, `▶ ${e.data.config ?? 'Simulation'} started`)],
@@ -142,13 +183,21 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         feed: pushFeed(next.feed, feedItem(seq, e, '■ Simulation finished')),
       };
     case 'tick_start':
-      return { ...next, status: 'running', llm: { ...s.llm, tickDecisions: 0, tickErrors: 0 } };
+      return {
+        ...next,
+        status: 'running',
+        llm: { ...s.llm, tickDecisions: 0, tickErrors: 0 },
+        lastTick: s.lastTick < 0 ? s.lastTick : Math.max(s.lastTick, e.tick),
+      };
     case 'tick_end':
       return {
         ...next,
         sim: e.data as SimState,
         status: s.status === 'idle' ? 'running' : s.status,
         llm: llmAfterTick(s.llm, (e.data as SimState).llm_stats),
+        lastTick: Math.max(s.lastTick, e.tick),
+        runAgents: s.runAgents ?? namesOf(e.data as SimState),
+        runMaxTicks: (e.data as SimState).clock?.max_ticks ?? s.runMaxTicks,
       };
     case 'scheduled_event':
     case 'injected_event': {
