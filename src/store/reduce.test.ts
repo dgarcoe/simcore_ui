@@ -147,4 +147,39 @@ describe('reduce', () => {
     const s = run([ev('agent_action', 40, { action: 'rests' }, 'Ann'), ev('tick_start', 41, {})]);
     expect(s.feed).toHaveLength(1);
   });
+
+  it('tracks tick progress and each agent reasoning', () => {
+    let s = run([ev('tick_start', 3, {}), ev('agent_action', 3, { action: 'rests', reasoning: 'I am tired' }, 'Ann')]);
+    expect(s.progress).toEqual({ tick: 3, phase: 'deciding', decided: ['Ann'] });
+    expect(s.reasoning.Ann).toEqual({ tick: 3, action: 'rests', text: 'I am tired' });
+    expect(s.feed.at(-1)?.reasoning).toBe('I am tired');
+    s = run([ev('agent_move', 3, { action: 'moves to Park', reasoning: 'fresh air' }, 'Bob'), ev('reflection', 3, { summary: 'hm' }, 'Ann')], s);
+    expect(s.progress).toMatchObject({ phase: 'reflecting', decided: ['Ann', 'Bob'] });
+    s = run([ev('tick_end', 3, { clock: { tick: 3 } })], s);
+    expect(s.progress.phase).toBe('idle');
+  });
+
+  it('counts unparsable answers separately from failing calls', () => {
+    const parse = (src: string, tick = 5) => ev('agent_action', tick, { action: 'waits', reasoning: "Parse error: 'talk' is not a valid ActionType" }, src);
+    let s = run([
+      ev('tick_start', 5, {}),
+      parse('Ann'),
+      ev('agent_action', 5, { action: 'rests', reasoning: 'ok' }, 'Bob'),
+      ev('tick_end', 5, { llm_stats: { total_calls: 2 } }),
+    ]);
+    expect(s.llm).toMatchObject({ parseErrors: 1, lastTickParseErrors: 1, lastTickDecisions: 2, failingTicks: 0, errors: 0 });
+    expect(s.llm.lastParseError).toContain('not a valid ActionType');
+    s = run([ev('tick_start', 6, {}), parse('Ann', 6), parse('Bob', 6), ev('tick_end', 6, { llm_stats: { total_calls: 4 } })], s);
+    expect(s.llm).toMatchObject({ failingTicks: 1, failKind: 'parse', lastTickParseErrors: 2 });
+  });
+
+  it('starts over when the same scenario is launched again', () => {
+    const start = ev('simulation_start', 0, { config: 'Outbreak', agents: 6 });
+    let s = run([start, ev('tick_start', 1, { time: 'Day 1, 01:00' }), ev('agent_action', 1, { action: 'rests', reasoning: 'tired' }, 'Ann')]);
+    s = run([ev('tick_start', 5, { time: 'Day 1, 05:00' })], { ...s, lastTick: 4 });
+    // relaunch: identical start, then the same first events as the previous run
+    s = run([start, ev('tick_start', 6, {}), ev('tick_start', 1, { time: 'Day 1, 01:00' }), ev('agent_action', 1, { action: 'rests', reasoning: 'tired' }, 'Ann')], s);
+    expect(s.progress).toMatchObject({ tick: 1, decided: ['Ann'] });
+    expect(s.feed.map((f) => f.source || f.text)).toEqual(['▶ Outbreak started', 'Ann']);
+  });
 });

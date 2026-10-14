@@ -11,6 +11,8 @@ export interface FeedItem {
   source: string;
   text: string;
   action?: ParsedAction;
+  /** Why the agent did it (the LLM's reasoning, or Simcore's note). */
+  reasoning?: string;
 }
 
 export type ChatKind = 'speak' | 'trade' | 'interact';
@@ -59,15 +61,48 @@ export interface LlmStatus {
   lastErrorTick: number;
   /** Consecutive ticks in which every decision failed. */
   failingTicks: number;
+  /** What made the last failing tick fail: the call itself or an unusable answer. */
+  failKind: 'llm' | 'parse';
+  /** Answers Simcore could not parse (the model ignored the JSON format). */
+  parseErrors: number;
+  lastParseError: string;
+  /** Parse errors in the last finished tick, and how many decisions it had. */
+  lastTickParseErrors: number;
+  lastTickDecisions: number;
   tickDecisions: number;
   tickErrors: number;
+  tickParseErrors: number;
 }
 
 export function initialLlm(): LlmStatus {
-  return { mode: 'unknown', calls: 0, cacheHits: 0, errors: 0, lastError: '', lastErrorTick: -1, failingTicks: 0, tickDecisions: 0, tickErrors: 0 };
+  return {
+    mode: 'unknown',
+    calls: 0,
+    cacheHits: 0,
+    errors: 0,
+    lastError: '',
+    lastErrorTick: -1,
+    failingTicks: 0,
+    failKind: 'llm',
+    parseErrors: 0,
+    lastParseError: '',
+    lastTickParseErrors: 0,
+    lastTickDecisions: 0,
+    tickDecisions: 0,
+    tickErrors: 0,
+    tickParseErrors: 0,
+  };
 }
 
 const LLM_ERROR = /^LLM error:\s*/;
+const PARSE_ERROR = /^Parse error:\s*/;
+
+/** Progress of the tick being computed: who has already decided. */
+export interface TickProgress {
+  tick: number;
+  phase: 'idle' | 'deciding' | 'reflecting';
+  decided: string[];
+}
 
 export interface SimSnapshot {
   sim: SimState | null;
@@ -87,6 +122,9 @@ export interface SimSnapshot {
   runMaxTicks: number | null;
   /** Set when this UI asked Simcore to stop, so an early simulation_end is expected. */
   stopRequested: boolean;
+  progress: TickProgress;
+  /** Latest decision of each agent with its reasoning. */
+  reasoning: Record<string, { tick: number; action: string; text: string }>;
   seq: number;
   recent: SimEvent[];
 }
@@ -111,6 +149,8 @@ export function initialSnapshot(): SimSnapshot {
     runAgents: null,
     runMaxTicks: null,
     stopRequested: false,
+    progress: { tick: 0, phase: 'idle', decided: [] },
+    reasoning: {},
     seq: 0,
     recent: [],
   };
@@ -157,7 +197,8 @@ export function isStale(s: SimSnapshot, e: SimEvent): boolean {
 
 /** Returns null when the event is a duplicate or a leftover and must be ignored. */
 export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
-  if (e.type !== 'tick_end' && isDuplicate(s.recent, e)) return null;
+  // A relaunched scenario repeats its simulation_start verbatim: never a duplicate.
+  if (e.type !== 'tick_end' && e.type !== 'simulation_start' && isDuplicate(s.recent, e)) return null;
   if (isStale(s, e)) return null;
   const recent = e.type === 'tick_end' ? s.recent : [...s.recent.slice(-30), e];
   const seq = s.seq + 1;
@@ -186,8 +227,9 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       return {
         ...next,
         status: 'running',
-        llm: { ...s.llm, tickDecisions: 0, tickErrors: 0 },
+        llm: { ...s.llm, tickDecisions: 0, tickErrors: 0, tickParseErrors: 0 },
         lastTick: s.lastTick < 0 ? s.lastTick : Math.max(s.lastTick, e.tick),
+        progress: { tick: e.tick, phase: 'deciding', decided: [] },
       };
     case 'tick_end':
       return {
@@ -198,6 +240,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         lastTick: Math.max(s.lastTick, e.tick),
         runAgents: s.runAgents ?? namesOf(e.data as SimState),
         runMaxTicks: (e.data as SimState).clock?.max_ticks ?? s.runMaxTicks,
+        progress: { ...s.progress, tick: e.tick, phase: 'idle' },
       };
     case 'scheduled_event':
     case 'injected_event': {
@@ -218,6 +261,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         ...next,
         reflections: { ...s.reflections, [e.source]: list },
         feed: pushFeed(next.feed, feedItem(seq, e, text)),
+        progress: { ...s.progress, phase: 'reflecting' },
       };
     }
     case 'interaction': {
@@ -237,10 +281,15 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     case 'agent_action':
     case 'agent_post': {
       const action = parseAction(e.data.action);
+      const reasoning = String(e.data.reasoning ?? '');
       next = {
         ...next,
         llm: llmAfterDecision(s.llm, e),
-        feed: pushFeed(next.feed, { ...feedItem(seq, e, String(e.data.action ?? '')), action }),
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, String(e.data.action ?? '')), action, reasoning: reasoning || undefined }),
+        reasoning: { ...s.reasoning, [e.source]: { tick: e.tick, action: String(e.data.action ?? ''), text: reasoning } },
+        progress: s.progress.decided.includes(e.source)
+          ? s.progress
+          : { ...s.progress, tick: e.tick, decided: [...s.progress.decided, e.source] },
       };
       if (action.kind === 'speak') {
         next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target: action.target, kind: 'speak', text: action.content });
@@ -257,26 +306,35 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
 function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {
   const reasoning = String(e.data.reasoning ?? '');
   const failed = LLM_ERROR.test(reasoning);
+  const unparsable = PARSE_ERROR.test(reasoning);
   return {
     ...llm,
     tickDecisions: llm.tickDecisions + 1,
     tickErrors: llm.tickErrors + (failed ? 1 : 0),
+    tickParseErrors: llm.tickParseErrors + (unparsable ? 1 : 0),
     errors: llm.errors + (failed ? 1 : 0),
+    parseErrors: llm.parseErrors + (unparsable ? 1 : 0),
     lastError: failed ? reasoning.replace(LLM_ERROR, '') : llm.lastError,
-    lastErrorTick: failed ? e.tick : llm.lastErrorTick,
+    lastParseError: unparsable ? reasoning.replace(PARSE_ERROR, '') : llm.lastParseError,
+    lastErrorTick: failed || unparsable ? e.tick : llm.lastErrorTick,
   };
 }
 
 function llmAfterTick(llm: LlmStatus, stats: Record<string, unknown> | undefined): LlmStatus {
-  const allFailed = llm.tickDecisions > 0 && llm.tickErrors === llm.tickDecisions;
+  const bad = llm.tickErrors + llm.tickParseErrors;
+  const allFailed = llm.tickDecisions > 0 && bad === llm.tickDecisions;
   return {
     ...llm,
     mode: !stats ? llm.mode : stats.mode === 'demo' ? 'demo' : 'llm',
     calls: Number(stats?.total_calls ?? llm.calls),
     cacheHits: Number(stats?.cache_hits ?? llm.cacheHits),
-    failingTicks: allFailed ? llm.failingTicks + 1 : llm.tickErrors === 0 ? 0 : llm.failingTicks,
+    failingTicks: allFailed ? llm.failingTicks + 1 : bad === 0 ? 0 : llm.failingTicks,
+    failKind: allFailed ? (llm.tickErrors > 0 ? 'llm' : 'parse') : llm.failKind,
+    lastTickParseErrors: llm.tickParseErrors,
+    lastTickDecisions: llm.tickDecisions,
     tickDecisions: 0,
     tickErrors: 0,
+    tickParseErrors: 0,
   };
 }
 

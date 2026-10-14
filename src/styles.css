@@ -1026,3 +1026,49 @@ details summary {
   color: var(--accent);
   cursor: help;
 }
+
+/* ── tick progress & reasoning ─────────────────────────────── */
+
+.chip.warn {
+  color: var(--accent);
+}
+
+.tick-progress {
+  color: var(--accent);
+  font-size: 16px;
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.spinner {
+  display: inline-block;
+  animation: spin 1.2s steps(4) infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.why {
+  display: block;
+  color: var(--dim);
+  font-size: 16px;
+  font-style: italic;
+}
+
+.why::before {
+  content: '↳ ';
+  font-style: normal;
+}
+
+.why-bad {
+  color: var(--bad);
+}
+
+.why-block {
+  margin: 4px 0;
+}

@@ -1,5 +1,5 @@
 import { bus } from '../store/bus';
-import { LlmChip } from './LlmStatus';
+import { LlmChip, TickProgress } from './LlmStatus';
 import { useSim } from '../store/simStore';
 import { control, leave, restartReplay } from '../store/sources';
 import type { ThemeSource } from '../themes/registry';
@@ -37,6 +37,7 @@ export function TopBar({ theme, detected }: { theme: ThemePack; detected: { them
         <div className="clock">
           {clock ? `${clock.time} · tick ${clock.tick}/${clock.max_ticks}` : 'esperando datos…'}
         </div>
+        <TickProgress />
         <div className="progress" aria-label={`Progreso ${progress}%`}>
           <div style={{ width: `${progress}%` }} />
         </div>

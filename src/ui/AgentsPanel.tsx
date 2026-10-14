@@ -26,6 +26,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
   const selected = useSim((s) => s.selectedAgent);
   const follow = useSim((s) => s.follow);
   const reflections = useSim((s) => s.reflections);
+  const lastWhy = useSim((s) => s.reasoning);
   const { selectAgent, set } = useSim.getState();
   const agents = sim ? Object.values(sim.agents).sort((a, b) => a.name.localeCompare(b.name)) : [];
   const agent = agents.find((a) => a.name === selected);
@@ -69,6 +70,12 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
             </div>
           </div>
           {agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}
+          {lastWhy[agent.name]?.text && (
+            <p className="why-block">
+              <span className="dim">Por qué (t{lastWhy[agent.name].tick}): </span>
+              {lastWhy[agent.name].text}
+            </p>
+          )}
           <dl className="stats">
             <dt>Ánimo</dt>
             <dd><Meter value={agent.state.mood} min={-1} max={1} color={agent.state.mood >= 0 ? '#38b764' : '#b13e53'} /></dd>

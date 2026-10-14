@@ -410,7 +410,15 @@ doctor() {
       ps=$("${dc[@]}" exec -T ollama ollama ps 2>/dev/null || true)
     fi
     end=$(date +%s)
-    if [[ -n $reply ]]; then ok "Respuesta de prueba de $test_model en $((end - start)) s"
+    if [[ -n $reply ]]; then
+      local secs=$((end - start)) agents per_tick
+      ok "Respuesta de prueba de $test_model en ${secs} s"
+      # Simcore asks every agent at once; Ollama serves $parallel at a time.
+      agents=$(grep -o '"memory_summary"' <<<"$state" | wc -l | tr -d ' ' || true)
+      if ((agents > 0)); then
+        per_tick=$(((agents + parallel - 1) * (secs > 0 ? secs : 1) / parallel))
+        info "Con $agents agentes y $parallel peticiones a la vez, cada tick tardará unos ${per_tick} s o más (las decisiones reales son más largas que la prueba)."
+      fi
     else bad "$test_model no respondió a una petición de prueba"; fi
 
     if grep -q "CPU/GPU" <<<"$ps"; then
@@ -423,14 +431,23 @@ doctor() {
     [[ -n $ps ]] && while IFS= read -r l; do info "$l"; done <<<"$ps"
   fi
 
-  # 4. Recent failures logged by Simcore.
-  local fails
-  fails=$("${dc[@]}" logs --since 15m simcore 2>/dev/null | grep "LLM call failed" || true)
+  # 4. Recent failures logged by Simcore: failed calls and answers it could not parse.
+  local logs fails unparsable
+  logs=$("${dc[@]}" logs --since 15m simcore 2>/dev/null || true)
+  fails=$(grep "LLM call failed" <<<"$logs" || true)
+  unparsable=$(grep "Failed to parse action" <<<"$logs" || true)
   if [[ -n $fails ]]; then
     bad "Simcore registró $(wc -l <<<"$fails" | tr -d ' ') llamadas fallidas en los últimos 15 min. Última:"
     info "$(tail -n1 <<<"$fails" | sed 's/.*LLM call failed: //' | cut -c1-200)"
   else
     ok "Sin llamadas fallidas en los registros de Simcore (15 min)"
+  fi
+  if [[ -n $unparsable ]]; then
+    bad "$(wc -l <<<"$unparsable" | tr -d ' ') respuestas del modelo no tenían el formato que espera Simcore (15 min); esos agentes solo esperan. Última:"
+    info "$(tail -n1 <<<"$unparsable" | sed 's/.*Failed to parse action: //' | cut -c1-200)"
+    info "Prueba otro modelo: ./scripts/simcore-up.sh pull llama3.2:3b y cámbialo en el editor (✎)."
+  else
+    ok "Todas las respuestas del modelo tenían el formato correcto (15 min)"
   fi
 
   echo

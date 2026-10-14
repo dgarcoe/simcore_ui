@@ -74,10 +74,15 @@ export function EventsPanel() {
                 </button>
               )}{' '}
               {f.text}
+              {f.reasoning && <span className={`why ${/^(LLM|Parse) error/.test(f.reasoning) ? 'why-bad' : ''}`}>{shortWhy(f.reasoning)}</span>}
             </span>
           </li>
         ))}
       </ul>
     </div>
   );
+}
+
+function shortWhy(text: string): string {
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text;
 }

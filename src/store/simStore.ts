@@ -12,6 +12,8 @@ export interface UIState extends SimSnapshot {
   paused: boolean;
   /** Replay only: milliseconds per tick. */
   tickMs: number;
+  /** When the current tick started (ms), to show how long the LLM is taking. */
+  tickStartedAt: number;
   scenarioDescription: string;
   /** Full config of the running scenario when known (agents' professions, resources…). */
   scenarioConfig: ScenarioConfig | null;
@@ -48,6 +50,7 @@ export const useSim = create<UIState>()((set, get) => ({
   connected: false,
   paused: false,
   tickMs: 1200,
+  tickStartedAt: 0,
   scenarioDescription: '',
   scenarioConfig: null,
   professions: {},
@@ -62,6 +65,7 @@ export const useSim = create<UIState>()((set, get) => ({
     if (!next) return;
     const patch: Partial<UIState> = next;
     if (next.scenarioName !== prev.scenarioName) patch.themeChoice = loadThemeChoice(next.scenarioName);
+    if (e.type === 'tick_start') patch.tickStartedAt = Date.now();
     if (e.type === 'simulation_start') {
       patch.paused = false;
       // Launched from this UI: we already know who takes part in the new run.

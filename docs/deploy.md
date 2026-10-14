@@ -84,10 +84,13 @@ OLLAMA_API_BASE=http://192.168.1.50:11434 docker compose -f docker-compose.yml -
 
 Si todos los agentes repiten frases como «Hey X, how's business today?» o «The weather's been interesting lately», la simulación está en **modo demo**: son respuestas de ejemplo de Simcore y no se llama a ningún LLM.
 
+- **Progreso del tick:** bajo el reloj aparece «Tick N · k/M agentes han decidido · esperando al LLM · 42 s». Mientras ese contador avance, el LLM está trabajando aunque todavía no haya conversaciones.
+- **Por qué hace cada agente lo que hace:** en Sucesos, debajo de cada acción, y en la ficha del agente («Por qué»).
 - **En la UI:** la barra superior muestra el estado del LLM:
   - `DEMO · sin LLM`: modo demo.
   - `LLM · qwen2.5:7b · N`: LLM real, con el número de llamadas hechas.
   - `LLM con errores`: el LLM falla. Además aparece un aviso con el error real y una pista para resolverlo.
+  - `LLM · 2/6 no válidas` (amarillo): parte de las respuestas no tienen el formato JSON que espera Simcore, y esos agentes solo esperan. Es típico de modelos pequeños: prueba otro modelo.
 - **Casilla «Modo demo»:** al ejecutar un escenario viene desmarcada por defecto, y la UI recuerda tu elección.
 - **Diagnóstico completo:**
   ```bash

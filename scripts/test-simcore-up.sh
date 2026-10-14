@@ -226,6 +226,12 @@ NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 12}}' FAKE_OLLAMA_LIST
   check "doctor señala el modelo que falta y los fallos" \
   "Falta el modelo qwen2.5:7b" "llamadas fallidas" "not found" -- doctor
 
+NVSMI=$TMP/none FAKE_STATE='{"llm_stats": {"total_calls": 12}, "agents": {"a": {"memory_summary": ""}, "b": {"memory_summary": ""}, "c": {"memory_summary": ""}}}' \
+  FAKE_OLLAMA_LIST=$LIST \
+  FAKE_SIMCORE_LOGS="simcore | WARNING Failed to parse action: 'talk' is not a valid ActionType. Content: {\"action\": \"talk\"}\n" \
+  check "doctor detecta respuestas con formato no válido y estima el tick" \
+  "1 respuestas del modelo no tenían el formato" "not a valid ActionType" "pull llama3.2:3b" "Con 3 agentes y 2 peticiones a la vez" -- doctor
+
 NVSMI=$TMP/none check "doctor sin Simcore arrancado" "Simcore no responde" "El contenedor de Ollama no responde" -- doctor
 
 echo
