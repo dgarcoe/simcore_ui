@@ -2,6 +2,7 @@
 // tile grid; links between zones are carved as paths / corridors / lanes.
 // Themes only decide how each ground type, zone role and prop looks.
 
+import type { MapHints } from '../../api/scenario';
 import type { Environment, Location } from '../../api/types';
 import { findPath, type Tile } from './pathfinding';
 import { resolveRole, type ZoneRole } from './roles';
@@ -46,9 +47,14 @@ export interface Zone {
 export interface Prop {
   x: number;
   y: number;
-  /** Semantic key: generic scenery ('tree', 'rock', ...) or `<role>:<n>` decor. */
+  /**
+   * Semantic key: a sprite name ('tree', 'bed', 'house'…), `decor:<role>:<n>`
+   * (the theme picks the furniture) or `resource:<name>` (agent resources).
+   */
   key: string;
   zone?: string;
+  /** Agent this prop belongs to (a resident's bed or house). */
+  owner?: string;
 }
 
 export interface Link {
@@ -101,7 +107,13 @@ export function mapLocations(env: Environment): Location[] {
   return Object.values(env.locations).filter((l) => !l.virtual);
 }
 
-export function generateMap(env: Environment, layout: LayoutKind, seed: string): MapModel {
+const NO_HINTS: MapHints = { residents: {}, resources: {} };
+
+/**
+ * Builds the map for an environment. `hints` (from the scenario's agents)
+ * grow busy zones, give residents a bed or house and show their resources.
+ */
+export function generateMap(env: Environment, layout: LayoutKind, seed: string, hints: MapHints = NO_HINTS): MapModel {
   const rng = createRng(`${seed}|${layout}`);
   const locations = mapLocations(env);
   const slot = SLOT[layout];
@@ -117,7 +129,7 @@ export function generateMap(env: Environment, layout: LayoutKind, seed: string):
     const { col, row } = cells[i];
     const ox = MARGIN + col * slot.w;
     const oy = MARGIN + row * slot.h;
-    map.zones.push(buildZone(map, loc, ox, oy, slot.w, slot.h));
+    map.zones.push(buildZone(map, loc, ox, oy, slot.w, slot.h, hints.residents[loc.name]?.length ?? 0));
   });
 
   const edges = linkGraph(map.zones);
@@ -126,7 +138,7 @@ export function generateMap(env: Environment, layout: LayoutKind, seed: string):
     if (path) map.links.push({ from: map.zones[a].name, to: map.zones[b].name, path });
   }
   if (layout === 'indoor') raiseWalls(map);
-  scatterProps(map, rng);
+  scatterProps(map, rng, hints);
   return map;
 }
 
@@ -175,8 +187,9 @@ function spotsAround(r: Rect, from: Tile, skip: (t: Tile) => boolean = () => fal
   return out.sort((a, b) => Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y));
 }
 
-function buildZone(map: MapModel, loc: Location, ox: number, oy: number, sw: number, sh: number): Zone {
-  const cap = loc.capacity ?? 20;
+function buildZone(map: MapModel, loc: Location, ox: number, oy: number, sw: number, sh: number, residents: number): Zone {
+  // Zones where many agents start get extra room.
+  const cap = (loc.capacity ?? 20) + residents * 6;
   const role = resolveRole(loc);
   const base = {
     name: loc.name,
@@ -330,11 +343,14 @@ function raiseWalls(map: MapModel): void {
 
 const SCENERY = ['tree', 'tree', 'tree', 'pine', 'bush', 'bush', 'flowers', 'rock', 'grass'] as const;
 
-function scatterProps(map: MapModel, rng: Rng): void {
+function scatterProps(map: MapModel, rng: Rng, hints: MapHints): void {
   if (map.layout === 'outdoor') {
+    placeHomes(map, hints);
+    placeOutdoorResources(map, hints);
+    const taken = new Set(map.props.map((p) => `${p.x},${p.y}`));
     for (let y = 1; y < map.rows - 1; y++)
       for (let x = 0; x < map.cols; x++) {
-        if (get(map, x, y) !== 'ground') continue;
+        if (get(map, x, y) !== 'ground' || taken.has(`${x},${y}`)) continue;
         let clear = true;
         for (let dy = -1; dy <= 1 && clear; dy++)
           for (let dx = -1; dx <= 1 && clear; dx++) clear = (get(map, x + dx, y + dy) ?? 'ground') === 'ground';
@@ -342,15 +358,22 @@ function scatterProps(map: MapModel, rng: Rng): void {
       }
     return;
   }
-  // Furniture along the top row of each room / deck, avoiding doors.
+  // Furniture along the top row of each room / deck, avoiding doors:
+  // residents' beds first, then their resources, then themed decor.
   for (const z of map.zones) {
     const b = z.body;
     const y = map.layout === 'void' ? b.y + 1 : b.y;
     const x0 = map.layout === 'void' ? b.x + 1 : b.x;
     const x1 = map.layout === 'void' ? b.x + b.w - 1 : b.x + b.w;
+    const residents = z.role === 'quarters' ? [...(hints.residents[z.name] ?? [])] : [];
+    const resources = [...(hints.resources[z.name] ?? [])];
     for (let x = x0; x < x1; x++) {
       const nextToDoor = z.doors.some((d) => Math.abs(d.x - x) <= 1 && Math.abs(d.y - y) <= 1);
-      if (!nextToDoor && rng() < 0.7) map.props.push({ x, y, key: `${z.role}:${Math.floor(rng() * 4)}`, zone: z.name });
+      if (nextToDoor) continue;
+      const owner = residents.shift();
+      if (owner) map.props.push({ x, y, key: 'bed', zone: z.name, owner });
+      else if (resources.length) map.props.push({ x, y, key: `resource:${resources.shift()}`, zone: z.name });
+      else if (rng() < 0.7) map.props.push({ x, y, key: `decor:${z.role}:${Math.floor(rng() * 4)}`, zone: z.name });
     }
   }
   if (map.layout === 'void') {
@@ -360,4 +383,67 @@ function scatterProps(map: MapModel, rng: Rng): void {
       if (get(map, x, y) === 'void') map.props.push({ x, y, key: pick(rng, ['asteroid', 'debris', 'debris'] as const) });
     }
   }
+}
+
+/** Free 'ground' tiles around a zone, closest to its building first. */
+function groundAround(map: MapModel, z: Zone, taken: Set<string>): Tile[] {
+  const b = z.body;
+  const out: Tile[] = [];
+  for (let y = b.y - 2; y <= b.y + b.h + 3; y++)
+    for (let x = b.x - 3; x <= b.x + b.w + 2; x++) {
+      if (get(map, x, y) !== 'ground' || taken.has(`${x},${y}`)) continue;
+      // keep a free tile between the prop and roads / plazas
+      let clear = true;
+      for (let dy = -1; dy <= 1 && clear; dy++)
+        for (let dx = -1; dx <= 1 && clear; dx++) {
+          const g = get(map, x + dx, y + dy);
+          clear = g === 'ground' || g === 'building';
+        }
+      if (clear) out.push({ x, y });
+    }
+  const c = center(b);
+  return out.sort((a, b2) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b2.x - c.x, b2.y - c.y));
+}
+
+/** Outdoor residential zones get a little house per agent who lives there. */
+function placeHomes(map: MapModel, hints: MapHints): void {
+  const taken = new Set<string>();
+  for (const z of map.zones) {
+    if (z.role !== 'quarters') continue;
+    const spots = groundAround(map, z, taken);
+    for (const owner of hints.residents[z.name] ?? []) {
+      const t = spots.shift();
+      if (!t) break;
+      taken.add(`${t.x},${t.y}`);
+      map.props.push({ x: t.x, y: t.y, key: 'house', zone: z.name, owner });
+    }
+  }
+}
+
+/** Resources of the agents starting in a zone sit at the edges of its plaza. */
+function placeOutdoorResources(map: MapModel, hints: MapHints): void {
+  for (const z of map.zones) {
+    const resources = hints.resources[z.name] ?? [];
+    if (!resources.length) continue;
+    const b = z.body;
+    const plazaY = b.y + b.h + 2;
+    const slots: Tile[] = [
+      { x: b.x - 1, y: plazaY },
+      { x: b.x + b.w, y: plazaY },
+      { x: b.x - 1, y: plazaY - 1 },
+      { x: b.x + b.w, y: plazaY - 1 },
+    ];
+    resources.slice(0, slots.length).forEach((r, i) => map.props.push({ ...slots[i], key: `resource:${r}`, zone: z.name }));
+  }
+}
+
+/** Sprite that represents a resource held by agents (medicine, money, parts…). */
+export function resourceSprite(resource: string): string {
+  const r = resource.toLowerCase();
+  if (/med|drug|pill|vaccin|vacun|f[aá]rmac|rem[eé]dio|first ?aid|botiqu/.test(r)) return 'medcab';
+  if (/money|cash|credit|gold|coin|dinero|dinheiro|dollar|savings|ahorro|fund/.test(r)) return 'safe';
+  if (/weapon|ammo|arma|muni|gun|missile|torpedo/.test(r)) return 'locker';
+  if (/data|intel|research|book|libro|livro|document|archiv/.test(r)) return 'shelf';
+  if (/fuel|oil|energ|combust|gas|water|agua|[aá]gua|food|comida|ration|raci[oó]n|grain|grano/.test(r)) return 'barrel';
+  return 'crate';
 }

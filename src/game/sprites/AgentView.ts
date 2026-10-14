@@ -49,10 +49,11 @@ export class AgentView {
     tile: Tile,
     zone: string,
     onClick: (name: string) => void,
+    profession?: string,
   ) {
     this.tile = tile;
     this.zone = zone;
-    this.texKey = ensureAgentTexture(scene, theme, name);
+    this.texKey = ensureAgentTexture(scene, theme, name, profession);
     const { x, y } = tileToWorld(tile);
     const shadow = scene.add.ellipse(0, 0, 12, 4, 0x000000, 0.3);
     this.ring = scene.add.ellipse(0, 0, 18, 7).setStrokeStyle(1, 0xffcd75).setVisible(false);

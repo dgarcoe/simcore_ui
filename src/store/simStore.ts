@@ -1,9 +1,10 @@
 import { create } from 'zustand';
+import { professions, type ScenarioConfig } from '../api/scenario';
 import type { SimEvent } from '../api/types';
 import { bus } from './bus';
 import { initialSnapshot, reduce, type SimSnapshot } from './reduce';
 
-export type SourceMode = 'none' | 'live' | 'replay';
+export type SourceMode = 'none' | 'live' | 'replay' | 'editor';
 
 export interface UIState extends SimSnapshot {
   mode: SourceMode;
@@ -12,6 +13,11 @@ export interface UIState extends SimSnapshot {
   /** Replay only: milliseconds per tick. */
   tickMs: number;
   scenarioDescription: string;
+  /** Full config of the running scenario when known (agents' professions, resources…). */
+  scenarioConfig: ScenarioConfig | null;
+  professions: Record<string, string>;
+  /** Scenario open in the editor: its id (null = new) and draft. */
+  editing: { id: string | null; builtin: boolean; draft: ScenarioConfig } | null;
   selectedAgent: string | null;
   follow: boolean;
   /** 'auto' or a theme id. */
@@ -23,6 +29,7 @@ export interface UIState extends SimSnapshot {
   set: (patch: Partial<UIState>) => void;
   selectAgent: (name: string | null) => void;
   setThemeChoice: (id: string) => void;
+  setScenarioConfig: (cfg: ScenarioConfig | null) => void;
 }
 
 const THEME_KEY = (scenario: string) => `simcore-ui:theme:${scenario || '_'}`;
@@ -42,6 +49,9 @@ export const useSim = create<UIState>()((set, get) => ({
   paused: false,
   tickMs: 1200,
   scenarioDescription: '',
+  scenarioConfig: null,
+  professions: {},
+  editing: null,
   selectedAgent: null,
   follow: false,
   themeChoice: 'auto',
@@ -58,13 +68,20 @@ export const useSim = create<UIState>()((set, get) => ({
   },
 
   reset: () => {
-    set({ ...initialSnapshot(), selectedAgent: null, follow: false, paused: false });
+    set({ ...initialSnapshot(), selectedAgent: null, follow: false, paused: false, scenarioConfig: null, professions: {} });
     bus.emit('reset');
   },
 
   set: (patch) => set(patch),
 
   selectAgent: (name) => set({ selectedAgent: name, follow: name ? get().follow : false }),
+
+  setScenarioConfig: (cfg) =>
+    set({
+      scenarioConfig: cfg,
+      professions: professions(cfg),
+      scenarioDescription: cfg?.simulation.description ?? get().scenarioDescription,
+    }),
 
   setThemeChoice: (id) => {
     try {

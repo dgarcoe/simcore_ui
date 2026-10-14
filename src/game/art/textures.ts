@@ -13,8 +13,8 @@ export function propKey(theme: ThemePack, key: string): string {
   return `${theme.id}:prop:${key}`;
 }
 
-export function agentKey(theme: ThemePack, name: string): string {
-  return `${theme.id}:agent:${name}`;
+export function agentKey(theme: ThemePack, name: string, look: string): string {
+  return `${theme.id}:agent:${look}:${name}`;
 }
 
 function addCanvas(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement): Phaser.Textures.Texture {
@@ -90,10 +90,11 @@ export function ensureSharedTextures(scene: Phaser.Scene, theme: ThemePack): voi
 }
 
 /** Per-agent spritesheet: 3 facings × 4 walk frames, colors derived from the name. */
-export function ensureAgentTexture(scene: Phaser.Scene, theme: ThemePack, name: string): string {
-  const key = agentKey(theme, name);
+export function ensureAgentTexture(scene: Phaser.Scene, theme: ThemePack, name: string, profession?: string): string {
+  const look = agentLook(theme, name, profession);
+  const key = agentKey(theme, name, look.key);
   if (scene.textures.exists(key)) return key;
-  const { slots, gear } = agentLook(theme, name);
+  const { slots, gear } = look;
   const canvas = makeCanvas(16 * WALK_FRAMES * FACINGS.length, 16);
   const ctx = canvas.getContext('2d')!;
   FACINGS.forEach((facing, fi) => {

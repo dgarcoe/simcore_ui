@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as api from '../api/client';
 import type { ScenarioRecord } from '../api/types';
 import { runScenario, startLive, startReplay } from '../store/sources';
+import { openEditor } from './editor/draft';
 
 interface Fixture {
   file: string;
@@ -51,6 +52,9 @@ export function StartScreen() {
         <span className="brand-mark">◆</span> SIMCORE<span className="brand-dim">·PIXEL</span>
       </h1>
       <p className="subtitle">Mira a tus agentes vivir, hablar y decidir en un mundo pixel art.</p>
+      <div className="center">
+        <button className="btn btn-accent" onClick={() => openEditor()}>✎ Crear escenario</button>
+      </div>
 
       <div className="cards">
         <section className="card">
@@ -82,7 +86,23 @@ export function StartScreen() {
                       <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration}</span>
                       <p className="dim">{s.meta.description}</p>
                     </div>
-                    <button className="btn" disabled={busy} onClick={() => run(s.id)}>Ejecutar</button>
+                    <span className="row nowrap">
+                      <button className="btn" disabled={busy} onClick={() => run(s.id)}>Ejecutar</button>
+                      <button className="btn" title={s.builtin ? 'Editar una copia' : 'Editar'} onClick={() => openEditor(s)}>✎</button>
+                      {!s.builtin && (
+                        <button
+                          className="btn"
+                          title="Borrar escenario"
+                          onClick={async () => {
+                            if (!confirm(`¿Borrar «${s.meta.name}»?`)) return;
+                            await api.deleteScenario(s.id);
+                            setScenarios((list) => (list ?? []).filter((x) => x.id !== s.id));
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
                   </li>
                 ))}
                 {scenarios === null && <li className="dim">Cargando escenarios…</li>}

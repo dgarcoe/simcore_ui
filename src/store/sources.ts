@@ -1,6 +1,7 @@
 // Data sources feeding the store: a live Simcore server or a recorded replay.
 
 import * as api from '../api/client';
+import type { ScenarioConfig } from '../api/scenario';
 import { connectSocket } from '../api/socket';
 import type { SimEvent, SimState } from '../api/types';
 import { useSim } from './simStore';
@@ -36,7 +37,11 @@ export async function startLive(): Promise<void> {
     /* server not up yet; the socket keeps retrying */
   }
   stopCurrent = connectSocket({
-    onEvent: (e) => useSim.getState().ingest(e),
+    onEvent: (e) => {
+      useSim.getState().ingest(e);
+      // Someone may start another scenario; fetch its config for agent looks and map hints.
+      if (e.type === 'simulation_start') void refreshScenarioDescription();
+    },
     onStatus: (connected) => useSim.getState().set({ connected }),
   });
   void refreshScenarioDescription();
@@ -50,9 +55,10 @@ function ingestState(state: SimState): void {
 async function refreshScenarioDescription(): Promise<void> {
   try {
     const name = useSim.getState().scenarioName;
+    if (!name || useSim.getState().scenarioConfig?.simulation.name === name) return;
     const scenarios = await api.listScenarios();
     const match = scenarios.find((s) => s.meta.name === name);
-    if (match) useSim.getState().set({ scenarioDescription: match.meta.description });
+    if (match) useSim.getState().setScenarioConfig(match.data as ScenarioConfig);
   } catch {
     /* optional */
   }
@@ -62,12 +68,14 @@ export async function runScenario(id: string, demo: boolean, speed: number): Pro
   if (useSim.getState().mode !== 'live') await startLive();
   const scenarios = await api.listScenarios().catch(() => []);
   const match = scenarios.find((s) => s.id === id);
+  if (match) useSim.getState().setScenarioConfig(match.data as ScenarioConfig);
   await api.runScenario(id, { demo, speed });
-  if (match) useSim.getState().set({ scenarioDescription: match.meta.description });
 }
 
 export interface ReplayFile {
   scenario?: { name?: string; description?: string };
+  /** The scenario YAML, so replays get professions and map hints too. */
+  config?: ScenarioConfig;
   events: SimEvent[];
 }
 
@@ -77,6 +85,7 @@ export async function startReplay(url: string): Promise<void> {
   const store = useSim.getState();
   store.reset();
   store.set({ mode: 'replay', connected: true, scenarioDescription: file.scenario?.description ?? '' });
+  store.setScenarioConfig(file.config ?? null);
   replay = new Replay(file.events);
   stopCurrent = () => replay?.dispose();
   replay.start();
@@ -97,8 +106,10 @@ export async function control(action: 'pause' | 'resume' | 'stop'): Promise<void
 export function restartReplay(): void {
   if (!replay) return;
   const events = replay.events;
+  const config = useSim.getState().scenarioConfig;
   replay.dispose();
   useSim.getState().reset();
+  useSim.getState().setScenarioConfig(config);
   replay = new Replay(events);
   stopCurrent = () => replay?.dispose();
   replay.start();

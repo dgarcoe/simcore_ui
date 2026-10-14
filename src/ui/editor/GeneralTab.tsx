@@ -1,0 +1,124 @@
+import { useState } from 'react';
+import { configToEnvironment } from '../../api/scenario';
+import { resolveTheme, THEMES } from '../../themes/registry';
+import { useDraft } from './draft';
+
+const MODELS = ['ollama/qwen2.5:7b', 'gpt-4o-mini', 'anthropic/claude-haiku-4-5'];
+
+export function GeneralTab() {
+  const [draft, update] = useDraft();
+  const sim = draft.simulation;
+  const gs = draft.environment.global_state ?? {};
+  const env = configToEnvironment({ ...draft, environment: { ...draft.environment, global_state: {} } });
+  const detected = resolveTheme({ scenarioName: sim.name, scenarioDescription: sim.description, env }).theme;
+
+  return (
+    <div className="ed-section">
+      <label>
+        Nombre
+        <input className="input" value={sim.name} placeholder="Ej.: Motín en la estación Ares" onChange={(e) => update((d) => void (d.simulation.name = e.target.value))} />
+      </label>
+      <label>
+        Descripción
+        <textarea className="input" rows={3} value={sim.description ?? ''} onChange={(e) => update((d) => void (d.simulation.description = e.target.value))} />
+      </label>
+      <div className="ed-grid">
+        <label>
+          Duración
+          <input className="input" value={sim.duration ?? ''} placeholder="2 days" onChange={(e) => update((d) => void (d.simulation.duration = e.target.value))} />
+        </label>
+        <label>
+          Paso de tiempo
+          <input className="input" value={sim.time_step ?? ''} placeholder="1 hour" onChange={(e) => update((d) => void (d.simulation.time_step = e.target.value))} />
+        </label>
+        <label>
+          Idioma de los agentes
+          <select className="select" value={sim.language ?? 'en'} onChange={(e) => update((d) => void (d.simulation.language = e.target.value))}>
+            <option value="es">Español</option>
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+          </select>
+        </label>
+        <label>
+          Semilla
+          <input className="input" type="number" value={sim.seed ?? 42} onChange={(e) => update((d) => void (d.simulation.seed = Number(e.target.value) || 0))} />
+        </label>
+        <label>
+          Modelo LLM
+          <input className="input" list="llm-models" value={draft.llm?.model ?? ''} onChange={(e) => update((d) => void ((d.llm ??= {}).model = e.target.value))} />
+          <datalist id="llm-models">{MODELS.map((m) => <option key={m} value={m} />)}</datalist>
+        </label>
+        <label>
+          Temperatura
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={draft.llm?.temperature ?? 0.8}
+            onChange={(e) => update((d) => void ((d.llm ??= {}).temperature = Number(e.target.value)))}
+          />
+        </label>
+      </div>
+      <label>
+        Tema visual
+        <select
+          className="select"
+          value={String(gs.ui_theme ?? '')}
+          onChange={(e) =>
+            update((d) => {
+              const g = (d.environment.global_state ??= {});
+              if (e.target.value) g.ui_theme = e.target.value;
+              else delete g.ui_theme;
+            })
+          }
+        >
+          <option value="">Auto: {detected.label}</option>
+          {THEMES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className="dim small">
+          Se guarda como <code>global_state.ui_theme</code>; Simcore lo ignora y la UI lo usa.
+        </span>
+      </label>
+      <WorldState />
+    </div>
+  );
+}
+
+/** Free-form world variables the agents see (global_state minus UI keys). */
+function WorldState() {
+  const [draft, update] = useDraft();
+  const entries = Object.entries(draft.environment.global_state ?? {}).filter(([k]) => !k.startsWith('ui_'));
+  const [text, setText] = useState(entries.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join('\n'));
+  return (
+    <label>
+      <span>
+        Estado del mundo (<code>clave: valor</code>, los agentes lo ven)
+      </span>
+      <textarea
+        className="input"
+        rows={3}
+        value={text}
+        placeholder={'panic_level: "low"\noxygen: 0.9'}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() =>
+          update((d) => {
+            const g = d.environment.global_state ?? {};
+            const kept = Object.fromEntries(Object.entries(g).filter(([k]) => k.startsWith('ui_')));
+            for (const line of text.split('\n')) {
+              const m = line.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
+              if (!m) continue;
+              try {
+                kept[m[1]] = JSON.parse(m[2]);
+              } catch {
+                kept[m[1]] = m[2];
+              }
+            }
+            d.environment.global_state = kept;
+          })
+        }
+      />
+    </label>
+  );
+}

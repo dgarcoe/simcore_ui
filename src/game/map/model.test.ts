@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Environment, Location, SimEvent } from '../../api/types';
-import { generateMap, isWalkable, routeBetween, type LayoutKind } from './model';
+import { generateMap, isWalkable, resourceSprite, routeBetween, type LayoutKind } from './model';
 import { resolveRole } from './roles';
 
 const events: SimEvent[] = JSON.parse(
@@ -76,5 +76,59 @@ describe('resolveRole', () => {
     expect(resolveRole({ name: 'Línea de montaje', type: 'generic', properties: {} })).toBe('production');
     expect(resolveRole({ name: 'Zone 7', type: 'generic', properties: { description: 'Reactor and engines' } })).toBe('engineering');
     expect(resolveRole({ name: 'Zone 8', type: 'generic', properties: {} })).toBe('generic');
+  });
+});
+
+describe('generateMap with agent hints', () => {
+  const env: Environment = {
+    width: 10,
+    height: 10,
+    global_state: {},
+    locations: Object.fromEntries(
+      [loc('Homes', 'residential', [1, 1], 10), loc('Clinic', 'healthcare', [5, 1], 10), loc('Shop', 'commercial', [5, 5], 10)].map((l) => [
+        l.name,
+        l,
+      ]),
+    ),
+  };
+  const hints = {
+    residents: { Homes: ['Ana', 'Bea', 'Cid'], Clinic: ['Dr. Eve'] },
+    resources: { Clinic: ['medicine', 'money'] },
+  };
+
+  it('gives every resident of a residential zone a bed indoors and a house outdoors', () => {
+    const indoor = generateMap(env, 'indoor', 'x', hints);
+    expect(indoor.props.filter((p) => p.key === 'bed').map((p) => p.owner)).toEqual(['Ana', 'Bea', 'Cid']);
+    const outdoor = generateMap(env, 'outdoor', 'x', hints);
+    expect(outdoor.props.filter((p) => p.key === 'house').map((p) => p.owner).sort()).toEqual(['Ana', 'Bea', 'Cid']);
+  });
+
+  it('shows resources in the zone where their owners start', () => {
+    for (const layout of ['outdoor', 'indoor', 'void'] as const) {
+      const map = generateMap(env, layout, 'x', hints);
+      const res = map.props.filter((p) => p.key.startsWith('resource:'));
+      expect(res.map((p) => p.key).sort(), layout).toEqual(['resource:medicine', 'resource:money']);
+      expect(res.every((p) => p.zone === 'Clinic')).toBe(true);
+    }
+  });
+
+  it('makes crowded zones bigger', () => {
+    const plain = generateMap(env, 'indoor', 'x');
+    const busy = generateMap(env, 'indoor', 'x', hints);
+    const area = (m: typeof plain, n: string) => {
+      const b = m.zones.find((z) => z.name === n)!.body;
+      return b.w * b.h;
+    };
+    expect(area(busy, 'Homes')).toBeGreaterThan(area(plain, 'Homes'));
+    expect(area(busy, 'Shop')).toBe(area(plain, 'Shop'));
+  });
+
+  it('maps resources to sprites', () => {
+    expect(resourceSprite('medicine')).toBe('medcab');
+    expect(resourceSprite('medkits')).toBe('medcab');
+    expect(resourceSprite('money')).toBe('safe');
+    expect(resourceSprite('credits')).toBe('safe');
+    expect(resourceSprite('parts')).toBe('crate');
+    expect(resourceSprite('fuel')).toBe('barrel');
   });
 });

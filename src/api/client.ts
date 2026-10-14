@@ -49,3 +49,20 @@ export async function postmortem(): Promise<string> {
   if (res.error) throw new Error(res.error);
   return res.narrative ?? '';
 }
+
+export async function saveScenario(data: unknown, id?: string | null): Promise<ScenarioRecord> {
+  const res = id
+    ? await fetch(`/api/scenarios/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+    : await post('/api/scenarios', data);
+  const rec = await json<ScenarioRecord & { error?: string }>(res);
+  if (rec.error) throw new Error(rec.error);
+  return rec;
+}
+
+export async function deleteScenario(id: string): Promise<void> {
+  await fetch(`/api/scenarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

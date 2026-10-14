@@ -8,6 +8,8 @@ Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`), s
 - **Temas intercambiables**: el mismo escenario se puede pintar como un pueblo, una nave espacial, un almacén, una fábrica o una batalla espacial.
 - **Agentes animados** que caminan con A* entre zonas, con bocadillos de diálogo, emotes (trabajar, descansar, comerciar…), pensamientos (reflexiones) y estado de ánimo.
 - **Paneles**: conversaciones agrupadas, sucesos filtrables, ficha de cada agente (OCEAN, ánimo, energía, recursos, relaciones, memoria), red social virtual.
+- **Editor de escenarios**: crea o edita escenarios (lugares, agentes, sucesos, tema) con una vista previa del mapa que se regenera mientras escribes. Puedes arrastrar los lugares en una cuadrícula, guardarlos en Simcore y lanzarlos, o importarlos y exportarlos en YAML.
+- **Mapas que usan a los agentes**: la profesión decide el aspecto de cada agente (bata, casco, uniforme, sombrero de paja…). Los lugares donde empieza mucha gente son más grandes, cada residente tiene su cama (interiores) o su casa (exteriores), y sus recursos aparecen en el mapa (botiquín, caja fuerte, cajas, barriles).
 - **Control**: pausa/reanudar/detener, inyectar sucesos (opcionalmente en una zona), lanzar escenarios, crónica final.
 - **Repeticiones**: simulaciones grabadas en `public/fixtures/` para usar la UI sin servidor.
 
@@ -68,6 +70,22 @@ npm run build          # typecheck + build de producción en dist/
 | `warehouse` | interior | `scenarios/warehouse` |
 | `factory` | interior | `scenarios/factory` |
 | `space-battle` | vacío: naves flotando unidas por rutas | `scenarios/space-battle` |
+
+![Editor de escenarios](docs/editor.png)
+
+### Qué datos del escenario usa el mapa
+
+| Dato del escenario | Efecto en el mapa |
+|---|---|
+| `locations[].position` | disposición relativa de las zonas |
+| `locations[].type`, nombre, `properties.ui_role` | función de la zona: suelo, edificio y muebles |
+| `locations[].capacity` + agentes que empiezan allí | tamaño de la zona |
+| `agents[].starting_location` en zonas residenciales | una cama (interiores) o una casa (exteriores) por residente |
+| `agents[].resources` | objetos en la zona de inicio (`medicine` → botiquín, `money`/`credits` → caja fuerte, `fuel`/`food` → barril…) |
+| `agents[].profession` | ropa y casco o sombrero del agente |
+| `environment.global_state.ui_theme` | tema visual |
+
+El mapa se genera en el navegador a partir de la configuración del escenario; ver `generateMap` en `src/game/map/model.ts`. Sale el mismo en la vista previa del editor y en la simulación. Las repeticiones de `public/fixtures/` incluyen la configuración de su escenario.
 
 El tema se elige así, por orden de prioridad:
 

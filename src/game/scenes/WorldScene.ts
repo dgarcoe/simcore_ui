@@ -3,8 +3,9 @@ import { parseAction } from '../../api/parse';
 import type { SimEvent, SimState } from '../../api/types';
 import { bus } from '../../store/bus';
 import { useSim } from '../../store/simStore';
-import { decorFor, type ThemePack } from '../../themes/types';
+import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
+import { propSprite } from '../art/propSprite';
 import { ensureSharedTextures, propKey } from '../art/textures';
 import { routeBetween, type MapModel, type Tile, type Zone } from '../map/model';
 import type { Bubble } from '../fx/Bubble';
@@ -158,22 +159,32 @@ export class WorldScene extends Phaser.Scene {
 
   private placeProps(): void {
     for (const p of this.map.props) {
-      let key = p.key;
-      const [role, n] = key.split(':');
-      if (n !== undefined) {
-        const options = decorFor(this.theme, role as Zone['role']);
-        key = options[Number(n) % options.length];
-      }
+      const key = propSprite(this.theme, p.key);
       const x = p.x * TILE + TILE / 2;
       const y = p.y * TILE + TILE;
       const img = this.add.image(x, y, propKey(this.theme, key)).setOrigin(0.5, 1);
       // Furniture stands against the wall; scenery is sorted with the agents.
       img.setDepth(this.map.layout === 'outdoor' ? y - 2 : y - TILE);
+      if (p.owner) this.ownerTag(img, key === 'house' ? `Casa de ${p.owner}` : `Cama de ${p.owner}`);
       if (key === 'asteroid' || key === 'debris') {
         img.setDepth(-5);
         this.tweens.add({ targets: img, angle: 360, duration: 20000 + (p.x * 977) % 20000, repeat: -1 });
       }
     }
+  }
+
+  /** Shows who a bed or house belongs to while hovering it. */
+  private ownerTag(img: Phaser.GameObjects.Image, text: string): void {
+    const tag = this.add
+      .text(img.x, img.y - TILE - 2, text, { fontFamily: PIXEL_FONT, fontSize: '8px', color: '#f4f4f4' })
+      .setResolution(4)
+      .setStroke('#1a1c2c', 3)
+      .setOrigin(0.5, 1)
+      .setDepth(100001)
+      .setVisible(false);
+    img.setInteractive();
+    img.on('pointerover', () => tag.setVisible(true));
+    img.on('pointerout', () => tag.setVisible(false));
   }
 
   private placeLabels(): void {
@@ -283,10 +294,18 @@ export class WorldScene extends Phaser.Scene {
 
     if (!zone) return null;
     const spot = this.occupancy.take(zone, name);
-    const view = new AgentView(this, this.theme, name, spot, zone.name, (n) => {
-      const s = useSim.getState();
-      s.selectAgent(s.selectedAgent === n ? null : n);
-    });
+    const view = new AgentView(
+      this,
+      this.theme,
+      name,
+      spot,
+      zone.name,
+      (n) => {
+        const s = useSim.getState();
+        s.selectAgent(s.selectedAgent === n ? null : n);
+      },
+      useSim.getState().professions[name],
+    );
     this.agents.set(name, view);
     return view;
   }

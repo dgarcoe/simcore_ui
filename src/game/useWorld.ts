@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { mapHints } from '../api/scenario';
 import type { Environment } from '../api/types';
 import { useSim } from '../store/simStore';
 import { resolveTheme } from '../themes/registry';
@@ -18,6 +19,7 @@ export function useWorld() {
   const scenarioName = useSim((s) => s.scenarioName);
   const scenarioDescription = useSim((s) => s.scenarioDescription);
   const themeChoice = useSim((s) => s.themeChoice);
+  const config = useSim((s) => s.scenarioConfig);
   const sig = envSignature(sim?.environment);
   const env = sig ? sim!.environment : null;
 
@@ -31,8 +33,8 @@ export function useWorld() {
     [sig, scenarioName, scenarioDescription],
   );
   const map = useMemo(
-    () => (env ? generateMap(env, resolved.theme.layout, scenarioName || sig) : null),
-    [sig, resolved.theme.layout, scenarioName],
+    () => (env ? generateMap(env, resolved.theme.layout, scenarioName || sig, mapHints(config)) : null),
+    [sig, resolved.theme.layout, scenarioName, config],
   );
   return { theme: resolved.theme, source: resolved.source, detected, map };
 }

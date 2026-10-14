@@ -3,6 +3,7 @@ import { useWorld } from './game/useWorld';
 import { useSim } from './store/simStore';
 import { Banner } from './ui/Banner';
 import { EndCard } from './ui/EndCard';
+import { ScenarioEditor } from './ui/editor/ScenarioEditor';
 import { Sidebar } from './ui/Sidebar';
 import { StartScreen } from './ui/StartScreen';
 import { TopBar } from './ui/TopBar';
@@ -13,6 +14,7 @@ export function App() {
   const { theme, detected, map } = useWorld();
 
   if (mode === 'none') return <StartScreen />;
+  if (mode === 'editor') return <ScenarioEditor />;
 
   return (
     <div className="app" style={{ ['--accent' as string]: theme.ui.accent }}>
