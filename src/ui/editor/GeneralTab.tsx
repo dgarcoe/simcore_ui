@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { configToEnvironment } from '../../api/scenario';
+import { configToEnvironment, setModel } from '../../api/scenario';
 import { resolveTheme, THEMES } from '../../themes/registry';
 import { useDraft } from './draft';
 
-const MODELS = ['ollama/qwen2.5:7b', 'gpt-4o-mini', 'anthropic/claude-haiku-4-5'];
+const MODELS = ['ollama/qwen2.5:7b', 'ollama/qwen2.5:3b', 'ollama/llama3.2:3b', 'gpt-4o-mini', 'anthropic/claude-haiku-4-5'];
 
 export function GeneralTab() {
   const [draft, update] = useDraft();
@@ -45,8 +45,18 @@ export function GeneralTab() {
         </label>
         <label>
           Modelo LLM
-          <input className="input" list="llm-models" value={draft.llm?.model ?? ''} onChange={(e) => update((d) => void ((d.llm ??= {}).model = e.target.value))} />
+          <input className="input" list="llm-models" value={draft.llm?.model ?? ''} onChange={(e) => update((d) => setModel(d, e.target.value))} />
           <datalist id="llm-models">{MODELS.map((m) => <option key={m} value={m} />)}</datalist>
+        </label>
+        <label>
+          Modelo de reflexión
+          <input
+            className="input"
+            list="llm-models"
+            value={String(draft.llm?.reflection_model ?? '')}
+            placeholder="el mismo"
+            onChange={(e) => update((d) => void ((d.llm ??= {}).reflection_model = e.target.value || undefined))}
+          />
         </label>
         <label>
           Temperatura

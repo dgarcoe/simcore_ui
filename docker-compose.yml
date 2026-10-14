@@ -1,8 +1,11 @@
 # Simcore + Simcore Pixel.
+#   ./scripts/simcore-up.sh   # recommended: detects CPU / NVIDIA GPU / Jetson / host Ollama
+# or by hand (CPU everywhere, amd64 and arm64):
 #   cp .env.example .env      # optional: API keys, ports, Simcore version
-#   docker compose up --build
+#   docker compose up --build                     # demo mode / cloud LLMs
+#   docker compose --profile ollama up --build    # + local LLM on CPU
 #   open http://localhost:8080
-# Local LLM: docker compose --profile ollama up --build
+# GPU overrides live in docker/compose.*.yml (the script picks them).
 
 services:
   simcore:
@@ -16,6 +19,9 @@ services:
         required: false
     environment:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://ollama:11434}
+    extra_hosts:
+      # lets Simcore reach an Ollama running on the host (docker/compose.host-ollama.yml)
+      - "host.docker.internal:host-gateway"
     volumes:
       - simcore-user-scenarios:/app/scenarios_user
     ports:
@@ -41,18 +47,34 @@ services:
   ollama:
     image: ollama/ollama:0.12.6
     profiles: [ollama]
+    environment:
+      # Simcore asks for every agent's decision at once each tick.
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-24h}
     volumes:
       - ollama-models:/root/.ollama
     restart: unless-stopped
 
-  # One-shot: downloads the model used by Simcore's built-in scenarios.
+  # One-shot: downloads the model. With OLLAMA_ALIAS it is also published under
+  # that name, so Simcore's built-in scenarios (which ask for qwen2.5:7b) use it.
   ollama-pull:
     image: ollama/ollama:0.12.6
     profiles: [ollama]
     depends_on: [ollama]
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["/bin/sh", "-c", "until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull ${OLLAMA_MODEL:-qwen2.5:7b}"]
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_ALIAS: ${OLLAMA_ALIAS:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$$OLLAMA_MODEL"
+        if [ -n "$$OLLAMA_ALIAS" ] && [ "$$OLLAMA_ALIAS" != "$$OLLAMA_MODEL" ]; then
+          ollama cp "$$OLLAMA_MODEL" "$$OLLAMA_ALIAS" && echo "$$OLLAMA_MODEL is also served as $$OLLAMA_ALIAS"
+        fi
     restart: "no"
 
 volumes:

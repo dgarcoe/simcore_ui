@@ -115,6 +115,17 @@ export function emptyScenario(): ScenarioConfig {
   };
 }
 
+/**
+ * Sets the LLM model; the reflection model follows it unless it was set to
+ * something else on purpose (built-in scenarios set both to the same model).
+ */
+export function setModel(cfg: ScenarioConfig, model: string): void {
+  const llm = (cfg.llm ??= {});
+  const prev = llm.model;
+  if (!llm.reflection_model || llm.reflection_model === prev) llm.reflection_model = model;
+  llm.model = model;
+}
+
 /** The environment Simcore would build from this config (as /api/state reports it). */
 export function configToEnvironment(cfg: ScenarioConfig): Environment {
   const [width, height] = cfg.environment.size ?? [20, 20];

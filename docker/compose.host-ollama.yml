@@ -1,0 +1,13 @@
+# Use an Ollama already running on the host (macOS with Metal, a native
+# Jetson install, a shared GPU box…) instead of the ollama container.
+# Used by scripts/simcore-up.sh; by hand:
+#   docker compose -f docker-compose.yml -f docker/compose.host-ollama.yml up --build
+# (point OLLAMA_API_BASE elsewhere to use another machine on the network)
+services:
+  simcore:
+    environment:
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+  ollama:
+    profiles: !override [disabled]
+  ollama-pull:
+    profiles: !override [disabled]

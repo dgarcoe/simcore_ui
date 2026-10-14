@@ -1,0 +1,12 @@
+# PC / server with an NVIDIA GPU (needs nvidia-container-toolkit).
+# Used by scripts/simcore-up.sh; by hand:
+#   docker compose -f docker-compose.yml -f docker/compose.nvidia.yml --profile ollama up --build
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

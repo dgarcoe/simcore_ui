@@ -21,24 +21,46 @@ Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`), s
 
 Todo el arte (tiles, personajes, muebles, emotes) se dibuja por código en `src/game/art/`, así que no hay dependencias de assets externos.
 
-## Docker (Simcore + UI)
+## Despliegue con Docker (PC, servidor, Jetson, Mac)
 
 ```bash
-cp .env.example .env        # opcional: claves de LLM, puertos, versión de Simcore
-docker compose up --build   # http://localhost:8080
+cp .env.example .env          # opcional: claves de LLM, puertos, versión de Simcore
+./scripts/simcore-up.sh       # detecta el hardware y arranca todo → http://localhost:8080
 ```
 
-- **`simcore`**: imagen construida desde [elisonfrank/simcore](https://github.com/elisonfrank/simcore), fijada a un commit (`SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la pantalla de inicio de la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados por API se guardan en un volumen. La API también queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
+El mismo comando sirve en un PC o servidor x86, en una NVIDIA Jetson y en un Mac. Antes de arrancar, el script detecta dónde puede correr el LLM local y lo muestra (`--dry-run` solo muestra la detección):
+
+| Detecta | Usa | Modelo por defecto |
+|---|---|---|
+| Un Ollama ya en marcha en el host (`localhost:11434`) | ese Ollama (`docker/compose.host-ollama.yml`) | el que tengas instalado |
+| NVIDIA Jetson con JetPack 5/6 y runtime `nvidia` | GPU de la Jetson (`docker/compose.jetson.yml`) | `qwen2.5:3b` (≤12 GB) · `qwen2.5:7b` |
+| GPU NVIDIA con nvidia-container-toolkit | GPU (`docker/compose.nvidia.yml`) | `qwen2.5:7b` (≥8 GB VRAM) · `qwen2.5:3b` |
+| Nada de lo anterior | **CPU** (funciona en cualquier máquina amd64/arm64) | `qwen2.5:3b` |
+
+- **Escenarios incluidos:** si el modelo elegido no es `qwen2.5:7b` (el que piden los escenarios de Simcore), se publica también con ese nombre para que funcionen sin cambios. Se desactiva con `--no-alias`.
+- **Opciones:**
+  - `--demo`: sin LLM local.
+  - `--cpu`: ignorar la GPU.
+  - `--model llama3.2:3b`: elegir otro modelo.
+  - `--no-host`: no reutilizar el Ollama del host.
+  - Cualquier otro comando de compose con los mismos ficheros, por ejemplo `./scripts/simcore-up.sh down` o `./scripts/simcore-up.sh logs -f ollama`.
+
+Detalles por plataforma (Jetson, NVIDIA, Mac, WSL2) y cómo comprobar que se usa la GPU: [docs/deploy.md](docs/deploy.md).
+
+También funciona a mano sin el script; esto usa CPU en cualquier máquina:
+
+```bash
+docker compose up --build                     # modo demo o LLM en la nube
+docker compose --profile ollama up --build    # + Ollama local en CPU (qwen2.5:7b por defecto)
+```
+
+Servicios:
+- **`simcore`**: imagen construida desde [elisonfrank/simcore](https://github.com/elisonfrank/simcore), fijada a un commit (`SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados desde el editor se guardan en un volumen. La API queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
 - **`ui`**: build de producción servido por nginx, que redirige `/api` y `/ws` a `simcore`.
-- **LLM**: con "Modo demo" marcado no hace falta ninguno. Para usar OpenAI o Anthropic, pon las claves en `.env` y usa escenarios cuyo `llm.model` apunte a ese proveedor. Para un LLM local:
+- **`ollama`** + **`ollama-pull`** (perfil `ollama`): el LLM local y la descarga del modelo.
+- **Proveedores en la nube:** para usar OpenAI o Anthropic, pon las claves en `.env` y elige el modelo del escenario en el editor.
 
-  ```bash
-  docker compose --profile ollama up --build   # descarga OLLAMA_MODEL (qwen2.5:7b por defecto)
-  ```
-
-  Los escenarios incluidos en Simcore ya usan `ollama/qwen2.5:7b`.
-
-Para añadir un escenario propio, crea `scenarios/<nombre>/config.yaml` y vuelve a ejecutar `docker compose up --build`.
+Para añadir un escenario propio, crea `scenarios/<nombre>/config.yaml` y reconstruye la imagen (`up --build`), o crea el escenario desde el editor.
 
 ## Desarrollo
 

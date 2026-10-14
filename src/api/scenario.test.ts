@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, validateScenario, type ScenarioConfig } from './scenario';
+import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, setModel, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -58,5 +58,24 @@ describe('cleanScenario', () => {
     const clean = cleanScenario(cfg);
     expect(clean.agents[0].goals).toEqual(['save the town']);
     expect(clean.events?.scheduled).toEqual([]);
+  });
+});
+
+describe('setModel', () => {
+  it('moves the reflection model along when it matched the main one', () => {
+    const cfg = emptyScenario();
+    cfg.llm = { model: 'ollama/qwen2.5:7b', reflection_model: 'ollama/qwen2.5:7b' };
+    setModel(cfg, 'ollama/qwen2.5:3b');
+    expect(cfg.llm).toMatchObject({ model: 'ollama/qwen2.5:3b', reflection_model: 'ollama/qwen2.5:3b' });
+  });
+  it('fills an empty reflection model and keeps a custom one', () => {
+    const a = emptyScenario();
+    a.llm = { model: 'x' };
+    setModel(a, 'y');
+    expect(a.llm?.reflection_model).toBe('y');
+    const b = emptyScenario();
+    b.llm = { model: 'x', reflection_model: 'big' };
+    setModel(b, 'y');
+    expect(b.llm?.reflection_model).toBe('big');
   });
 });

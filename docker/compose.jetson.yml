@@ -1,0 +1,12 @@
+# NVIDIA Jetson (JetPack 5/6, e.g. Orin Nano): the GPU is exposed through the
+# nvidia container runtime, and Ollama must be told the JetPack version.
+# Used by scripts/simcore-up.sh; by hand:
+#   JETSON_JETPACK=6 docker compose -f docker-compose.yml -f docker/compose.jetson.yml --profile ollama up --build
+services:
+  ollama:
+    runtime: nvidia
+    environment:
+      JETSON_JETPACK: ${JETSON_JETPACK:-6}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OLLAMA_FLASH_ATTENTION: "1"
