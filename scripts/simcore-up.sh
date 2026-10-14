@@ -45,6 +45,8 @@ DOCKER=${SIMCORE_DOCKER:-docker}
 NVIDIA_SMI=${SIMCORE_NVIDIA_SMI:-nvidia-smi}
 CURL=${SIMCORE_CURL:-curl}
 OLLAMA_CLI=${SIMCORE_OLLAMA:-ollama}
+SS=${SIMCORE_SS:-ss}
+SYSTEMCTL=${SIMCORE_SYSTEMCTL:-systemctl}
 UNAME_S=${SIMCORE_UNAME_S:-$(uname -s)}
 UNAME_M=${SIMCORE_UNAME_M:-$(uname -m)}
 TEGRA_RELEASE=${SIMCORE_TEGRA_RELEASE:-/etc/nv_tegra_release}
@@ -83,6 +85,8 @@ action=${args[0]}
 warn() { printf '⚠  %s\n' "$*" >&2; }
 die() { printf '✖  %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
+# Ollama and Simcore are local: never send these requests through http_proxy.
+lcurl() { "$CURL" --noproxy '*' "$@"; }
 
 # ── Docker ──────────────────────────────────────────────────────────────
 have "$DOCKER" || die "No se encuentra Docker. Instálalo: https://docs.docker.com/engine/install/"
@@ -158,7 +162,7 @@ fi
 # ── Where Ollama runs ───────────────────────────────────────────────────
 accel=cpu  # none | host | jetson | nvidia | cpu
 host_ollama_up() {
-  have "$CURL" && "$CURL" -sf --max-time 2 "$HOST_OLLAMA_URL/api/tags" >/dev/null 2>&1
+  have "$CURL" && lcurl -sf --max-time 2 "$HOST_OLLAMA_URL/api/tags" >/dev/null 2>&1
 }
 
 if ((demo)); then
@@ -234,24 +238,61 @@ host_port() {
 
 # The simcore container reaches the host through Docker's bridge gateway; a
 # native Ollama on Linux only listens on 127.0.0.1 unless OLLAMA_HOST says so.
+host_gateway() { "$DOCKER" network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true; }
+
 host_reachable_from_containers() {
-  [[ $UNAME_S == Linux ]] || return 0
-  local gw
-  gw=$("$DOCKER" network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)
+  [[ $UNAME_S == Linux && -z ${SIMCORE_SKIP_HOST_CHECK:-} ]] || return 0
+  local gw image
+  gw=$(host_gateway)
   [[ -n $gw ]] || return 0
-  "$CURL" -sf --max-time 3 "http://$gw:$(host_port)/api/tags" >/dev/null 2>&1
+  lcurl -sf --max-time 3 "http://$gw:$(host_port)/api/tags" >/dev/null 2>&1 && return 0
+  # The host-side probe can be fooled (firewalls, odd routing): ask a real
+  # container, which is exactly what Simcore will do, when the image exists.
+  image="$(basename "$ROOT" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')-simcore"
+  if "$DOCKER" image inspect "$image" >/dev/null 2>&1; then
+    "$DOCKER" run --rm --add-host host.docker.internal:host-gateway --entrypoint python "$image" -c \
+      "import urllib.request; urllib.request.urlopen('http://host.docker.internal:$(host_port)/api/tags', timeout=5)" \
+      >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+# Addresses Ollama is listening on, e.g. "127.0.0.1:11434" or "*:11434".
+ollama_listen() {
+  have "$SS" || return 0
+  "$SS" -ltn 2>/dev/null | awk -v p=":$(host_port)" '$4 ~ p"$" { print $4 }' | sort -u | tr '\n' ' '
 }
 
 host_bind_help() {
-  cat >&2 <<EOF
-   El Ollama del host solo escucha en 127.0.0.1 y los contenedores no pueden llegar a él.
-   Haz que escuche en todas las interfaces:
-     sudo systemctl edit ollama
-       [Service]
-       Environment="OLLAMA_HOST=0.0.0.0:11434"
-     sudo systemctl restart ollama
-   (o usa --no-host para levantar Ollama en un contenedor).
-EOF
+  local listen env gw
+  listen=$(ollama_listen)
+  gw=$(host_gateway)
+  env=$("$SYSTEMCTL" show ollama -p Environment --value 2>/dev/null || true)
+  {
+    echo "   Los contenedores no pueden llegar al Ollama del host (probado: http://${gw:-host.docker.internal}:$(host_port))."
+    [[ -n $listen ]] && echo "   Ollama escucha en: $listen"
+    if [[ -n $listen && $listen != *0.0.0.0* && $listen != *'*'* && $listen != *'[::]'* ]]; then
+      echo "   → Sigue escuchando solo en local: el cambio de OLLAMA_HOST no se ha aplicado."
+      if [[ $env == *OLLAMA_HOST=* ]]; then
+        echo "     systemd tiene $(grep -o 'OLLAMA_HOST=[^ ]*' <<<"$env"), pero Ollama no se ha reiniciado con él."
+      else
+        echo "     systemd no tiene OLLAMA_HOST. Al editar, las líneas deben ir ENCIMA de"
+        echo "     «### Lines below this comment will be discarded»."
+      fi
+    elif [[ -n $listen ]]; then
+      echo "   → Ollama ya escucha en todas las interfaces: probablemente un cortafuegos bloquea"
+      echo "     el puerto $(host_port) desde la red de Docker, p. ej.: sudo ufw allow from 172.16.0.0/12 to any port $(host_port)"
+      echo "     (si sabes que funciona, salta esta comprobación con SIMCORE_SKIP_HOST_CHECK=1)"
+    fi
+    echo "   Solución:"
+    echo "     sudo systemctl edit ollama"
+    echo "       [Service]"
+    echo "       Environment=\"OLLAMA_HOST=0.0.0.0:11434\""
+    echo "     sudo systemctl daemon-reload && sudo systemctl restart ollama"
+    echo "     ss -ltn | grep 11434          # debe mostrar *:11434 o 0.0.0.0:11434"
+    echo "   Si lanzas Ollama a mano: OLLAMA_HOST=0.0.0.0:11434 ollama serve"
+    echo "   O usa --no-host para levantar Ollama en un contenedor."
+  } >&2
 }
 
 with_tag() { [[ $1 == *:* ]] && echo "$1" || echo "$1:latest"; }
@@ -259,7 +300,7 @@ with_tag() { [[ $1 == *:* ]] && echo "$1" || echo "$1:latest"; }
 host_has() {
   local m
   m=$(with_tag "$1")
-  "$CURL" -sf --max-time 5 "$HOST_OLLAMA_URL/api/tags" 2>/dev/null | grep -Eq "\"(name|model)\": *\"${m//./\\.}\""
+  lcurl -sf --max-time 5 "$HOST_OLLAMA_URL/api/tags" 2>/dev/null | grep -Eq "\"(name|model)\": *\"${m//./\\.}\""
 }
 
 # Uses the ollama CLI when it talks to this server (shows a progress bar), else the HTTP API.
@@ -272,7 +313,7 @@ host_pull() {
     host_cli pull "$m" || die "No se pudo descargar $m en $HOST_OLLAMA_URL."
   else
     echo "  (sin la CLI de ollama en el PATH: usando la API HTTP, sin barra de progreso)"
-    "$CURL" -sf --max-time 7200 "$HOST_OLLAMA_URL/api/pull" -d "{\"model\":\"$m\",\"stream\":false}" >/dev/null ||
+    lcurl -sf --max-time 7200 "$HOST_OLLAMA_URL/api/pull" -d "{\"model\":\"$m\",\"stream\":false}" >/dev/null ||
       die "No se pudo descargar $m en $HOST_OLLAMA_URL."
   fi
 }
@@ -283,7 +324,7 @@ host_alias() {
   if have "$OLLAMA_CLI"; then
     host_cli cp "$src" "$dst" || die "No se pudo crear el alias $dst."
   else
-    "$CURL" -sf --max-time 60 "$HOST_OLLAMA_URL/api/copy" -d "{\"source\":\"$src\",\"destination\":\"$dst\"}" >/dev/null ||
+    lcurl -sf --max-time 60 "$HOST_OLLAMA_URL/api/copy" -d "{\"source\":\"$src\",\"destination\":\"$dst\"}" >/dev/null ||
       die "No se pudo crear el alias $dst."
   fi
 }
@@ -319,7 +360,7 @@ doctor() {
 
   # 1. What the running simulation reports (llm_stats comes with every tick).
   local state
-  state=$("$CURL" -sf --max-time 5 "$api/state" 2>/dev/null || true)
+  state=$(lcurl -sf --max-time 5 "$api/state" 2>/dev/null || true)
   if [[ -z $state ]]; then
     bad "Simcore no responde en $api (¿está arrancado? ./scripts/simcore-up.sh)"
   elif [[ $state == *'"error"'* ]]; then
@@ -340,11 +381,11 @@ doctor() {
   fi
   local list ps
   if [[ $accel == host ]]; then
-    list=$("$CURL" -sf --max-time 5 "$HOST_OLLAMA_URL/api/tags" 2>/dev/null || true)
+    list=$(lcurl -sf --max-time 5 "$HOST_OLLAMA_URL/api/tags" 2>/dev/null || true)
     if [[ -n $list ]]; then ok "Ollama del host responde en $HOST_OLLAMA_URL"; else bad "Ollama del host no responde en $HOST_OLLAMA_URL"; fi
     if [[ -n $list ]]; then
       if host_reachable_from_containers; then ok "Los contenedores pueden llegar al Ollama del host"
-      else bad "Los contenedores NO pueden llegar al Ollama del host (solo escucha en 127.0.0.1)"; host_bind_help 2>&1 | sed 's/^/  /'; fi
+      else bad "Los contenedores NO pueden llegar al Ollama del host"; host_bind_help 2>&1 | sed 's/^/  /'; fi
     fi
   else
     list=$("${dc[@]}" exec -T ollama ollama list 2>/dev/null || true)
@@ -361,7 +402,7 @@ doctor() {
     local test_model=${model:-$DEFAULT_SCENARIO_MODEL} start end reply
     start=$(date +%s)
     if [[ $accel == host ]]; then
-      reply=$("$CURL" -sf --max-time 300 "$HOST_OLLAMA_URL/api/generate" \
+      reply=$(lcurl -sf --max-time 300 "$HOST_OLLAMA_URL/api/generate" \
         -d "{\"model\":\"$test_model\",\"prompt\":\"Responde solo: hola\",\"stream\":false}" 2>/dev/null || true)
       ps=$(host_cli ps 2>/dev/null || true)
     else

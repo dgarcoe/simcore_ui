@@ -15,6 +15,8 @@ case "$*" in
   "compose version --short") echo "${FAKE_COMPOSE:-2.29.1}" ;;
   info*) echo "${FAKE_RUNTIMES:-{\"runc\":{}}}" ;;
   "network inspect"*) echo "${FAKE_GATEWAY:-172.17.0.1}" ;;
+  "image inspect"*) [[ -n ${FAKE_IMAGE:-} ]] || exit 1 ;;
+  "run --rm --add-host"*) [[ -n ${FAKE_CONTAINER_REACH:-} ]] || exit 1 ;;
   *"exec -T ollama ollama pull"*) echo "STUB container pull ${*: -1}" ;;
   *"exec -T ollama ollama cp"*) echo "STUB container cp ${*: -2}" ;;
   *"exec -T ollama ollama list"*) printf '%b' "${FAKE_OLLAMA_LIST:-}" ;;
@@ -36,6 +38,7 @@ STUB
 cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 for a in "$@"; do [[ $a == http* ]] && url=$a; done
+[[ " $* " == *" --noproxy "* ]] || { echo "curl sin --noproxy: $*" >&2; exit 5; }
 case "$url" in
   */api/state) [[ -n ${FAKE_STATE:-} ]] && echo "$FAKE_STATE" || exit 7 ;;
   *172.17.0.1*) [[ ${FAKE_HOST_OLLAMA:-0} == 1 && ${FAKE_HOST_BIND:-all} == all ]] || exit 7
@@ -45,6 +48,15 @@ case "$url" in
   *) [[ ${FAKE_HOST_OLLAMA:-0} == 1 ]] || exit 7
      echo "{\"models\":[${FAKE_HOST_MODELS:-}]}" ;;
 esac
+STUB
+cat >"$TMP/bin/ss" <<'STUB'
+#!/usr/bin/env bash
+echo "State  Recv-Q Send-Q Local Address:Port Peer Address:Port"
+echo "LISTEN 0      4096   ${FAKE_LISTEN:-127.0.0.1:11434}   0.0.0.0:*"
+STUB
+cat >"$TMP/bin/systemctl" <<'STUB'
+#!/usr/bin/env bash
+echo "${FAKE_SYSTEMD_ENV:-}"
 STUB
 cat >"$TMP/bin/ollama" <<'STUB'
 #!/usr/bin/env bash
@@ -64,6 +76,7 @@ check() {
   local out dry=(--dry-run)
   [[ " $* " == *" doctor "* || -n ${NODRY:-} ]] && dry=()  # run for real against the stubs
   out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" SIMCORE_OLLAMA="${OLLAMACLI:-$TMP/bin/ollama}" \
+    SIMCORE_SS="$TMP/bin/ss" SIMCORE_SYSTEMCTL="$TMP/bin/systemctl" \
     SIMCORE_NVIDIA_SMI="${NVSMI:-$TMP/bin/nvidia-smi}" \
     SIMCORE_UNAME_S="${OS:-Linux}" SIMCORE_UNAME_M="${ARCH:-x86_64}" \
     SIMCORE_TEGRA_RELEASE="${TEGRA:-$TMP/none}" SIMCORE_DT_MODEL="${DTMODEL:-$TMP/none}" \
@@ -134,8 +147,22 @@ ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOS
   check "sin CLI de ollama usa la API HTTP" "usando la API HTTP" "Publicando qwen2.5:3b también como qwen2.5:7b" "En marcha" --
 
 ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost NODRY=1 \
-  check "Ollama nativo solo en 127.0.0.1 → error con la solución" \
-  "solo escucha en 127.0.0.1" "OLLAMA_HOST=0.0.0.0:11434" "!STUB-DOCKER" "!En marcha" --
+  check "Ollama nativo solo en 127.0.0.1 y sin OLLAMA_HOST en systemd" \
+  "Ollama escucha en: 127.0.0.1:11434" "systemd no tiene OLLAMA_HOST" "ENCIMA" "OLLAMA_HOST=0.0.0.0:11434" "!STUB-DOCKER" "!En marcha" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost NODRY=1 \
+  FAKE_SYSTEMD_ENV='OLLAMA_HOST=0.0.0.0:11434 PATH=/usr/bin' \
+  check "OLLAMA_HOST en systemd pero Ollama sin reiniciar" "no se ha reiniciado" "daemon-reload" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost FAKE_LISTEN='*:11434' NODRY=1 \
+  check "escucha en todas las interfaces pero no se llega → cortafuegos" "cortafuegos" "SIMCORE_SKIP_HOST_CHECK=1" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost FAKE_HOST_MODELS='{"name":"qwen2.5:3b"},{"name":"qwen2.5:7b"}' \
+  FAKE_IMAGE=1 FAKE_CONTAINER_REACH=1 NODRY=1 \
+  check "falla la prueba desde el host pero un contenedor real llega → arranca" "En marcha" "!no pueden llegar" --
+
+ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 FAKE_HOST_BIND=localhost FAKE_HOST_MODELS='{"name":"qwen2.5:3b"},{"name":"qwen2.5:7b"}' \
+  SIMCORE_SKIP_HOST_CHECK=1 NODRY=1 check "SIMCORE_SKIP_HOST_CHECK salta la comprobación" "En marcha" --
 
 ARCH=aarch64 TEGRA=$TMP/tegra36 DTMODEL=$TMP/dtmodel FAKE_HOST_OLLAMA=1 NODRY=1 \
   check "logs ollama-pull con Ollama nativo → explicación" \

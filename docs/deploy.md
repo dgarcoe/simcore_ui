@@ -52,6 +52,12 @@ Si ya hay un Ollama corriendo en la máquina (instalado con `curl -fsSL https://
   ```
   O usa `--no-host` para levantar Ollama en un contenedor.
 
+  Si después de editarlo el script sigue diciendo que no llega:
+  - **Comprueba en qué dirección escucha Ollama:** `ss -ltn | grep 11434` debe mostrar `*:11434` o `0.0.0.0:11434`. Si muestra `127.0.0.1:11434`, el cambio no se aplicó: en `systemctl edit`, las líneas deben ir **encima** de `### Lines below this comment will be discarded`. Revísalo con `systemctl cat ollama` y reinicia con `sudo systemctl daemon-reload && sudo systemctl restart ollama`.
+  - **Si ya escucha en `*:11434`:** probablemente un cortafuegos bloquea la red de Docker (`sudo ufw allow from 172.16.0.0/12 to any port 11434`).
+  - **Si sabes que funciona:** `SIMCORE_SKIP_HOST_CHECK=1 ./scripts/simcore-up.sh` salta la comprobación.
+  - El script explica cuál de estos casos es el tuyo.
+
 ## Escenarios con modelos de nube (gpt-4o-mini…)
 
 Cada escenario indica su modelo en `llm.model`. Los locales empiezan por `ollama/`. En la pantalla de inicio, los que piden un modelo de nube aparecen marcados con ☁.
