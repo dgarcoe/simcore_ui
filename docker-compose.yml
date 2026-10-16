@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: docker/simcore.Dockerfile
       args:
-        SIMCORE_REF: ${SIMCORE_REF:-896875746c8ba251da4c7b8ea8f4efa3cddb5bc4}
+        SIMCORE_REF: ${SIMCORE_REF:-8fd04b939f9e5cab149e50eb6e54566afb6eae96}
     env_file:
       - path: .env
         required: false
