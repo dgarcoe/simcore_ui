@@ -1,8 +1,8 @@
 # Simcore API server (https://github.com/elisonfrank/simcore), built from a pinned commit.
 FROM python:3.12-slim
 
-ARG SIMCORE_REPO=https://github.com/elisonfrank/simcore
-ARG SIMCORE_REF=896875746c8ba251da4c7b8ea8f4efa3cddb5bc4
+ARG SIMCORE_REPO=https://github.com/hmightypirate/simcore
+ARG SIMCORE_REF=8fd04b939f9e5cab149e50eb6e54566afb6eae96
 ENV SIMCORE_REPO=$SIMCORE_REPO SIMCORE_REF=$SIMCORE_REF
 
 # Fetch the source tarball for the pinned ref (no git needed in the image).
