@@ -67,7 +67,7 @@ Servicios:
 - **`simcore`**: imagen construida desde [elisonfrank/simcore](https://github.com/elisonfrank/simcore), fijada a un commit (`SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados desde el editor se guardan en un volumen. La API queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
 - **`ui`**: build de producción servido por nginx, que redirige `/api` y `/ws` a `simcore`.
 - **`ollama`** + **`ollama-pull`** (perfil `ollama`): el LLM local y la descarga del modelo.
-- **Proveedores en la nube:** para usar OpenAI o Anthropic, pon las claves en `.env` y elige el modelo del escenario en el editor.
+- **Proveedores en la nube:** para usar OpenAI o Anthropic, pon las claves en `.env` y elige el modelo del escenario en el editor. El editor lista en un desplegable los modelos instalados en Ollama.
 
 Para añadir un escenario propio, crea `scenarios/<nombre>/config.yaml` y reconstruye la imagen (`up --build`), o crea el escenario desde el editor.
 

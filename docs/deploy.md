@@ -63,7 +63,7 @@ Si ya hay un Ollama corriendo en la máquina (instalado con `curl -fsSL https://
 Cada escenario indica su modelo en `llm.model`. Los locales empiezan por `ollama/`. En la pantalla de inicio, los que piden un modelo de nube aparecen marcados con ☁.
 - **Con la clave en `.env`** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`…): se usa el modelo de nube.
 - **Sin clave y arrancado con el script:** Simcore usa en su lugar el modelo local (`SIMCORE_FALLBACK_MODEL`) y lo anota en su log. Se desactiva con `--no-fallback`.
-- **Cambiarlo de forma permanente:** desde el editor (✎), poniendo `ollama/qwen2.5:7b`. Siempre con el prefijo `ollama/`: sin él, LiteLLM lo trata como un modelo de OpenAI.
+- **Cambiarlo de forma permanente:** desde el editor (✎) → General → «Modelo LLM». El desplegable muestra los modelos instalados en tu Ollama (la UI los consulta en `/ollama/api/tags`, un proxy de solo lectura) y avisa si el escenario pide un modelo de nube o uno que no tienes, con un botón para pasar a uno local. «Otro (escribir)…» admite cualquier nombre; los locales siempre llevan el prefijo `ollama/`, porque sin él LiteLLM los trata como modelos de OpenAI.
 
 ## macOS (Apple Silicon o Intel)
 

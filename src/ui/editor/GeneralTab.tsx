@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { configToEnvironment, setModel } from '../../api/scenario';
 import { resolveTheme, THEMES } from '../../themes/registry';
 import { useDraft } from './draft';
-
-const MODELS = ['ollama/qwen2.5:7b', 'ollama/qwen2.5:3b', 'ollama/llama3.2:3b', 'gpt-4o-mini', 'anthropic/claude-haiku-4-5'];
+import { ModelField, useLocalModels } from './ModelField';
 
 export function GeneralTab() {
   const [draft, update] = useDraft();
+  const [installed, reloadModels] = useLocalModels();
   const sim = draft.simulation;
   const gs = draft.environment.global_state ?? {};
   const env = configToEnvironment({ ...draft, environment: { ...draft.environment, global_state: {} } });
@@ -43,21 +43,14 @@ export function GeneralTab() {
           Semilla
           <input className="input" type="number" value={sim.seed ?? 42} onChange={(e) => update((d) => void (d.simulation.seed = Number(e.target.value) || 0))} />
         </label>
-        <label>
-          Modelo LLM
-          <input className="input" list="llm-models" value={draft.llm?.model ?? ''} onChange={(e) => update((d) => setModel(d, e.target.value))} />
-          <datalist id="llm-models">{MODELS.map((m) => <option key={m} value={m} />)}</datalist>
-        </label>
-        <label>
-          Modelo de reflexión
-          <input
-            className="input"
-            list="llm-models"
-            value={String(draft.llm?.reflection_model ?? '')}
-            placeholder="el mismo"
-            onChange={(e) => update((d) => void ((d.llm ??= {}).reflection_model = e.target.value || undefined))}
-          />
-        </label>
+        <ModelField label="Modelo LLM" value={String(draft.llm?.model ?? '')} installed={installed} onChange={(m) => update((d) => setModel(d, m))} />
+        <ModelField
+          label="Modelo de reflexión"
+          value={String(draft.llm?.reflection_model ?? '')}
+          installed={installed}
+          emptyLabel="(el mismo)"
+          onChange={(m) => update((d) => void ((d.llm ??= {}).reflection_model = m || undefined))}
+        />
         <label>
           Temperatura
           <input
@@ -71,6 +64,14 @@ export function GeneralTab() {
           />
         </label>
       </div>
+      <span className="dim small">
+        {installed === undefined
+          ? 'Buscando los modelos instalados en Ollama…'
+          : installed === null
+            ? 'No se pudo consultar Ollama: se muestran sugerencias; elige «Otro» para escribir cualquier modelo.'
+            : `${installed.length} modelos instalados en Ollama.`}{' '}
+        <button type="button" className="btn" onClick={reloadModels}>↻</button>
+      </span>
       <label>
         Tema visual
         <select

@@ -1072,3 +1072,11 @@ details summary {
 .why-block {
   margin: 4px 0;
 }
+
+.model-warn {
+  color: var(--accent);
+}
+
+.model-warn .btn {
+  margin-top: 4px;
+}

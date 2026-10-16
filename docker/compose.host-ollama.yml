@@ -7,6 +7,11 @@ services:
   simcore:
     environment:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+  ui:
+    environment:
+      OLLAMA_URL: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   ollama:
     profiles: !override [disabled]
   ollama-pull:
