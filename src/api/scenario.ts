@@ -25,6 +25,8 @@ export interface AgentConfig {
   health?: number;
   /** Tick at which the agent enters (0 = from the start). */
   arrives_at?: number;
+  /** Scenario conditions it starts with. */
+  conditions?: string[];
 }
 
 export interface LocationConfig {
@@ -46,7 +48,63 @@ export interface ItemConfig {
   description?: string;
   consumable?: boolean;
   on_use?: Partial<Record<'health' | 'energy' | 'mood', number>>;
+  /** Conditions removed from whoever it's used on. */
+  cures?: string[];
 }
+
+export type Stat = 'health' | 'energy' | 'mood';
+export const STATS: Array<[Stat, string]> = [
+  ['health', 'Salud'],
+  ['energy', 'Energía'],
+  ['mood', 'Ánimo'],
+];
+
+export interface Requirement {
+  conditions?: string[];
+  not_conditions?: string[];
+  professions?: string[];
+  items?: Record<string, number>;
+}
+
+export interface Outcome {
+  health?: number;
+  energy?: number;
+  mood?: number;
+  add_conditions?: string[];
+  remove_conditions?: string[];
+  items?: Record<string, number>;
+  kill?: boolean;
+}
+
+/** Scenario condition (infected, zombie…). */
+export interface ConditionConfig {
+  description?: string;
+  appearance?: string;
+  per_tick?: Partial<Record<Stat, number>>;
+  duration?: number | null;
+  becomes?: string;
+  contagion?: { chance?: number; via?: 'interaction' | 'place' } | null;
+  controller?: 'llm' | 'rules';
+  rules?: { action?: string; targets?: Requirement; seek?: boolean; wander?: number };
+  color?: string;
+}
+
+/** Scenario action (bite, shoot, treat…). */
+export interface ActionConfig {
+  description?: string;
+  target?: 'agent' | 'none';
+  who?: Requirement;
+  target_requires?: Requirement;
+  chance?: number;
+  cost?: Record<string, number>;
+  on_target?: Outcome;
+  on_self?: Outcome;
+  world?: Record<string, unknown>;
+  message?: string;
+  fail_message?: string;
+}
+
+export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline'];
 
 export interface ScheduledEventConfig {
   tick: number;
@@ -74,6 +132,8 @@ export interface ScenarioConfig {
   agents: AgentConfig[];
   events?: { scheduled?: ScheduledEventConfig[]; injectable?: boolean };
   items?: Record<string, ItemConfig>;
+  conditions?: Record<string, ConditionConfig>;
+  actions?: Record<string, ActionConfig>;
 }
 
 export const LOCATION_TYPES = [
@@ -242,11 +302,20 @@ export function validateScenario(cfg: ScenarioConfig): ValidationIssue[] {
     const fx = effectsToForm(e.effects);
     if (fx.spawn.some((s) => !String(s.name ?? '').trim()))
       issues.push({ path: `events.${i}`, message: `Una llegada del suceso #${i + 1} no tiene nombre.` });
-    for (const t of [...fx.kill, ...fx.depart, ...fx.health.map((h) => h.target), ...fx.items.map((r) => r.target)]) {
+    for (const r of [...fx.addCondition, ...fx.removeCondition])
+      if (!cfg.conditions?.[r.condition]) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} usa el estado «${r.condition}», que no existe.` });
+    for (const t of [
+      ...fx.kill,
+      ...fx.depart,
+      ...fx.health.map((h) => h.target),
+      ...fx.items.map((r) => r.target),
+      ...[...fx.addCondition, ...fx.removeCondition].map((r) => r.target),
+    ]) {
       const known = t === 'all' || (t.startsWith('location:') ? names.has(t.slice(9)) : agentNames.has(t));
       if (!known) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} afecta a «${targetLabel(t)}», que no existe.` });
     }
   }
+  issues.push(...referenceIssues(cfg));
   return issues;
 }
 
@@ -280,13 +349,27 @@ export interface EffectsForm {
   depart: string[];
   health: Array<{ target: string; delta: number }>;
   spawn: SpawnSpec[];
+  /** Conditions added / removed: one row per target and condition. */
+  addCondition: Array<{ target: string; condition: string }>;
+  removeCondition: Array<{ target: string; condition: string }>;
   /** Items added (+) or removed (-) for an agent or a place ("location:<name>"). */
   items: Array<{ target: string; item: string; delta: number }>;
   /** Other keys: written to the world's global_state. */
   world: Record<string, unknown>;
 }
 
-const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items'];
+const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items', 'add_condition', 'remove_condition'];
+
+function conditionRows(v: unknown): Array<{ target: string; condition: string }> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return [];
+  return Object.entries(v as Record<string, unknown>).flatMap(([target, c]) => names(c).map((condition) => ({ target, condition })));
+}
+
+function conditionMap(rows: Array<{ target: string; condition: string }>): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const r of rows) if (r.target && r.condition && !(out[r.target] ??= []).includes(r.condition)) out[r.target].push(r.condition);
+  return Object.keys(out).length ? out : undefined;
+}
 
 function names(v: unknown): string[] {
   return typeof v === 'string' ? [v] : Array.isArray(v) ? v.map(String) : [];
@@ -302,6 +385,8 @@ export function effectsToForm(effects: Record<string, unknown> | undefined): Eff
     depart: names(fx.depart),
     health: Object.entries(health).map(([target, delta]) => ({ target, delta: Number(delta) || 0 })),
     spawn: spawn.filter((x): x is SpawnSpec => !!x && typeof x === 'object'),
+    addCondition: conditionRows(fx.add_condition),
+    removeCondition: conditionRows(fx.remove_condition),
     items: Object.entries(items).flatMap(([target, changes]) =>
       Object.entries(changes ?? {}).map(([item, delta]) => ({ target, item, delta: Number(delta) || 0 })),
     ),
@@ -321,6 +406,10 @@ export function formToEffects(f: EffectsForm): Record<string, unknown> | undefin
   const items: Record<string, Record<string, number>> = {};
   for (const r of f.items) if (r.target && r.item.trim() && r.delta) (items[r.target] ??= {})[r.item.trim()] = r.delta;
   if (Object.keys(items).length) out.items = items;
+  const add = conditionMap(f.addCondition);
+  if (add) out.add_condition = add;
+  const remove = conditionMap(f.removeCondition);
+  if (remove) out.remove_condition = remove;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -356,4 +445,33 @@ export function scenarioWarnings(cfg: ScenarioConfig): string[] {
   if (!Object.keys(catalog).length) return [];
   const missing = itemsUsed(cfg).filter((n) => !catalog[n]);
   return missing.length ? [`Objetos sin ficha en el catálogo (sin descripción ni uso): ${missing.join(', ')}.`] : [];
+}
+
+/** Conditions and actions must exist where they are referenced (Simcore rejects the scenario otherwise). */
+export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
+  const conds = cfg.conditions ?? {};
+  const acts = cfg.actions ?? {};
+  const issues: ValidationIssue[] = [];
+  const need = (list: string[] | undefined, where: string, path: string) => {
+    for (const c of list ?? []) if (c && !conds[c]) issues.push({ path, message: `${where} usa el estado «${c}», que no existe.` });
+  };
+  cfg.agents.forEach((a, i) => need(a.conditions, a.name || `El agente #${i + 1}`, `agents.${i}`));
+  Object.entries(cfg.items ?? {}).forEach(([k, it]) => need(it.cures, `El objeto ${k}`, `items.${k}`));
+  for (const [k, a] of Object.entries(acts)) {
+    if (BUILTIN_ACTIONS.includes(k)) issues.push({ path: `actions.${k}`, message: `La acción «${k}» choca con una acción básica de Simcore.` });
+    for (const r of [a.who, a.target_requires]) {
+      need(r?.conditions, `La acción ${k}`, `actions.${k}`);
+      need(r?.not_conditions, `La acción ${k}`, `actions.${k}`);
+    }
+    for (const o of [a.on_target, a.on_self]) {
+      need(o?.add_conditions, `La acción ${k}`, `actions.${k}`);
+      need(o?.remove_conditions, `La acción ${k}`, `actions.${k}`);
+    }
+  }
+  for (const [k, c] of Object.entries(conds)) {
+    if (c.becomes) need([c.becomes], `El estado ${k}`, `conditions.${k}`);
+    if (c.rules?.action && !acts[c.rules.action])
+      issues.push({ path: `conditions.${k}`, message: `El estado ${k} usa la acción «${c.rules.action}», que no existe.` });
+  }
+  return issues;
 }

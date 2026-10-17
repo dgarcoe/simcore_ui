@@ -7,10 +7,12 @@ interface Props {
   places: string[];
   /** Known item names (catalog and inventories), suggested in the Objects row. */
   items?: string[];
+  /** Scenario conditions that events can add or remove. */
+  conditions?: string[];
 }
 
 /** What a scheduled event changes: deaths, injuries, departures, arrivals and world variables. */
-export function EffectsEditor({ effects, onChange, agents, places, items = [] }: Props) {
+export function EffectsEditor({ effects, onChange, agents, places, items = [], conditions = [] }: Props) {
   const form = effectsToForm(effects);
   const set = (mutate: (f: EffectsForm) => void) => {
     const next = structuredClone(form);
@@ -21,7 +23,14 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [] }:
   // Items go to agents ("all" = everyone alive) or into a place's stock.
   const itemTargets = targets;
   const count =
-    form.kill.length + form.depart.length + form.health.length + form.spawn.length + form.items.length + Object.keys(form.world).length;
+    form.kill.length +
+    form.depart.length +
+    form.health.length +
+    form.spawn.length +
+    form.items.length +
+    form.addCondition.length +
+    form.removeCondition.length +
+    Object.keys(form.world).length;
 
   return (
     <details className="effects" open={count > 0}>
@@ -94,6 +103,29 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [] }:
           <datalist id="fx-items">{items.map((k) => <option key={k} value={k} />)}</datalist>
         </div>
       </div>
+
+      {conditions.length > 0 &&
+        (['addCondition', 'removeCondition'] as const).map((key) => (
+          <div key={key} className="fx-row">
+            <span className="fx-label">{key === 'addCondition' ? 'Pasan a estar' : 'Dejan de estar'}</span>
+            <div className="fx-items">
+              {form[key].map((r, i) => (
+                <span key={i} className="row wrap">
+                  <select className="select" value={r.target} onChange={(e) => set((f) => void (f[key][i].target = e.target.value))}>
+                    {targets.map((t) => <option key={t} value={t}>{targetLabel(t)}</option>)}
+                  </select>
+                  <select className="select" value={r.condition} onChange={(e) => set((f) => void (f[key][i].condition = e.target.value))}>
+                    {conditions.map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                  <button className="btn" onClick={() => set((f) => void f[key].splice(i, 1))}>✕</button>
+                </span>
+              ))}
+              <button className="btn" onClick={() => set((f) => void f[key].push({ target: agents[0] ?? 'all', condition: conditions[0] }))}>
+                + {key === 'addCondition' ? 'Añadir estado' : 'Quitar estado'}
+              </button>
+            </div>
+          </div>
+        ))}
 
       <WorldVars world={form.world} onChange={(w) => set((f) => void (f.world = w))} />
       <p className="dim small">Necesita una versión de Simcore con ciclo de vida de agentes; las versiones anteriores solo muestran el suceso.</p>

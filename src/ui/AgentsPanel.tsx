@@ -3,7 +3,7 @@ import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
-import { AgentActions, Inventory, SpawnForm } from './AgentControls';
+import { AgentActions, Conditions, Inventory, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
 
 function statusLabel(a: Agent): string {
@@ -54,7 +54,11 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               <Portrait theme={theme} name={a.name} scale={2} />
               <span className="agent-row-text">
                 <strong>{a.name}</strong>
-                <span className="dim">{statusLabel(a) ? `${statusLabel(a)} · ` : ''}{a.location}</span>
+                <span className="dim">
+                  {statusLabel(a) ? `${statusLabel(a)} · ` : ''}
+                  {isAlive(a) && Object.keys(a.state.conditions ?? {}).length ? `${Object.keys(a.state.conditions ?? {}).join(', ')} · ` : ''}
+                  {a.location}
+                </span>
               </span>
               <span className="mood-dot" style={{ background: a.state.mood >= 0 ? '#38b764' : '#b13e53', opacity: 0.4 + Math.abs(a.state.mood) }} />
             </button>
@@ -78,6 +82,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
             </div>
           </div>
           {statusLabel(agent) && <p className="bad-text">{statusLabel(agent)}</p>}
+          <Conditions agent={agent} />
           <AgentActions agent={agent} />
           {isAlive(agent) && agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}
           {isAlive(agent) && lastWhy[agent.name]?.text && (

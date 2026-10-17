@@ -152,3 +152,54 @@ export function Inventory({ agent }: { agent: Agent }) {
     </>
   );
 }
+
+/** Conditions the agent is in (with color and time left) and, live, a way to add or remove them. */
+export function Conditions({ agent }: { agent: Agent }) {
+  const sim = useSim((s) => s.sim);
+  const live = useSim((s) => s.mode === 'live' && s.status === 'running');
+  const [pick, setPick] = useState('');
+  const [error, setError] = useState('');
+  const catalog = sim?.conditions ?? {};
+  const held = Object.entries(agent.state.conditions ?? {});
+  const canEdit = live && isAlive(agent) && Object.keys(catalog).length > 0;
+  if ((!held.length && !canEdit) || !isAlive(agent)) return null;
+  const change = (key: 'add_condition' | 'remove_condition', name: string) =>
+    applyEffects(`${agent.name} ${key === 'add_condition' ? 'pasa a estar' : 'deja de estar'}: ${name}`, { [key]: { [agent.name]: name } }).then(
+      () => setError(''),
+      (err: Error) => setError(err.message),
+    );
+  return (
+    <div className="conditions">
+      {held.map(([name, left]) => {
+        const info = catalog[name];
+        return (
+          <span
+            key={name}
+            className="cond-chip"
+            style={{ borderColor: info?.color || undefined, color: info?.color || undefined }}
+            title={[info?.description, info?.controller === 'rules' ? 'Lo controlan reglas, no el LLM' : '', left != null && info?.becomes ? `En ${left} ticks: ${info.becomes}` : left != null ? `${left} ticks más` : '']
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            {name}
+            {left != null ? ` · ${left}` : ''}
+            {canEdit && (
+              <button className="link" onClick={() => change('remove_condition', name)} aria-label={`Quitar ${name}`}>
+                ✕
+              </button>
+            )}
+          </span>
+        );
+      })}
+      {canEdit && (
+        <select className="select" value={pick} onChange={(e) => (setPick(''), e.target.value && change('add_condition', e.target.value))}>
+          <option value="">+ estado…</option>
+          {Object.keys(catalog)
+            .filter((n) => !(n in (agent.state.conditions ?? {})))
+            .map((n) => <option key={n}>{n}</option>)}
+        </select>
+      )}
+      {error && <span className="bad-text small">{error}</span>}
+    </div>
+  );
+}

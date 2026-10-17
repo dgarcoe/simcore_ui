@@ -236,3 +236,22 @@ describe('items', () => {
     expect(s.feed[0].action).toMatchObject({ kind: 'give', item: 'food' });
   });
 });
+
+describe('conditions', () => {
+  it('reports condition changes and announces transformations', () => {
+    const s = run([
+      ev('condition_change', 2, { agent: 'Ana', condition: 'infected', change: 'added', into: '', cause: 'bite by Zed', location: 'Plaza' }, 'Ana'),
+      ev('agent_action', 2, { action: 'muerde a Ana', action_type: 'custom', name: 'bite', success: true, target: 'Ana' }, 'Zed'),
+      ev('condition_change', 7, { agent: 'Ana', condition: 'infected', change: 'transformed', into: 'zombie', cause: '', location: 'Plaza' }, 'Ana'),
+      ev('condition_change', 8, { agent: 'Bob', condition: 'panicked', change: 'removed', into: '', cause: 'it wore off', location: 'Plaza' }, 'Bob'),
+    ]);
+    expect(s.feed.map((f) => `${f.source} ${f.text}`)).toEqual([
+      'Ana ahora está: infected',
+      'Zed muerde a Ana',
+      'Ana se convierte en zombie',
+      'Bob ya no está: panicked',
+    ]);
+    expect(s.feed[0].reasoning).toBe('bite by Zed');
+    expect(s.banner).toMatchObject({ kind: 'transform', text: 'Ana se ha convertido en zombie' });
+  });
+});

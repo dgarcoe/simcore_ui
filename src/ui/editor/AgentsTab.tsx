@@ -4,6 +4,7 @@ import { archetypeFor } from '../../game/art/archetypes';
 import type { ThemePack } from '../../themes/types';
 import { Portrait } from '../Portrait';
 import { AmountsField } from './AmountsField';
+import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 
 const TRAITS: Array<[keyof PersonalityConfig, string]> = [
@@ -158,6 +159,12 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                   Historia
                   <textarea className="input" rows={3} value={a.backstory ?? ''} onChange={(e) => set((x) => void (x.backstory = e.target.value))} />
                 </label>
+                {Object.keys(draft.conditions ?? {}).length > 0 && (
+                  <label>
+                    <span>Empieza con estos estados</span>
+                    <ChipPicker options={Object.keys(draft.conditions ?? {})} value={a.conditions} onChange={(v) => set((x) => void (v.length ? (x.conditions = v) : delete x.conditions))} />
+                  </label>
+                )}
                 <AmountsField
                   label={<>Inventario (<code>objeto: cantidad</code>; se ven en el mapa y los agentes pueden darlos, usarlos o intercambiarlos)</>}
                   value={a.resources}

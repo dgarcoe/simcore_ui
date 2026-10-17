@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
+import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, referenceIssues, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -169,5 +169,48 @@ describe('items in scenarios', () => {
     const cfg = base();
     cfg.events!.scheduled![0].effects = { items: { Nadie: { food: 1 } } };
     expect(validateScenario(cfg).map((i) => i.message)).toContain('El suceso #1 afecta a «Nadie», que no existe.');
+  });
+});
+
+describe('conditions and scenario actions', () => {
+  it('round-trips condition effects', () => {
+    const fx = { add_condition: { Ana: 'infected', 'location:Plaza': ['panicked', 'infected'] }, remove_condition: { all: ['zombie'] } };
+    const form = effectsToForm(fx);
+    expect(form.addCondition).toEqual([
+      { target: 'Ana', condition: 'infected' },
+      { target: 'location:Plaza', condition: 'panicked' },
+      { target: 'location:Plaza', condition: 'infected' },
+    ]);
+    expect(formToEffects(form)).toEqual({
+      add_condition: { Ana: ['infected'], 'location:Plaza': ['panicked', 'infected'] },
+      remove_condition: { all: ['zombie'] },
+    });
+  });
+
+  it('reports references to conditions and actions that do not exist', () => {
+    const cfg: ScenarioConfig = {
+      simulation: { name: 'Z' },
+      environment: { locations: [{ name: 'Plaza' }] },
+      agents: [{ name: 'Ana', starting_location: 'Plaza', conditions: ['ghost'] }],
+      conditions: { zombie: { controller: 'rules', rules: { action: 'scratch' }, becomes: 'dust' } },
+      actions: { move: {}, bite: { who: { conditions: ['zombie'] }, on_target: { add_conditions: ['infected'] } } },
+      items: { antidote: { cures: ['infected'] } },
+    };
+    const msgs = referenceIssues(cfg).map((i) => i.message);
+    expect(msgs).toEqual([
+      'Ana usa el estado «ghost», que no existe.',
+      'El objeto antidote usa el estado «infected», que no existe.',
+      'La acción «move» choca con una acción básica de Simcore.',
+      'La acción bite usa el estado «infected», que no existe.',
+      'El estado zombie usa el estado «dust», que no existe.',
+      'El estado zombie usa la acción «scratch», que no existe.',
+    ]);
+  });
+
+  it('the zombie example validates cleanly', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/zombie-outbreak/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
+    expect(scenarioWarnings(cfg)).toEqual([]);
   });
 });

@@ -104,7 +104,7 @@ npm run build          # typecheck + build de producción en dist/
 
 ### Salud, muertes, llegadas y salidas
 
-Con el Simcore que trae la imagen Docker (rama `feat/inventory` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
+Con el Simcore que trae la imagen Docker (rama `feat/conditions` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
 - **Mapa:** los muertos quedan tumbados donde caen, los que se van desaparecen, los que llegan aparecen con un destello y los heridos llevan una barra de salud.
 - **Sucesos:** el feed y los avisos recogen bajas, llegadas, salidas y cambios del estado del mundo.
 - **Panel de agentes:** la salud de cada uno y, en vivo, los botones Herir, Curar, Matar y Retirar, más «Hacer llegar a alguien».
@@ -122,6 +122,23 @@ En la UI:
 - **Sucesos:** filtro «Objetos».
 - **Panel de agentes:** inventario con descripción y ofertas pendientes; en vivo, «Dar» o «Quitar» objetos.
 - **Editor:** pestaña «Objetos» (catálogo: descripción, si se gasta y qué hace al usarlo: salud, energía, ánimo). Cada lugar tiene existencias y producción, y los sucesos pueden dar o quitar objetos.
+
+### Estados, acciones propias y agentes por reglas
+
+**Estados** (infectado, en pánico, zombi…):
+- Cada agente puede tener estados con efectos por tick, una duración, transformaciones (infectado → zombi) y contagio.
+- Si un estado lo marca, al agente lo controlan reglas en vez del LLM: no gasta llamadas.
+- **Mapa:** cada estado tiñe al agente de su color, con un halo a los pies, y las transformaciones se anuncian.
+
+**Acciones propias del escenario** (morder, disparar, curar, atrancar…):
+- Se ofrecen al LLM solo a quien puede hacerlas.
+- Simcore decide si salen bien y aplica sus consecuencias.
+
+**En la UI:**
+- **Panel de agentes:** sus estados; en vivo, también puedes añadir o quitar estados.
+- **Editor:** pestañas «Estados» y «Acciones». Además, estados iniciales por agente, objetos que curan y sucesos que añaden o quitan estados.
+
+`scenarios/zombie-outbreak` («Brote en Valdeoscuro») es el ejemplo, también como repetición.
 
 `scenarios/last-night` es un ejemplo, y la repetición «La noche más larga» se ve sin backend. Con un Simcore sin ciclo de vida todo lo demás funciona igual: simplemente no hay muertes ni llegadas.
 

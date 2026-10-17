@@ -1,0 +1,142 @@
+# Example scenario for simcore_ui's 'town' theme with conditions (infected →
+# zombie), scenario actions (bite, shoot, barricade, treat) and rule-controlled
+# agents (zombies don't use the LLM). Needs dgarcoe/simcore (feat/conditions).
+simulation:
+  name: Brote en Valdeoscuro
+  description: Un vecino vuelve del monte con una mordedura. En pocas horas la fiebre se convierte en otra cosa.
+    Los supervivientes deben decidir si curar, atrincherarse o disparar.
+  time_step: 1 hour
+  duration: 24 hours
+  seed: 5
+  language: es
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.8
+conditions:
+  infected:
+    description: tienes fiebre alta y una mordedura que no deja de sangrar
+    appearance: sudoroso, con una mordedura
+    per_tick: {energy: -0.05, health: -0.03}
+    duration: 5
+    becomes: zombie
+    contagion: {chance: 0.15, via: interaction}
+    color: "#d9a066"
+  zombie:
+    description: ya no eres tú
+    appearance: un cuerpo que camina y gruñe
+    controller: rules
+    rules: {action: bite, seek: true, wander: 0.4}
+    color: "#7bc950"
+  panicked:
+    description: el miedo te impide pensar con claridad
+    appearance: aterrado
+    per_tick: {mood: -0.1}
+    duration: 3
+    color: "#ef7d57"
+actions:
+  bite:
+    description: morder
+    who: {conditions: [zombie]}
+    target_requires: {not_conditions: [zombie]}
+    chance: 0.6
+    on_target: {health: -0.3, add_conditions: [infected, panicked]}
+    message: muerde a {target}
+    fail_message: intenta morder a {target}, que se escapa
+  shoot:
+    description: disparar la escopeta a un zombi que esté aquí
+    who: {items: {shotgun: 1}}
+    target_requires: {conditions: [zombie]}
+    cost: {ammo: 1}
+    chance: 0.7
+    on_target: {health: -1.0}
+    message: dispara a {target}
+    fail_message: dispara a {target} y falla
+  barricade:
+    description: atrancar puertas y ventanas del lugar donde estás
+    target: none
+    who: {not_conditions: [zombie]}
+    cost: {tablones: 2}
+    on_self: {energy: -0.2, mood: 0.1}
+    world: {barricadas: true}
+    message: atranca puertas y ventanas
+  treat:
+    description: limpiar y vendar una herida (solo personal sanitario)
+    who: {professions: [médic, enfermer]}
+    target_requires: {not_conditions: [zombie]}
+    on_target: {health: 0.3, remove_conditions: [panicked]}
+    message: cura las heridas de {target}
+items:
+  antidote: {description: suero experimental, cures: [infected]}
+  medicine: {description: botiquín, on_use: {health: 0.4}}
+  ammo: {description: cartuchos, consumable: false}
+  shotgun: {description: escopeta de caza, consumable: false}
+  food: {description: comida, on_use: {energy: 0.3}}
+  tablones: {description: tablones y clavos para atrancar puertas}
+environment:
+  type: grid
+  size: [12, 12]
+  global_state:
+    ui_theme: town
+    hora: tarde
+  locations:
+    - {name: Plaza, type: public, position: [6, 6], capacity: 20}
+    - {name: Iglesia, type: religious, position: [6, 2], capacity: 15, stock: {food: 4, tablones: 4}}
+    - {name: Taberna, type: commercial, position: [9, 5], capacity: 12, stock: {food: 6, tablones: 2}}
+    - {name: Consultorio, type: health, position: [10, 9], capacity: 6, stock: {medicine: 3, antidote: 1}}
+    - {name: Monte, type: outdoor, position: [2, 9], capacity: 10}
+agents:
+  - name: Ramón
+    age: 52
+    profession: pastor
+    personality: {openness: 0.4, conscientiousness: 0.6, extraversion: 0.5, agreeableness: 0.6, neuroticism: 0.5}
+    goals: [Que nadie se entere de la mordedura, Volver con sus ovejas]
+    starting_location: Plaza
+    conditions: [infected]
+    backstory: Algo le mordió en el monte anoche.
+  - name: Elena
+    age: 41
+    profession: médica
+    personality: {openness: 0.7, conscientiousness: 0.85, extraversion: 0.5, agreeableness: 0.8, neuroticism: 0.35}
+    goals: [Atender a los heridos, Entender qué es esta fiebre]
+    starting_location: Consultorio
+    resources: {medicine: 2}
+  - name: Lucía
+    age: 34
+    profession: tabernera
+    personality: {openness: 0.6, conscientiousness: 0.5, extraversion: 0.85, agreeableness: 0.65, neuroticism: 0.4}
+    goals: [Proteger a los clientes de la taberna]
+    starting_location: Taberna
+    resources: {food: 2}
+  - name: Padre Julián
+    age: 66
+    profession: sacerdote
+    personality: {openness: 0.4, conscientiousness: 0.8, extraversion: 0.45, agreeableness: 0.75, neuroticism: 0.5}
+    goals: [Dar refugio en la iglesia]
+    starting_location: Iglesia
+  - name: Tomás
+    age: 58
+    profession: cazador
+    personality: {openness: 0.3, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.4, neuroticism: 0.3}
+    goals: [Acabar con lo que esté atacando al pueblo]
+    starting_location: Taberna
+    resources: {shotgun: 1, ammo: 6}
+  - name: Mateo
+    age: 19
+    profession: estudiante
+    personality: {openness: 0.8, conscientiousness: 0.3, extraversion: 0.7, agreeableness: 0.5, neuroticism: 0.7}
+    goals: [Grabarlo todo, Salir vivo]
+    starting_location: Plaza
+events:
+  scheduled:
+    - tick: 8
+      type: escalation
+      description: Llega la noche y se va la luz en todo el pueblo.
+      effects: {hora: noche, luz: false, add_condition: {all: panicked}}
+    - tick: 16
+      type: turning_point
+      description: Una columna de la Guardia Civil entra en Valdeoscuro con suministros.
+      effects:
+        spawn: [{name: Guardia, profession: guardia civil, starting_location: Plaza, count: 2, resources: {shotgun: 1, ammo: 10}}]
+        items: {"location:Consultorio": {antidote: 2, medicine: 4}}

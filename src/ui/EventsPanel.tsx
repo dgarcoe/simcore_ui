@@ -22,6 +22,7 @@ const ICON: Partial<Record<EventType, string>> = {
   environment_change: '🌐',
   item_transfer: '▣',
   trade_result: '⇄',
+  condition_change: '◈',
 };
 
 const ITEM_ACTIONS = new Set(['give', 'take', 'drop', 'use', 'offer', 'accept', 'decline']);
@@ -30,7 +31,7 @@ const FILTERS: Array<[string, EventType[] | 'items' | null]> = [
   ['Todo', null],
   ['Diálogo', ['agent_speak', 'interaction', 'agent_post']],
   ['Movimiento', ['agent_move']],
-  ['Mundo', ['scheduled_event', 'injected_event', 'environment_change', 'agent_spawn', 'agent_death', 'agent_depart', 'simulation_start', 'simulation_end']],
+  ['Mundo', ['scheduled_event', 'injected_event', 'environment_change', 'agent_spawn', 'agent_death', 'agent_depart', 'condition_change', 'simulation_start', 'simulation_end']],
   ['Reflexión', ['reflection']],
   ['Objetos', 'items'],
 ];

@@ -529,8 +529,13 @@ code {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …): long status lines must not widen the columns */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 4px;
+}
+
+.agent-list > li {
+  min-width: 0;
 }
 
 .agent-row {
@@ -1154,5 +1159,38 @@ details summary {
 
 .give-item {
   gap: 6px;
+  margin-top: 6px;
+}
+
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.cond-chip {
+  border: 2px solid var(--line);
+  padding: 0 6px;
+  color: var(--text);
+}
+
+.cond-chip .link {
+  margin-left: 4px;
+}
+
+.chip-picker {
+  gap: 6px;
+}
+
+.trait-label {
+  min-width: 90px;
+  color: var(--dim);
+}
+
+.ed-card details summary {
+  cursor: pointer;
+  color: var(--accent);
   margin-top: 6px;
 }

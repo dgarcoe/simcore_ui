@@ -43,7 +43,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform';
   text: string;
   location: string;
 }
@@ -280,6 +280,17 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     }
     case 'trade_offer':
       return next;
+    case 'condition_change': {
+      const { condition, change, into, cause } = e.data as Record<string, string>;
+      const text =
+        change === 'transformed' ? `se convierte en ${into}` : change === 'added' ? `ahora está: ${condition}` : `ya no está: ${condition}`;
+      next = { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: cause || undefined }) };
+      if (change !== 'transformed') return next;
+      return {
+        ...next,
+        banner: { id: seq, tick: e.tick, kind: 'transform', text: `${e.source} se ha convertido en ${into}`, location: String(e.data.location ?? '') },
+      };
+    }
     case 'trade_result': {
       if (e.data.accepted || e.data.reason === 'declined') return next;
       const text = `La oferta de ${e.data.from} a ${e.data.to} (${amount(e.data.amount)} ${e.data.item}) ${e.data.reason === 'expired' ? 'caduca sin respuesta' : `falla: ${e.data.reason}`}`;

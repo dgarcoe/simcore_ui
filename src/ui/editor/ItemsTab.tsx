@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { itemsUsed, type ItemConfig } from '../../api/scenario';
+import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 
 const EFFECTS: Array<['health' | 'energy' | 'mood', string]> = [
@@ -65,6 +66,16 @@ export function ItemsTab() {
             </button>
           </div>
           <input className="input" placeholder="Descripción (los agentes la leen)" value={it.description ?? ''} onChange={(e) => setItem(key, (x) => void (x.description = e.target.value))} />
+          {Object.keys(draft.conditions ?? {}).length > 0 && (
+            <span className="row wrap">
+              <span className="trait-label">Cura</span>
+              <ChipPicker
+                options={Object.keys(draft.conditions ?? {})}
+                value={it.cures}
+                onChange={(v) => setItem(key, (x) => void (v.length ? (x.cures = v) : delete x.cures))}
+              />
+            </span>
+          )}
           <div className="fx-row">
             <span className="fx-label">Al usarlo</span>
             <div className="fx-items">

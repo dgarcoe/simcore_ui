@@ -27,6 +27,10 @@ export class AgentView {
   readonly container: Phaser.GameObjects.Container;
   readonly sprite: Phaser.GameObjects.Sprite;
   private readonly ring: Phaser.GameObjects.Ellipse;
+  /** Colored glow at the feet while the agent has a visible condition. */
+  private readonly aura: Phaser.GameObjects.Ellipse;
+  /** Additive copy of the sprite that tints it toward the condition color (works on dark clothes too). */
+  private readonly glow: Phaser.GameObjects.Sprite;
   private readonly tag: Phaser.GameObjects.Text;
   private readonly pip: Phaser.GameObjects.Rectangle;
   private readonly hpBack: Phaser.GameObjects.Rectangle;
@@ -61,7 +65,9 @@ export class AgentView {
     const { x, y } = tileToWorld(tile);
     const shadow = scene.add.ellipse(0, 0, 12, 4, 0x000000, 0.3);
     this.ring = scene.add.ellipse(0, 0, 18, 7).setStrokeStyle(1, 0xffcd75).setVisible(false);
+    this.aura = scene.add.ellipse(0, 0, 16, 6, 0xffffff, 0.55).setVisible(false);
     this.sprite = scene.add.sprite(0, 1, this.texKey, 0).setOrigin(0.5, 1);
+    this.glow = scene.add.sprite(0, 1, this.texKey, 0).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45).setVisible(false);
     this.pip = scene.add.rectangle(0, -19, 4, 4, moodColor(0)).setStrokeStyle(1, 0x1a1c2c);
     // Health bar, only shown when hurt.
     this.hpBack = scene.add.rectangle(0, 4, 12, 3, 0x1a1c2c).setVisible(false);
@@ -72,7 +78,7 @@ export class AgentView {
       .setResolution(4)
       .setStroke(P.ink, 3)
       .setVisible(false);
-    this.container = scene.add.container(x, y, [shadow, this.ring, this.sprite, this.pip, this.hpBack, this.hp, this.tag]);
+    this.container = scene.add.container(x, y, [shadow, this.aura, this.ring, this.sprite, this.glow, this.pip, this.hpBack, this.hp, this.tag]);
     this.container.setDepth(y);
     this.sprite.setInteractive({ useHandCursor: true, pixelPerfect: false });
     this.sprite.on('pointerover', () => this.tag.setVisible(true));
@@ -96,9 +102,30 @@ export class AgentView {
     this.tag.setVisible(selected);
   }
 
+  /** Rule-controlled agents (zombies, animals…) shamble slower. */
+  private slow = false;
+
   setMood(mood: number, energy: number): void {
     this.pip.setFillStyle(moodColor(mood));
-    this.speed = 3 + Math.max(0, Math.min(1, energy)) * 4;
+    this.speed = (3 + Math.max(0, Math.min(1, energy)) * 4) * (this.slow ? 0.6 : 1);
+  }
+
+  /** Tint from the agent's most visible condition (e.g. green for a zombie); null clears it. */
+  setCondition(color: number | null, ruleControlled: boolean): void {
+    if (this.status !== 'alive') return;
+    this.slow = ruleControlled;
+    if (color === null) {
+      this.sprite.clearTint();
+      this.aura.setVisible(false);
+      this.glow.setVisible(false);
+      return;
+    }
+    // Multiply tints darken dark clothes to black: mix the color with white first,
+    // and add an additive copy so dark pixels also shift toward the color.
+    const mix = (shift: number) => Math.round(((color >> shift) & 0xff) * 0.55 + 255 * 0.45) << shift;
+    this.sprite.setTint(mix(16) | mix(8) | mix(0));
+    this.glow.setTint(color).setVisible(true);
+    this.aura.setFillStyle(color, 0.6).setVisible(true);
   }
 
   /** Health 0..1; undefined on Simcore versions without health. */
@@ -121,6 +148,8 @@ export class AgentView {
     this.sprite.stop();
     this.sprite.setTexture(this.texKey, 0).setTint(0x8b9bb4);
     this.pip.setVisible(false);
+    this.aura.setVisible(false);
+    this.glow.setVisible(false);
     this.hpBack.setVisible(false);
     this.hp.setVisible(false);
     if (animated) {
@@ -252,6 +281,10 @@ export class AgentView {
 
   /** Keeps floating UI attached while the agent moves. Returns the live bubble, if any. */
   update(): Bubble | null {
+    if (this.glow.visible) {
+      // Follow the sprite's current frame (walk/idle animations, pod) and pose.
+      this.glow.setTexture(this.sprite.texture.key, this.sprite.frame.name).setFlipX(this.sprite.flipX).setAngle(this.sprite.angle);
+    }
     if (this.bubble?.destroyed) this.bubble = null;
     this.bubble?.setPosition(Math.round(this.x), Math.round(this.y - 24));
     this.emote?.setPosition(Math.round(this.x + 8), Math.round(this.y - 22 + this.emoteBob.y));

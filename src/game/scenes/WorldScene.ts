@@ -349,6 +349,7 @@ export class WorldScene extends Phaser.Scene {
         continue;
       }
       view.setHealth(agent.state.health);
+      view.setCondition(...this.conditionLook(sim, agent.state.conditions));
       // Agents in virtual places (chats, networks) stay where they were on the map.
       if (view.zone !== loc && this.zones.has(loc)) {
         if (instant) {
@@ -442,6 +443,16 @@ export class WorldScene extends Phaser.Scene {
     else if (from) this.flyItem(d.item, from, { x: from.x, y: from.y - 40 }); // taken away
   }
 
+  /** Color of the agent's most visible condition (rule-controlled first) and whether rules drive it. */
+  private conditionLook(sim: SimState, conditions: Record<string, number | null> | undefined): [number | null, boolean] {
+    const catalog = sim.conditions ?? {};
+    const names = Object.keys(conditions ?? {});
+    const ruled = names.some((n) => catalog[n]?.controller === 'rules');
+    const pick = [...names].sort((a, b) => Number(catalog[b]?.controller === 'rules') - Number(catalog[a]?.controller === 'rules')).find((n) => catalog[n]?.color);
+    const color = pick ? Number.parseInt(String(catalog[pick].color).replace('#', ''), 16) : NaN;
+    return [Number.isNaN(color) ? null : color, ruled];
+  }
+
   private removeAgent(name: string, view: AgentView, animated: boolean): void {
     this.agents.delete(name);
     this.occupancy.release(name);
@@ -493,6 +504,7 @@ export class WorldScene extends Phaser.Scene {
       case 'agent_death':
       case 'agent_depart':
       case 'item_transfer':
+      case 'condition_change':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -519,6 +531,15 @@ export class WorldScene extends Phaser.Scene {
     const view = this.agents.get(e.source) ?? (sim ? this.ensureAgent(e.source, this.locationOf(sim, e.source)) : null);
     if (!view) return;
 
+    if (e.type === 'condition_change') {
+      const change = String(e.data.change);
+      if (change === 'transformed') {
+        view.showEmote('skull');
+        const z = this.zones.get(view.zone);
+        if (z) this.flashZone(z, 0x7bc950, 2);
+      } else view.showEmote(change === 'added' ? 'alert' : 'sparkle');
+      return;
+    }
     if (e.type === 'agent_death') {
       view.die(true);
       this.cameras.main.shake(200, 0.003);
@@ -591,6 +612,18 @@ export class WorldScene extends Phaser.Scene {
       case 'use':
         break;
       case 'custom':
+        if (e.data.name) {
+          // Scenario action (bite, shoot, treat…) on someone here.
+          const victim = this.agents.get(String(e.data.target ?? ''));
+          if (victim) {
+            view.faceToward(victim);
+            victim.faceToward(view);
+            this.linkBurst(view, victim, e.data.success === false ? 0x94b0c2 : 0xb13e53);
+            victim.showEmote('alert');
+          } else view.showEmote('hand');
+          if (action.content) view.say(action.content, 'action', 2600);
+          break;
+        }
         view.showEmote('idea');
         if (action.content) view.say(action.content, 'action', 2600);
         break;

@@ -9,12 +9,14 @@ import { AgentsTab } from './AgentsTab';
 import { normalize, useDraft } from './draft';
 import { EventsTab } from './EventsTab';
 import { GeneralTab } from './GeneralTab';
+import { ActionsTab } from './ActionsTab';
+import { ConditionsTab } from './ConditionsTab';
 import { ItemsTab } from './ItemsTab';
 import { LocationsTab } from './LocationsTab';
 import { MapPreview } from './MapPreview';
 import { useDemoPref } from '../demoPref';
 
-type Tab = 'general' | 'places' | 'agents' | 'items' | 'events';
+type Tab = 'general' | 'places' | 'agents' | 'items' | 'conditions' | 'actions' | 'events';
 
 export function ScenarioEditor() {
   const [draft, update] = useDraft();
@@ -95,6 +97,8 @@ export function ScenarioEditor() {
     ['places', `Lugares ${draft.environment.locations.length}`],
     ['agents', `Agentes ${draft.agents.length}`],
     ['items', `Objetos ${Object.keys(draft.items ?? {}).length}`],
+    ['conditions', `Estados ${Object.keys(draft.conditions ?? {}).length}`],
+    ['actions', `Acciones ${Object.keys(draft.actions ?? {}).length}`],
     ['events', `Sucesos ${draft.events?.scheduled?.length ?? 0}`],
   ];
 
@@ -152,6 +156,8 @@ export function ScenarioEditor() {
             {tab === 'places' && <LocationsTab selected={selectedLoc} onSelect={setSelectedLoc} />}
             {tab === 'agents' && <AgentsTab theme={theme} />}
             {tab === 'items' && <ItemsTab />}
+            {tab === 'conditions' && <ConditionsTab />}
+            {tab === 'actions' && <ActionsTab />}
             {tab === 'events' && <EventsTab />}
           </div>
         </section>

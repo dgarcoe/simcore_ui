@@ -63,6 +63,7 @@ export function EventsTab() {
             agents={agents}
             places={places}
             items={items}
+            conditions={Object.keys(draft.conditions ?? {})}
             onChange={(fx) =>
               update((d) => {
                 const ev = d.events!.scheduled![i];

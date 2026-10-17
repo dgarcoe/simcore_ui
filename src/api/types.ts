@@ -22,7 +22,19 @@ export type EventType =
   // Items (Simcore forks with inventories).
   | 'item_transfer'
   | 'trade_offer'
-  | 'trade_result';
+  | 'trade_result'
+  // Conditions (infected, zombie…) of Simcore forks with scenario conditions.
+  | 'condition_change';
+
+/** Catalog entry of a scenario condition, as exposed in the state. */
+export interface ConditionInfo {
+  description?: string;
+  appearance?: string;
+  color?: string;
+  controller?: 'llm' | 'rules';
+  becomes?: string;
+  duration?: number | null;
+}
 
 export type TransferKind = 'give' | 'take' | 'drop' | 'use' | 'trade' | 'produce' | 'effect';
 
@@ -70,6 +82,8 @@ export interface AgentState {
   /** 0 (dead) .. 1; absent on Simcore versions without health. */
   health?: number;
   status?: AgentStatus;
+  /** Scenario conditions → ticks left (null = until removed). */
+  conditions?: Record<string, number | null>;
 }
 
 export interface Agent {
@@ -122,6 +136,8 @@ export interface SimState {
   /** Item catalog and pending trade offers (Simcore with inventories). */
   items?: Record<string, ItemInfo>;
   offers?: TradeOfferInfo[];
+  conditions?: Record<string, ConditionInfo>;
+  actions?: Record<string, { description?: string; target?: 'agent' | 'none' }>;
   pending_arrivals?: string[];
 }
 
