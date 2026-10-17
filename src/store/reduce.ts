@@ -273,6 +273,18 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         },
       };
     }
+    case 'item_transfer': {
+      // give/take/drop/use/trade already show as the agent's action; only report what has no action.
+      const text = transferText(e.data);
+      return text ? { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }) } : next;
+    }
+    case 'trade_offer':
+      return next;
+    case 'trade_result': {
+      if (e.data.accepted || e.data.reason === 'declined') return next;
+      const text = `La oferta de ${e.data.from} a ${e.data.to} (${amount(e.data.amount)} ${e.data.item}) ${e.data.reason === 'expired' ? 'caduca sin respuesta' : `falla: ${e.data.reason}`}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }) };
+    }
     case 'environment_change': {
       const changes = Object.entries((e.data.global_state ?? {}) as Record<string, unknown>)
         .map(([k, v]) => `${k} = ${JSON.stringify(v)}`)
@@ -392,6 +404,21 @@ function llmAfterTick(llm: LlmStatus, stats: Record<string, unknown> | undefined
     tickErrors: 0,
     tickParseErrors: 0,
   };
+}
+
+function amount(n: unknown): string {
+  const v = Number(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/** Feed line for item movements that no agent action explains (production, event effects). */
+export function transferText(d: Record<string, any>): string {
+  const what = `${amount(d.amount)} ${d.item}`;
+  const place = (s: string) => (s.startsWith('location:') ? s.slice('location:'.length) : s);
+  if (d.kind === 'produce') return `${d.to} produce ${what} en ${d.location || place(String(d.from))}`;
+  if (d.kind !== 'effect') return '';
+  if (d.to) return `${place(String(d.to))} recibe ${what}`;
+  return `${place(String(d.from))} pierde ${what}`;
 }
 
 function feedItem(id: number, e: SimEvent, text: string): FeedItem {

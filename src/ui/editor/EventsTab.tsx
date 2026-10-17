@@ -1,3 +1,4 @@
+import { itemsUsed } from '../../api/scenario';
 import { useDraft } from './draft';
 import { EffectsEditor } from './EffectsEditor';
 
@@ -8,6 +9,7 @@ export function EventsTab() {
   const events = draft.events?.scheduled ?? [];
   const agents = draft.agents.map((a) => a.name).filter(Boolean);
   const places = draft.environment.locations.map((l) => l.name).filter(Boolean);
+  const items = [...new Set([...Object.keys(draft.items ?? {}), ...itemsUsed(draft)])].sort();
 
   return (
     <div className="ed-section">
@@ -60,6 +62,7 @@ export function EventsTab() {
             effects={e.effects}
             agents={agents}
             places={places}
+            items={items}
             onChange={(fx) =>
               update((d) => {
                 const ev = d.events!.scheduled![i];

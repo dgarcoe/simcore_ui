@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { LOCATION_TYPES, type ScenarioConfig } from '../../api/scenario';
 import { resolveRole, ZONE_ROLES } from '../../game/map/roles';
+import { AmountsField } from './AmountsField';
 import { useDraft } from './draft';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -151,6 +152,19 @@ export function LocationsTab({ selected, onSelect }: Props) {
                 <input type="checkbox" checked={!!l.virtual} onChange={(e) => set((x) => void (x.virtual = e.target.checked))} />
                 Virtual (red social, chat)
               </label>
+            </div>
+            <div className="ed-grid">
+              <AmountsField
+                label="Existencias (se pueden coger)"
+                value={l.stock}
+                onChange={(r) => set((x) => void (Object.keys(r).length ? (x.stock = r) : delete x.stock))}
+              />
+              <AmountsField
+                label="Produce al trabajar aquí"
+                value={l.produces}
+                placeholder="food: 2"
+                onChange={(r) => set((x) => void (Object.keys(r).length ? (x.produces = r) : delete x.produces))}
+              />
             </div>
             <textarea
               className="input"

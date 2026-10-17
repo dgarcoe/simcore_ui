@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Agent } from '../api/types';
+import type { Agent, ItemInfo } from '../api/types';
 import { mapLocations } from '../game/map/model';
 import { hasLifecycle, isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
@@ -70,5 +70,85 @@ export function SpawnForm() {
         {error && <span className="bad-text small">{error}</span>}
       </form>
     </details>
+  );
+}
+
+function fmt(n: unknown): string {
+  const v = Number(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/** "botiquín · al usar: salud +0.4" */
+export function itemHint(info: ItemInfo | undefined): string {
+  if (!info) return '';
+  const names = { health: 'salud', energy: 'energía', mood: 'ánimo' } as const;
+  const use = Object.entries(info.on_use ?? {})
+    .map(([k, v]) => `${names[k as keyof typeof names] ?? k} ${Number(v) >= 0 ? '+' : ''}${v}`)
+    .join(', ');
+  return [info.description, use && `al usar: ${use}${info.consumable === false ? ' (no se gasta)' : ''}`].filter(Boolean).join(' · ');
+}
+
+/** What the agent carries, what lies where it is, its pending offers, and (live) a way to hand it items. */
+export function Inventory({ agent }: { agent: Agent }) {
+  const sim = useSim((s) => s.sim);
+  const live = useSim((s) => s.mode === 'live' && s.status === 'running');
+  const [item, setItem] = useState('');
+  const [amount, setAmount] = useState(1);
+  const [error, setError] = useState('');
+  const catalog = sim?.items ?? {};
+  const held = Object.entries(agent.state.resources ?? {}).filter(([, v]) => typeof v !== 'number' || v > 0);
+  const here = Object.entries(sim?.environment.locations[agent.location]?.stock ?? {}).filter(([, v]) => v > 0);
+  const offers = (sim?.offers ?? []).filter((o) => o.from === agent.name || o.to === agent.name);
+  const canGive = live && hasLifecycle(sim) && isAlive(agent);
+  const known = [...new Set([...Object.keys(catalog), ...held.map(([k]) => k)])].sort();
+  return (
+    <>
+      <h4>Inventario</h4>
+      {held.length === 0 ? (
+        <p className="dim small">Nada.</p>
+      ) : (
+        <ul className="kv">
+          {held.map(([k, v]) => (
+            <li key={k} title={itemHint(catalog[k])}>
+              <span>{k}{catalog[k]?.description ? <span className="dim"> · {catalog[k].description}</span> : null}</span>
+              <span>{typeof v === 'number' ? fmt(v) : String(v)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {here.length > 0 && isAlive(agent) && (
+        <p className="dim small">En {agent.location}: {here.map(([k, v]) => `${k} ×${fmt(v)}`).join(', ')}</p>
+      )}
+      {offers.length > 0 && (
+        <ul className="offers">
+          {offers.map((o, i) => (
+            <li key={i} className="small">
+              ⇄ {o.from === agent.name ? `Ofrece a ${o.to}` : `${o.from} le ofrece`} {fmt(o.amount)} {o.item}
+              {o.ask_item ? ` por ${fmt(o.ask_amount)} ${o.ask_item}` : ' (regalo)'} <span className="dim">· hasta t{o.expires}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {canGive && (
+        <form
+          className="row wrap give-item"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = item.trim();
+            if (!name || !amount) return;
+            applyEffects(`${agent.name} ${amount > 0 ? 'recibe' : 'pierde'} ${Math.abs(amount)} ${name}`, { items: { [agent.name]: { [name]: amount } } }).then(
+              () => setError(''),
+              (err: Error) => setError(err.message),
+            );
+          }}
+        >
+          <input className="input" list="known-items" placeholder="objeto" value={item} onChange={(e) => setItem(e.target.value)} />
+          <datalist id="known-items">{known.map((k) => <option key={k} value={k} />)}</datalist>
+          <input className="input tiny" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} title="Negativo para quitar" />
+          <button className="btn" type="submit">{amount < 0 ? 'Quitar' : 'Dar'}</button>
+          {error && <span className="bad-text small">{error}</span>}
+        </form>
+      )}
+    </>
   );
 }

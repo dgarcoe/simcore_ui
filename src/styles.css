@@ -1144,3 +1144,15 @@ details summary {
 .row.wrap {
   flex-wrap: wrap;
 }
+
+.offers {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0;
+  color: var(--accent);
+}
+
+.give-item {
+  gap: 6px;
+  margin-top: 6px;
+}

@@ -104,11 +104,24 @@ npm run build          # typecheck + build de producción en dist/
 
 ### Salud, muertes, llegadas y salidas
 
-Con el Simcore que trae la imagen Docker (rama `feat/agent-lifecycle` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
+Con el Simcore que trae la imagen Docker (rama `feat/inventory` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
 - **Mapa:** los muertos quedan tumbados donde caen, los que se van desaparecen, los que llegan aparecen con un destello y los heridos llevan una barra de salud.
 - **Sucesos:** el feed y los avisos recogen bajas, llegadas, salidas y cambios del estado del mundo.
 - **Panel de agentes:** la salud de cada uno y, en vivo, los botones Herir, Curar, Matar y Retirar, más «Hacer llegar a alguien».
 - **Editor:** cada agente tiene salud inicial y tick de llegada, y cada suceso programado sus «Consecuencias»: quién muere, se hiere o cura, se marcha o llega, y variables del mundo.
+
+### Objetos
+
+Con la misma versión de Simcore los objetos son reales:
+- **Agentes:** los dan, cogen, dejan, usan e intercambian (oferta y respuesta).
+- **Lugares:** tienen existencias, y trabajar en algunos produce cosas.
+- **Sucesos:** pueden traer o quitar suministros.
+
+En la UI:
+- **Mapa:** los objetos vuelan de mano en mano y cada lugar muestra sus existencias junto a su nombre.
+- **Sucesos:** filtro «Objetos».
+- **Panel de agentes:** inventario con descripción y ofertas pendientes; en vivo, «Dar» o «Quitar» objetos.
+- **Editor:** pestaña «Objetos» (catálogo: descripción, si se gasta y qué hace al usarlo: salud, energía, ánimo). Cada lugar tiene existencias y producción, y los sucesos pueden dar o quitar objetos.
 
 `scenarios/last-night` es un ejemplo, y la repetición «La noche más larga» se ve sin backend. Con un Simcore sin ciclo de vida todo lo demás funciona igual: simplemente no hay muertes ni llegadas.
 

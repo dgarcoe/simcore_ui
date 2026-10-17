@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { parse, stringify } from 'yaml';
 import * as api from '../../api/client';
-import { cleanScenario, configToEnvironment, validateScenario } from '../../api/scenario';
+import { cleanScenario, configToEnvironment, scenarioWarnings, validateScenario } from '../../api/scenario';
 import { useSim } from '../../store/simStore';
 import { leave, runScenario } from '../../store/sources';
 import { resolveTheme } from '../../themes/registry';
@@ -9,11 +9,12 @@ import { AgentsTab } from './AgentsTab';
 import { normalize, useDraft } from './draft';
 import { EventsTab } from './EventsTab';
 import { GeneralTab } from './GeneralTab';
+import { ItemsTab } from './ItemsTab';
 import { LocationsTab } from './LocationsTab';
 import { MapPreview } from './MapPreview';
 import { useDemoPref } from '../demoPref';
 
-type Tab = 'general' | 'places' | 'agents' | 'events';
+type Tab = 'general' | 'places' | 'agents' | 'items' | 'events';
 
 export function ScenarioEditor() {
   const [draft, update] = useDraft();
@@ -27,6 +28,7 @@ export function ScenarioEditor() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const issues = useMemo(() => validateScenario(draft), [draft]);
+  const warnings = useMemo(() => scenarioWarnings(draft), [draft]);
   const theme = useMemo(
     () =>
       resolveTheme({
@@ -92,6 +94,7 @@ export function ScenarioEditor() {
     ['general', 'General'],
     ['places', `Lugares ${draft.environment.locations.length}`],
     ['agents', `Agentes ${draft.agents.length}`],
+    ['items', `Objetos ${Object.keys(draft.items ?? {}).length}`],
     ['events', `Sucesos ${draft.events?.scheduled?.length ?? 0}`],
   ];
 
@@ -133,11 +136,14 @@ export function ScenarioEditor() {
               </button>
             ))}
           </nav>
-          {(issues.length > 0 || status) && (
+          {(issues.length > 0 || warnings.length > 0 || status) && (
             <div className="ed-status">
               {status && <p className={status.kind === 'ok' ? 'ok-text' : 'warn'}>{status.text}</p>}
               {issues.map((i) => (
                 <p key={i.path + i.message} className="warn">• {i.message}</p>
+              ))}
+              {warnings.map((w) => (
+                <p key={w} className="dim small">ⓘ {w}</p>
               ))}
             </div>
           )}
@@ -145,6 +151,7 @@ export function ScenarioEditor() {
             {tab === 'general' && <GeneralTab />}
             {tab === 'places' && <LocationsTab selected={selectedLoc} onSelect={setSelectedLoc} />}
             {tab === 'agents' && <AgentsTab theme={theme} />}
+            {tab === 'items' && <ItemsTab />}
             {tab === 'events' && <EventsTab />}
           </div>
         </section>

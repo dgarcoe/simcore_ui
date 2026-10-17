@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
+import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -135,5 +135,39 @@ describe('example scenarios', () => {
     const { parse } = await import('yaml');
     const cfg = parse(readFileSync(new URL('../../scenarios/last-night/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
     expect(validateScenario(cfg)).toEqual([]);
+  });
+});
+
+describe('items in scenarios', () => {
+  const base = (): ScenarioConfig => ({
+    simulation: { name: 'S' },
+    environment: { locations: [{ name: 'Clinic', stock: { medicine: 3 }, produces: { bandage: 1 } }] },
+    agents: [{ name: 'Ana', starting_location: 'Clinic', resources: { money: 5 } }],
+    events: { scheduled: [{ tick: 2, type: 'x', description: 'd', effects: { items: { 'location:Clinic': { food: 4 }, Ana: { money: -2 } } } }] },
+  });
+
+  it('round-trips item effects', () => {
+    const form = effectsToForm(base().events!.scheduled![0].effects);
+    expect(form.items).toEqual([
+      { target: 'location:Clinic', item: 'food', delta: 4 },
+      { target: 'Ana', item: 'money', delta: -2 },
+    ]);
+    form.items.push({ target: 'Ana', item: ' ', delta: 3 });
+    expect(formToEffects(form)).toEqual({ items: { 'location:Clinic': { food: 4 }, Ana: { money: -2 } } });
+  });
+
+  it('lists the items a scenario uses and warns about missing catalog entries', () => {
+    const cfg = base();
+    expect(itemsUsed(cfg)).toEqual(['bandage', 'food', 'medicine', 'money']);
+    expect(scenarioWarnings(cfg)).toEqual([]); // no catalog at all: nothing to warn about
+    cfg.items = { medicine: { on_use: { health: 0.4 } }, food: {} };
+    expect(scenarioWarnings(cfg)[0]).toContain('bandage, money');
+    expect(validateScenario(cfg)).toEqual([]);
+  });
+
+  it('flags item effects on unknown targets', () => {
+    const cfg = base();
+    cfg.events!.scheduled![0].effects = { items: { Nadie: { food: 1 } } };
+    expect(validateScenario(cfg).map((i) => i.message)).toContain('El suceso #1 afecta a «Nadie», que no existe.');
   });
 });

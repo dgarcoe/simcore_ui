@@ -437,6 +437,11 @@ function placeOutdoorResources(map: MapModel, hints: MapHints): void {
   }
 }
 
+/** Small icon (an emote badge) for an item: what flies between agents and marks a place's stock. */
+export function itemIcon(item: string): string {
+  return { medcab: 'medic', safe: 'coin', locker: 'ammo', shelf: 'book', barrel: 'food', crate: 'box' }[resourceSprite(item)] ?? 'box';
+}
+
 /** Sprite that represents a resource held by agents (medicine, money, parts…). */
 export function resourceSprite(resource: string): string {
   const r = resource.toLowerCase();

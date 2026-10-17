@@ -33,6 +33,7 @@ export function normalize(raw: Partial<ScenarioConfig> | Record<string, any>): S
       personality: { ...DEFAULT_PERSONALITY, ...(a.personality ?? {}) },
     })),
     events: { ...cfg.events, scheduled: [...(cfg.events?.scheduled ?? [])] },
+    ...(cfg.items && Object.keys(cfg.items).length ? { items: structuredClone(cfg.items) } : {}),
   };
 }
 

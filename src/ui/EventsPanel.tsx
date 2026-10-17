@@ -20,14 +20,19 @@ const ICON: Partial<Record<EventType, string>> = {
   agent_death: '✝',
   agent_depart: '⇥',
   environment_change: '🌐',
+  item_transfer: '▣',
+  trade_result: '⇄',
 };
 
-const FILTERS: Array<[string, EventType[] | null]> = [
+const ITEM_ACTIONS = new Set(['give', 'take', 'drop', 'use', 'offer', 'accept', 'decline']);
+
+const FILTERS: Array<[string, EventType[] | 'items' | null]> = [
   ['Todo', null],
   ['Diálogo', ['agent_speak', 'interaction', 'agent_post']],
   ['Movimiento', ['agent_move']],
   ['Mundo', ['scheduled_event', 'injected_event', 'environment_change', 'agent_spawn', 'agent_death', 'agent_depart', 'simulation_start', 'simulation_end']],
   ['Reflexión', ['reflection']],
+  ['Objetos', 'items'],
 ];
 
 export function EventsPanel() {
@@ -38,7 +43,16 @@ export function EventsPanel() {
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
   const types = FILTERS[filter][1];
-  const items = feed.filter((f) => !types || types.includes(f.type)).slice(-200).reverse();
+  const items = feed
+    .filter((f) =>
+      !types
+        ? true
+        : types === 'items'
+          ? f.type === 'item_transfer' || f.type === 'trade_result' || (!!f.action && ITEM_ACTIONS.has(f.action.kind))
+          : types.includes(f.type),
+    )
+    .slice(-200)
+    .reverse();
 
   return (
     <div className="panel-body">

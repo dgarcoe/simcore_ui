@@ -35,6 +35,17 @@ export interface LocationConfig {
   properties?: Record<string, unknown>;
   city?: string;
   virtual?: boolean;
+  /** Items lying here that anyone can take. */
+  stock?: Record<string, number>;
+  /** Items added to whoever works here, per work action. */
+  produces?: Record<string, number>;
+}
+
+/** Item catalog entry (Simcore with inventories). */
+export interface ItemConfig {
+  description?: string;
+  consumable?: boolean;
+  on_use?: Partial<Record<'health' | 'energy' | 'mood', number>>;
 }
 
 export interface ScheduledEventConfig {
@@ -62,6 +73,7 @@ export interface ScenarioConfig {
   };
   agents: AgentConfig[];
   events?: { scheduled?: ScheduledEventConfig[]; injectable?: boolean };
+  items?: Record<string, ItemConfig>;
 }
 
 export const LOCATION_TYPES = [
@@ -230,7 +242,7 @@ export function validateScenario(cfg: ScenarioConfig): ValidationIssue[] {
     const fx = effectsToForm(e.effects);
     if (fx.spawn.some((s) => !String(s.name ?? '').trim()))
       issues.push({ path: `events.${i}`, message: `Una llegada del suceso #${i + 1} no tiene nombre.` });
-    for (const t of [...fx.kill, ...fx.depart, ...fx.health.map((h) => h.target)]) {
+    for (const t of [...fx.kill, ...fx.depart, ...fx.health.map((h) => h.target), ...fx.items.map((r) => r.target)]) {
       const known = t === 'all' || (t.startsWith('location:') ? names.has(t.slice(9)) : agentNames.has(t));
       if (!known) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} afecta a «${targetLabel(t)}», que no existe.` });
     }
@@ -268,11 +280,13 @@ export interface EffectsForm {
   depart: string[];
   health: Array<{ target: string; delta: number }>;
   spawn: SpawnSpec[];
+  /** Items added (+) or removed (-) for an agent or a place ("location:<name>"). */
+  items: Array<{ target: string; item: string; delta: number }>;
   /** Other keys: written to the world's global_state. */
   world: Record<string, unknown>;
 }
 
-const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn'];
+const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items'];
 
 function names(v: unknown): string[] {
   return typeof v === 'string' ? [v] : Array.isArray(v) ? v.map(String) : [];
@@ -282,11 +296,15 @@ export function effectsToForm(effects: Record<string, unknown> | undefined): Eff
   const fx = effects ?? {};
   const health = fx.health && typeof fx.health === 'object' && !Array.isArray(fx.health) ? (fx.health as Record<string, unknown>) : {};
   const spawn = Array.isArray(fx.spawn) ? fx.spawn : fx.spawn ? [fx.spawn] : [];
+  const items = fx.items && typeof fx.items === 'object' && !Array.isArray(fx.items) ? (fx.items as Record<string, Record<string, unknown>>) : {};
   return {
     kill: names(fx.kill),
     depart: names(fx.depart),
     health: Object.entries(health).map(([target, delta]) => ({ target, delta: Number(delta) || 0 })),
     spawn: spawn.filter((x): x is SpawnSpec => !!x && typeof x === 'object'),
+    items: Object.entries(items).flatMap(([target, changes]) =>
+      Object.entries(changes ?? {}).map(([item, delta]) => ({ target, item, delta: Number(delta) || 0 })),
+    ),
     world: Object.fromEntries(Object.entries(fx).filter(([k]) => !AGENT_EFFECTS.includes(k))),
   };
 }
@@ -300,6 +318,9 @@ export function formToEffects(f: EffectsForm): Record<string, unknown> | undefin
   if (health.length) out.health = Object.fromEntries(health.map((h) => [h.target, h.delta]));
   // Arrivals are kept even while their name is being typed; validateScenario flags empty ones.
   if (f.spawn.length) out.spawn = f.spawn;
+  const items: Record<string, Record<string, number>> = {};
+  for (const r of f.items) if (r.target && r.item.trim() && r.delta) (items[r.target] ??= {})[r.item.trim()] = r.delta;
+  if (Object.keys(items).length) out.items = items;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -308,4 +329,31 @@ export function targetLabel(target: string): string {
   if (target === 'all') return 'Todos';
   if (target.startsWith('location:')) return `Todos en ${target.slice('location:'.length)}`;
   return target;
+}
+
+// ── Items ───────────────────────────────────────────────────────────────
+
+/** Every item name the scenario mentions (inventories, stock, production, events). */
+export function itemsUsed(cfg: ScenarioConfig): string[] {
+  const names = new Set<string>();
+  const add = (r: Record<string, unknown> | undefined) => Object.keys(r ?? {}).forEach((k) => names.add(k));
+  cfg.agents.forEach((a) => add(a.resources));
+  cfg.environment.locations.forEach((l) => {
+    add(l.stock);
+    add(l.produces);
+  });
+  for (const e of cfg.events?.scheduled ?? []) {
+    const fx = effectsToForm(e.effects);
+    fx.items.forEach((r) => names.add(r.item));
+    fx.spawn.forEach((s) => add((s as { resources?: Record<string, number> }).resources));
+  }
+  return [...names].filter(Boolean).sort();
+}
+
+/** Non-blocking hints: items used but missing from the catalog (they work, without description or use). */
+export function scenarioWarnings(cfg: ScenarioConfig): string[] {
+  const catalog = cfg.items ?? {};
+  if (!Object.keys(catalog).length) return [];
+  const missing = itemsUsed(cfg).filter((n) => !catalog[n]);
+  return missing.length ? [`Objetos sin ficha en el catálogo (sin descripción ni uso): ${missing.join(', ')}.`] : [];
 }

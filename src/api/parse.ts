@@ -12,6 +12,13 @@ export type ParsedAction =
   | { kind: 'observe'; target: string }
   | { kind: 'rest' }
   | { kind: 'wait' }
+  | { kind: 'give'; target: string; item: string; amount: number }
+  | { kind: 'take'; item: string; amount: number }
+  | { kind: 'drop'; item: string; amount: number }
+  | { kind: 'use'; item: string; target: string }
+  | { kind: 'offer'; target: string; item: string; amount: number; askItem: string; askAmount: number }
+  | { kind: 'accept'; target: string }
+  | { kind: 'decline'; target: string }
   | { kind: 'custom'; content: string };
 
 const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
@@ -23,6 +30,16 @@ const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
   [/^posts online: ?(.*)$/s, (m) => ({ kind: 'post', content: m[1] })],
   [/^observes (.+)$/s, (m) => ({ kind: 'observe', target: m[1] === 'surroundings' ? '' : m[1] })],
   [/^rests$/, () => ({ kind: 'rest' })],
+  [/^gives (.+?) ([\d.]+) (\S.*)$/s, (m) => ({ kind: 'give', target: m[1], amount: Number(m[2]), item: m[3] })],
+  [/^takes ([\d.]+) (\S.*)$/s, (m) => ({ kind: 'take', amount: Number(m[1]), item: m[2] })],
+  [/^leaves ([\d.]+) (\S.*) here$/s, (m) => ({ kind: 'drop', amount: Number(m[1]), item: m[2] })],
+  [/^uses (\S.*?)(?: on (.+))?$/s, (m) => ({ kind: 'use', item: m[1], target: m[2] ?? '' })],
+  [
+    /^offers (.+?) ([\d.]+) (\S+?)(?: for ([\d.]+) (\S.*))?$/s,
+    (m) => ({ kind: 'offer', target: m[1], amount: Number(m[2]), item: m[3], askAmount: Number(m[4] ?? 0), askItem: m[5] ?? '' }),
+  ],
+  [/^accepts the offer from (.+)$/s, (m) => ({ kind: 'accept', target: m[1] })],
+  [/^declines the offer from (.+)$/s, (m) => ({ kind: 'decline', target: m[1] })],
   [/^waits$/, () => ({ kind: 'wait' })],
 ];
 

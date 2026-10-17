@@ -46,6 +46,10 @@ export function ensureSharedTextures(scene: Phaser.Scene, theme: ThemePack): voi
     skull: [P.slate, P.ink],
     medic: [P.red, P.red],
     sparkle: [P.yellow, P.orange],
+    food: [P.orange, P.tan],
+    ammo: [P.slate, P.yellow],
+    box: [P.tan, P.orange],
+    book: [P.blue, P.white],
   };
   for (const [key, rows] of Object.entries(EMOTES)) {
     const k = `emote:${key}`;

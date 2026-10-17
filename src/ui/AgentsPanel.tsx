@@ -3,7 +3,7 @@ import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
-import { AgentActions, SpawnForm } from './AgentControls';
+import { AgentActions, Inventory, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
 
 function statusLabel(a: Agent): string {
@@ -101,16 +101,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               <FragmentRow key={k} label={label} value={agent.personality[k]} />
             ))}
           </dl>
-          {Object.keys(agent.state.resources ?? {}).length > 0 && (
-            <>
-              <h4>Recursos</h4>
-              <ul className="kv">
-                {Object.entries(agent.state.resources).map(([k, v]) => (
-                  <li key={k}><span>{k}</span><span>{typeof v === 'number' ? v.toLocaleString() : String(v)}</span></li>
-                ))}
-              </ul>
-            </>
-          )}
+          <Inventory agent={agent} />
           {Object.keys(agent.relationships ?? {}).length > 0 && (
             <>
               <h4>Relaciones</h4>

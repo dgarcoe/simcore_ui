@@ -5,10 +5,12 @@ interface Props {
   onChange: (effects: Record<string, unknown> | undefined) => void;
   agents: string[];
   places: string[];
+  /** Known item names (catalog and inventories), suggested in the Objects row. */
+  items?: string[];
 }
 
 /** What a scheduled event changes: deaths, injuries, departures, arrivals and world variables. */
-export function EffectsEditor({ effects, onChange, agents, places }: Props) {
+export function EffectsEditor({ effects, onChange, agents, places, items = [] }: Props) {
   const form = effectsToForm(effects);
   const set = (mutate: (f: EffectsForm) => void) => {
     const next = structuredClone(form);
@@ -16,7 +18,10 @@ export function EffectsEditor({ effects, onChange, agents, places }: Props) {
     onChange(formToEffects(next));
   };
   const targets = ['all', ...places.map((p) => `location:${p}`), ...agents];
-  const count = form.kill.length + form.depart.length + form.health.length + form.spawn.length + Object.keys(form.world).length;
+  // Items go to agents ("all" = everyone alive) or into a place's stock.
+  const itemTargets = targets;
+  const count =
+    form.kill.length + form.depart.length + form.health.length + form.spawn.length + form.items.length + Object.keys(form.world).length;
 
   return (
     <details className="effects" open={count > 0}>
@@ -67,6 +72,26 @@ export function EffectsEditor({ effects, onChange, agents, places }: Props) {
             </span>
           ))}
           <button className="btn" onClick={() => set((f) => void f.spawn.push({ name: 'Recién llegado', profession: '', starting_location: places[0] ?? '', count: 1 }))}>+ Llegada</button>
+        </div>
+      </div>
+
+      <div className="fx-row">
+        <span className="fx-label">Objetos</span>
+        <div className="fx-items">
+          {form.items.map((r, i) => (
+            <span key={i} className="row wrap">
+              <select className="select" value={r.target} onChange={(e) => set((f) => void (f.items[i].target = e.target.value))}>
+                {itemTargets.map((t) => <option key={t} value={t}>{t.startsWith('location:') ? `En ${t.slice(9)}` : t}</option>)}
+              </select>
+              <input className="input" list="fx-items" placeholder="objeto" value={r.item} onChange={(e) => set((f) => void (f.items[i].item = e.target.value))} />
+              <input className="input tiny" type="number" value={r.delta} title="Negativo para quitar" onChange={(e) => set((f) => void (f.items[i].delta = Number(e.target.value)))} />
+              <button className="btn" onClick={() => set((f) => void f.items.splice(i, 1))}>✕</button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => set((f) => void f.items.push({ target: itemTargets[1] ?? 'all', item: items[0] ?? 'food', delta: 5 }))}>
+            + Dar o quitar objetos
+          </button>
+          <datalist id="fx-items">{items.map((k) => <option key={k} value={k} />)}</datalist>
         </div>
       </div>
 

@@ -1,19 +1,25 @@
 # Example scenario for simcore_ui's 'town' theme that uses the agent life cycle
-# (health, deaths, arrivals, departures and event effects). Needs a Simcore
-# version that supports it; older ones show the events but nobody dies.
+# (health, deaths, arrivals, departures, event effects) and items (stock,
+# production, give/take/use/trade). Needs dgarcoe/simcore; older Simcore
+# versions show the events but nobody dies and items are just numbers.
 simulation:
   name: La noche más larga
   description: Algo ataca las granjas de Valdeoscuro al caer la noche. Los vecinos deben decidir si se atrincheran en la
     iglesia, huyen o esperan al ejército.
   time_step: 1 hour
   duration: 18 hours
-  seed: 2
+  seed: 3
   language: es
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
   cache: true
   temperature: 0.8
+items:
+  medicine: {description: botiquín, on_use: {health: 0.4}}
+  food: {description: comida caliente, on_use: {energy: 0.3, mood: 0.05}}
+  ammo: {description: cartuchos de escopeta, consumable: false}
+  money: {description: monedas, consumable: false}
 environment:
   type: grid
   size: [12, 12]
@@ -24,9 +30,9 @@ environment:
   locations:
     - {name: Plaza, type: public, position: [6, 6], capacity: 20}
     - {name: Iglesia, type: religious, position: [6, 2], capacity: 15}
-    - {name: Taberna, type: commercial, position: [9, 5], capacity: 12}
-    - {name: Granja, type: farm, position: [2, 9], capacity: 6}
-    - {name: Consultorio, type: health, position: [10, 9], capacity: 6}
+    - {name: Taberna, type: commercial, position: [9, 5], capacity: 12, stock: {food: 6}, produces: {food: 1}}
+    - {name: Granja, type: farm, position: [2, 9], capacity: 6, produces: {food: 2}}
+    - {name: Consultorio, type: health, position: [10, 9], capacity: 6, stock: {medicine: 3}}
     - {name: Casa de Elena, type: residential, position: [2, 3], capacity: 4}
 agents:
   - name: Elena
@@ -43,6 +49,7 @@ agents:
     personality: {openness: 0.3, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.6}
     goals: [Proteger su granja y sus animales]
     starting_location: Granja
+    resources: {food: 2, money: 5}
     backstory: Desconfía de los forasteros y no quiere abandonar sus tierras.
   - name: Lucía
     age: 34
@@ -50,6 +57,7 @@ agents:
     personality: {openness: 0.6, conscientiousness: 0.5, extraversion: 0.85, agreeableness: 0.65, neuroticism: 0.4}
     goals: [Mantener unida a la gente, Que nadie salga solo de noche]
     starting_location: Taberna
+    resources: {money: 20, food: 2}
   - name: Padre Julián
     age: 66
     profession: sacerdote
@@ -68,6 +76,7 @@ agents:
     personality: {openness: 0.5, conscientiousness: 0.6, extraversion: 0.3, agreeableness: 0.35, neuroticism: 0.3}
     goals: [Cazar a la criatura]
     starting_location: Plaza
+    resources: {ammo: 12, money: 30}
     arrives_at: 5
     backstory: Lleva semanas siguiendo el rastro de algo que mata ganado.
 events:
@@ -94,5 +103,6 @@ events:
       description: Llegan soldados del destacamento del valle para cazar a la criatura.
       effects:
         spawn:
-          - {name: Soldado, profession: soldado, starting_location: Plaza, count: 2}
+          - {name: Soldado, profession: soldado, starting_location: Plaza, count: 2, resources: {ammo: 20}}
+        items: {"location:Plaza": {medicine: 4, food: 6}}
         amenaza: bajo control militar

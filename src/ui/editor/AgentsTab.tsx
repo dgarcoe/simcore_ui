@@ -3,6 +3,7 @@ import { DEFAULT_PERSONALITY, uniqueName, type AgentConfig, type PersonalityConf
 import { archetypeFor } from '../../game/art/archetypes';
 import type { ThemePack } from '../../themes/types';
 import { Portrait } from '../Portrait';
+import { AmountsField } from './AmountsField';
 import { useDraft } from './draft';
 
 const TRAITS: Array<[keyof PersonalityConfig, string]> = [
@@ -29,21 +30,6 @@ const ARCHETYPE_LABEL: Record<string, string> = {
   student: 'estudiante',
   merchant: 'comerciante',
 };
-
-function resourcesToText(r: Record<string, number> | undefined): string {
-  return Object.entries(r ?? {})
-    .map(([k, v]) => `${k}: ${v}`)
-    .join('\n');
-}
-
-function textToResources(t: string): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const line of t.split('\n')) {
-    const m = line.match(/^\s*([^:=]+?)\s*[:=]\s*(-?[\d.]+)\s*$/);
-    if (m) out[m[1]] = Number(m[2]);
-  }
-  return out;
-}
 
 export function AgentsTab({ theme }: { theme: ThemePack }) {
   const [draft, update] = useDraft();
@@ -172,31 +158,16 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                   Historia
                   <textarea className="input" rows={3} value={a.backstory ?? ''} onChange={(e) => set((x) => void (x.backstory = e.target.value))} />
                 </label>
-                <ResourcesField value={a.resources} onChange={(r) => set((x) => void (x.resources = r))} />
+                <AmountsField
+                  label={<>Inventario (<code>objeto: cantidad</code>; se ven en el mapa y los agentes pueden darlos, usarlos o intercambiarlos)</>}
+                  value={a.resources}
+                  onChange={(r) => set((x) => void (x.resources = r))}
+                />
               </div>
             )}
           </article>
         );
       })}
     </div>
-  );
-}
-
-/** Edited as text so half-typed lines don't get lost; parsed on blur. */
-function ResourcesField({ value, onChange }: { value?: Record<string, number>; onChange: (r: Record<string, number>) => void }) {
-  const [text, setText] = useState(resourcesToText(value));
-  return (
-    <label>
-      <span>
-        Recursos (<code>nombre: cantidad</code>; se ven en el mapa: medicine, money, parts…)
-      </span>
-      <textarea
-        className="input"
-        rows={2}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => onChange(textToResources(text))}
-      />
-    </label>
   );
 }

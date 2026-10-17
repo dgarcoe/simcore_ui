@@ -40,3 +40,19 @@ describe('parseInteraction', () => {
     expect(parseInteraction('something happened')).toBeNull();
   });
 });
+
+describe('item actions', () => {
+  it('parses gives, takes, leaves, uses, offers, accepts and declines', () => {
+    expect(parseAction('gives Bruno 2 food')).toEqual({ kind: 'give', target: 'Bruno', amount: 2, item: 'food' });
+    expect(parseAction('gives Padre Julián 1 medicine')).toMatchObject({ target: 'Padre Julián', item: 'medicine' });
+    expect(parseAction('takes 1 medicine')).toEqual({ kind: 'take', amount: 1, item: 'medicine' });
+    expect(parseAction('leaves 3 money here')).toEqual({ kind: 'drop', amount: 3, item: 'money' });
+    expect(parseAction('uses medicine on Tomás')).toEqual({ kind: 'use', item: 'medicine', target: 'Tomás' });
+    expect(parseAction('uses food')).toEqual({ kind: 'use', item: 'food', target: '' });
+    expect(parseAction('offers Ana 5 money for 2 food')).toEqual({ kind: 'offer', target: 'Ana', amount: 5, item: 'money', askAmount: 2, askItem: 'food' });
+    expect(parseAction('offers Ana 1 ammo')).toMatchObject({ kind: 'offer', item: 'ammo', askItem: '' });
+    expect(parseAction('accepts the offer from Ana')).toEqual({ kind: 'accept', target: 'Ana' });
+    expect(parseAction('declines the offer from Ana')).toEqual({ kind: 'decline', target: 'Ana' });
+    expect(parseAction('trades with Ana: old style')).toMatchObject({ kind: 'trade' });
+  });
+});

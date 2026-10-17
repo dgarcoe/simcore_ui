@@ -7,7 +7,7 @@ import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
 import { propSprite } from '../art/propSprite';
 import { ensureSharedTextures, propKey } from '../art/textures';
-import { routeBetween, type MapModel, type Tile, type Zone } from '../map/model';
+import { itemIcon, routeBetween, type MapModel, type Tile, type Zone } from '../map/model';
 import type { Bubble } from '../fx/Bubble';
 import { AgentView, PIXEL_FONT } from '../sprites/AgentView';
 
@@ -72,6 +72,9 @@ export class WorldScene extends Phaser.Scene {
   private unsubs: Array<() => void> = [];
   private dragging = false;
   private zoomIndex = 1;
+  /** Item icons + counts under each place's label (its stock). */
+  private stockBadges = new Map<string, { sig: string; box: Phaser.GameObjects.Container }>();
+  private labels = new Map<string, Phaser.GameObjects.Text>();
 
   constructor() {
     super('world');
@@ -84,6 +87,8 @@ export class WorldScene extends Phaser.Scene {
     this.agents = new Map();
     this.occupancy = new Occupancy();
     this.cues = [];
+    this.stockBadges = new Map();
+    this.labels = new Map();
   }
 
   create(): void {
@@ -191,7 +196,7 @@ export class WorldScene extends Phaser.Scene {
     for (const z of this.map.zones) {
       const x = z.label.x * TILE + (z.body.w % 2 ? TILE / 2 : 0);
       const y = z.label.y * TILE + TILE - 2;
-      this.add
+      const label = this.add
         .text(x, y, z.name, {
           fontFamily: PIXEL_FONT,
           fontSize: '8px',
@@ -206,6 +211,7 @@ export class WorldScene extends Phaser.Scene {
         .on('pointerup', (p: Phaser.Input.Pointer) => {
           if (p.getDistance() < 6) this.focusZone(z.name);
         });
+      this.labels.set(z.name, label);
     }
   }
 
@@ -352,6 +358,88 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     for (const [name, view] of this.agents) if (!seen.has(name)) this.removeAgent(name, view, !instant);
+    this.updateStock(sim);
+  }
+
+  /** Shows what lies in each place (Simcore with inventories): icons with counts under the label. */
+  private updateStock(sim: SimState): void {
+    for (const z of this.map.zones) {
+      const stock = Object.entries(sim.environment.locations[z.name]?.stock ?? {}).filter(([, n]) => n > 0);
+      const sig = stock.map(([k, n]) => `${k}:${n}`).join(',');
+      const current = this.stockBadges.get(z.name);
+      if (current?.sig === sig) continue;
+      current?.box.destroy();
+      this.stockBadges.delete(z.name);
+      if (!stock.length) continue;
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      let x = 0;
+      for (const [item, n] of stock.slice(0, 4)) {
+        parts.push(this.add.image(x, 0, `emote:${itemIcon(item)}`).setOrigin(0, 0.5));
+        const label = this.add
+          .text(x + 13, 0, `${Number.isInteger(n) ? n : n.toFixed(1)}`, { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#f4f4f4' })
+          .setResolution(4)
+          .setStroke('#1a1c2c', 3)
+          .setOrigin(0, 0.5);
+        parts.push(label);
+        x += 15 + label.width;
+      }
+      // Right of the place's name tag, on the same line.
+      const label = this.labels.get(z.name);
+      const bx = label ? label.x + label.displayWidth / 2 + 3 : z.body.x * TILE;
+      const by = label ? label.y - label.displayHeight / 2 : z.body.y * TILE;
+      const bg = this.add.rectangle(-2, 0, x + 2, 14, 0x1a1c2c, 0.75).setOrigin(0, 0.5);
+      const box = this.add.container(bx, by, [bg, ...parts]).setDepth(100000);
+      const tip = stock.map(([k, n]) => `${k} ×${n}`).join(', ');
+      box.setSize(x, 12).setInteractive({ useHandCursor: false });
+      box.on('pointerover', () => this.flashTip(box, `Aquí hay: ${tip}`));
+      this.stockBadges.set(z.name, { sig, box });
+    }
+  }
+
+  private flashTip(near: Phaser.GameObjects.Container, text: string): void {
+    const t = this.add
+      .text(near.x, near.y + 10, text, { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#f4f4f4', backgroundColor: '#1a1c2c', padding: { x: 3, y: 2 } })
+      .setResolution(4)
+      .setDepth(200002);
+    this.tweens.add({ targets: t, alpha: 0, delay: 1800, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  /** Where an item goes from/to: an agent, or a place ("location:<name>"). */
+  private pointOf(ref: string, fallbackZone = ''): { x: number; y: number } | null {
+    const view = this.agents.get(ref);
+    if (view) return { x: view.x, y: view.y - 14 };
+    const z = this.zones.get(ref.startsWith('location:') ? ref.slice('location:'.length) : fallbackZone);
+    if (!z) return null;
+    return { x: (z.body.x + z.body.w / 2) * TILE, y: (z.body.y + z.body.h / 2) * TILE };
+  }
+
+  private flyItem(item: string, from: { x: number; y: number }, to: { x: number; y: number }): void {
+    const img = this.add.image(from.x, from.y, `emote:${itemIcon(item)}`).setDepth(200001);
+    const arc = { t: 0 };
+    this.tweens.add({
+      targets: arc,
+      t: 1,
+      duration: 650,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => img.setPosition(from.x + (to.x - from.x) * arc.t, from.y + (to.y - from.y) * arc.t - Math.sin(arc.t * Math.PI) * 18),
+      onComplete: () => this.tweens.add({ targets: img, alpha: 0, duration: 250, onComplete: () => img.destroy() }),
+    });
+  }
+
+  private playTransfer(e: SimEvent): void {
+    const d = e.data as { kind: string; item: string; from: string; to: string; location: string };
+    if (d.kind === 'use') {
+      const user = this.agents.get(d.from);
+      const target = this.agents.get(d.to);
+      target?.showEmote(itemIcon(d.item));
+      if (user && target && user !== target) this.linkBurst(user, target, 0x38b764);
+      return;
+    }
+    const from = d.from ? this.pointOf(d.from, d.location) : null;
+    const to = d.to ? this.pointOf(d.to, d.location) : null;
+    if (from && to) this.flyItem(d.item, from, to);
+    else if (to) this.flyItem(d.item, { x: to.x, y: to.y - 40 }, to); // supplies dropping in
+    else if (from) this.flyItem(d.item, from, { x: from.x, y: from.y - 40 }); // taken away
   }
 
   private removeAgent(name: string, view: AgentView, animated: boolean): void {
@@ -404,6 +492,7 @@ export class WorldScene extends Phaser.Scene {
       case 'agent_spawn':
       case 'agent_death':
       case 'agent_depart':
+      case 'item_transfer':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -415,6 +504,7 @@ export class WorldScene extends Phaser.Scene {
 
   private playCue(e: SimEvent): void {
     if (e.type === 'tick_end') return this.reconcile(e.data as SimState);
+    if (e.type === 'item_transfer') return this.playTransfer(e);
     if (e.type === 'agent_spawn') {
       if (this.agents.has(e.source)) return;
       this.ensureAgent(e.source, String(e.data.location ?? ''), String(e.data.profession ?? '') || undefined)?.appear();
@@ -477,6 +567,28 @@ export class WorldScene extends Phaser.Scene {
         break;
       case 'wait':
         view.showEmote('dots');
+        break;
+      case 'give':
+        if (other) view.faceToward(other);
+        break;
+      case 'offer':
+        if (other) {
+          view.faceToward(other);
+          other.faceToward(view);
+          this.linkBurst(view, other, 0xffcd75);
+        }
+        view.showEmote('coin');
+        view.say(`${action.amount} ${action.item}${action.askItem ? ` ⇄ ${action.askAmount} ${action.askItem}` : ' (regalo)'}`, 'action', 2600);
+        break;
+      case 'accept':
+        view.showEmote('heart');
+        break;
+      case 'decline':
+        view.showEmote('dots');
+        break;
+      case 'take':
+      case 'drop':
+      case 'use':
         break;
       case 'custom':
         view.showEmote('idea');

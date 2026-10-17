@@ -18,7 +18,30 @@ export type EventType =
   // Agent life cycle (Simcore forks with health/deaths/arrivals; older versions never send them).
   | 'agent_spawn'
   | 'agent_death'
-  | 'agent_depart';
+  | 'agent_depart'
+  // Items (Simcore forks with inventories).
+  | 'item_transfer'
+  | 'trade_offer'
+  | 'trade_result';
+
+export type TransferKind = 'give' | 'take' | 'drop' | 'use' | 'trade' | 'produce' | 'effect';
+
+/** Catalog entry of an item (scenario `items`). */
+export interface ItemInfo {
+  description?: string;
+  consumable?: boolean;
+  on_use?: Partial<Record<'health' | 'energy' | 'mood', number>>;
+}
+
+export interface TradeOfferInfo {
+  from: string;
+  to: string;
+  item: string;
+  amount: number;
+  ask_item: string;
+  ask_amount: number;
+  expires: number;
+}
 
 /** alive (default), dead (body stays where it fell) or departed (left the simulation). */
 export type AgentStatus = 'alive' | 'dead' | 'departed';
@@ -71,6 +94,9 @@ export interface Location {
   occupants: string[];
   occupant_count: number;
   properties: Record<string, unknown>;
+  /** Items lying here (Simcore with inventories). */
+  stock?: Record<string, number>;
+  produces?: Record<string, number>;
 }
 
 export interface Environment {
@@ -93,6 +119,10 @@ export interface SimState {
   agents: Record<string, Agent>;
   environment: Environment;
   llm_stats?: Record<string, unknown>;
+  /** Item catalog and pending trade offers (Simcore with inventories). */
+  items?: Record<string, ItemInfo>;
+  offers?: TradeOfferInfo[];
+  pending_arrivals?: string[];
 }
 
 export interface ScenarioMeta {

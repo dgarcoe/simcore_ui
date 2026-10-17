@@ -676,4 +676,8 @@ export const EMOTES: Record<string, Pixels> = {
   skull: ['..aaaa..', '.aaaaaa.', 'aAAaaAAa', 'aAAaaAAa', 'aaaAAaaa', '.aaaaaa.', '..a.a.a.', '..aaaa..'],
   medic: ['........', '...aa...', '...aa...', '.aaaaaa.', '.aaaaaa.', '...aa...', '...aa...', '........'],
   sparkle: ['...a....', '..aAa...', 'aaAAAaa.', '..aAa...', '...a....', '......a.', '.....aAa', '......a.'],
+  food: ['........', '...a.a..', '....a...', '.AAAAAA.', 'AaaaaaaA', 'AaaaaaaA', '.AAAAAA.', '........'],
+  ammo: ['........', '.a..a..a', 'aAaaAaaA', 'aAaaAaaA', 'aAaaAaaA', 'aAaaAaaA', 'aaaaaaaa', '........'],
+  box: ['........', '.aaaaaa.', 'aAAAAAAa', 'aAaaaaAa', 'aaaaaaaa', 'aAaaaaAa', 'aAAAAAAa', '.aaaaaa.'],
+  book: ['........', 'aaa.aaa.', 'aAaaaAa.', 'aAaaaAa.', 'aAaaaAa.', 'aaa.aaa.', '...a....', '........'],
 };

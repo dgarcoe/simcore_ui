@@ -214,3 +214,25 @@ describe('reduce', () => {
     expect(s.feed.map((f) => f.source || f.text)).toEqual(['▶ Outbreak started', 'Ann']);
   });
 });
+
+describe('items', () => {
+  it('reports production, event supplies and expired offers, not the actions twice', () => {
+    const s = run([
+      ev('agent_action', 1, { action: 'gives Bruno 1 food', action_type: 'give' }, 'Ana'),
+      ev('item_transfer', 1, { kind: 'give', item: 'food', amount: 1, from: 'Ana', to: 'Bruno', location: 'Plaza' }, 'Ana'),
+      ev('item_transfer', 1, { kind: 'produce', item: 'food', amount: 2, from: 'location:Farm', to: 'Ana', location: 'Farm' }, 'location:Farm'),
+      ev('item_transfer', 2, { kind: 'effect', item: 'medicine', amount: 5, from: '', to: 'location:Clinic', location: 'Clinic' }, 'location:Clinic'),
+      ev('item_transfer', 2, { kind: 'effect', item: 'food', amount: 1, from: 'Bruno', to: '', location: 'Plaza' }, 'Bruno'),
+      ev('trade_result', 3, { from: 'Ana', to: 'Bruno', item: 'money', amount: 2, accepted: false, reason: 'expired' }, 'Bruno'),
+      ev('trade_result', 3, { from: 'Ana', to: 'Bruno', item: 'money', amount: 1, accepted: true, reason: '' }, 'Bruno'),
+    ]);
+    expect(s.feed.map((f) => `${f.source} ${f.text}`.trim())).toEqual([
+      'Ana gives Bruno 1 food',
+      'Ana produce 2 food en Farm',
+      'Clinic recibe 5 medicine',
+      'Bruno pierde 1 food',
+      'La oferta de Ana a Bruno (2 money) caduca sin respuesta',
+    ]);
+    expect(s.feed[0].action).toMatchObject({ kind: 'give', item: 'food' });
+  });
+});
