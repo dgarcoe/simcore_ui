@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, setModel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
+import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -86,5 +86,35 @@ describe('uniqueName', () => {
     expect(uniqueName('Habitante 2', ['Habitante', 'Habitante 2'])).toBe('Habitante 3');
     expect(uniqueName('Habitante 2 2 2', ['Habitante', 'Habitante 2', 'Habitante 3'])).toBe('Habitante 4');
     expect(uniqueName('Dr. Amara', ['Dr. Amara'])).toBe('Dr. Amara 2');
+  });
+});
+
+describe('event effects form', () => {
+  it('round-trips agent effects and keeps world keys', () => {
+    const fx = {
+      school_closed: true,
+      kill: 'Ana',
+      depart: ['Bruno'],
+      health: { 'location:Plaza': -0.3 },
+      spawn: { name: 'Medic', count: 2 },
+    };
+    const form = effectsToForm(fx);
+    expect(form.kill).toEqual(['Ana']);
+    expect(form.health).toEqual([{ target: 'location:Plaza', delta: -0.3 }]);
+    expect(form.world).toEqual({ school_closed: true });
+    expect(formToEffects(form)).toEqual({ ...fx, kill: ['Ana'], spawn: [{ name: 'Medic', count: 2 }] });
+  });
+
+  it('drops empty parts', () => {
+    const form = effectsToForm(undefined);
+    form.health.push({ target: '', delta: -0.2 });
+    form.spawn.push({ name: '  ' });
+    expect(formToEffects(form)).toBeUndefined();
+  });
+
+  it('labels targets', () => {
+    expect(targetLabel('all')).toBe('Todos');
+    expect(targetLabel('location:Clínica')).toBe('Todos en Clínica');
+    expect(targetLabel('Rosa')).toBe('Rosa');
   });
 });

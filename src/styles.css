@@ -324,7 +324,8 @@ code {
   outline-color: var(--accent);
 }
 
-.banner-end {
+.banner-end,
+.banner-arrival {
   outline-color: var(--good);
 }
 
@@ -339,7 +340,8 @@ code {
   color: var(--accent);
 }
 
-.banner-end .banner-title {
+.banner-end .banner-title,
+.banner-arrival .banner-title {
   color: var(--good);
 }
 
@@ -1079,4 +1081,66 @@ details summary {
 
 .model-warn .btn {
   margin-top: 4px;
+}
+
+.bad-text {
+  color: var(--bad);
+}
+
+.agent-row.gone {
+  opacity: 0.55;
+}
+
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.spawn {
+  margin-bottom: 10px;
+}
+
+.spawn summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.spawn form {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.effects {
+  margin-top: 6px;
+}
+
+.effects summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.fx-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  align-items: start;
+  margin-top: 6px;
+}
+
+.fx-label {
+  color: var(--dim);
+  padding-top: 4px;
+}
+
+.fx-items {
+  display: grid;
+  gap: 4px;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
 }

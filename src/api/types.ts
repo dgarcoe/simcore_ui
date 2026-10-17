@@ -14,7 +14,14 @@ export type EventType =
   | 'injected_event'
   | 'simulation_start'
   | 'simulation_end'
-  | 'reflection';
+  | 'reflection'
+  // Agent life cycle (Simcore forks with health/deaths/arrivals; older versions never send them).
+  | 'agent_spawn'
+  | 'agent_death'
+  | 'agent_depart';
+
+/** alive (default), dead (body stays where it fell) or departed (left the simulation). */
+export type AgentStatus = 'alive' | 'dead' | 'departed';
 
 export interface SimEvent {
   type: EventType;
@@ -37,12 +44,17 @@ export interface AgentState {
   location: string;
   current_action: string | null;
   resources: Record<string, unknown>;
+  /** 0 (dead) .. 1; absent on Simcore versions without health. */
+  health?: number;
+  status?: AgentStatus;
 }
 
 export interface Agent {
   id: string;
   name: string;
+  profession?: string;
   location: string;
+  status?: AgentStatus;
   personality: Personality;
   state: AgentState;
   relationships: Record<string, string>;

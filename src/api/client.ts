@@ -28,8 +28,12 @@ export async function control(action: 'pause' | 'resume' | 'stop'): Promise<void
   await post(`/api/control/${action}`);
 }
 
-export async function injectEvent(description: string, location = ''): Promise<void> {
-  await post('/api/inject', { description, location });
+export async function injectEvent(description: string, location = '', effects?: Record<string, unknown>): Promise<void> {
+  const res = await post('/api/inject', { description, location, ...(effects ? { effects } : {}) });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `${res.status} ${res.statusText}`);
+  }
 }
 
 export async function listScenarios(): Promise<ScenarioRecord[]> {

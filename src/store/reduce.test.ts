@@ -138,6 +138,37 @@ describe('reduce', () => {
     expect(reduce({ ...s, stopRequested: true }, ev('simulation_end', 1, {}))?.status).toBe('ended');
   });
 
+  it('follows deaths, arrivals and departures, and an early end when nobody is left', () => {
+    const agents = (names: string[]) => Object.fromEntries(names.map((n) => [n.toLowerCase(), { name: n }]));
+    let s = run([
+      ev('simulation_start', 0, { config: 'Colony' }),
+      ev('tick_start', 1, {}),
+      ev('tick_end', 1, { clock: { tick: 1, max_ticks: 24 }, agents: agents(['Ana', 'Bea']) }),
+      ev('tick_start', 2, {}),
+      ev('agent_death', 2, { agent: 'Ana', location: 'Mine', cause: 'Cave-in' }, 'Ana'),
+      ev('agent_spawn', 2, { agent: 'Medic 1', location: 'Camp', profession: 'paramedic' }, 'Medic 1'),
+      ev('agent_action', 2, { action: 'works: triage' }, 'Medic 1'),
+      ev('agent_depart', 2, { agent: 'Bea', location: 'Camp', cause: '' }, 'Bea'),
+      ev('environment_change', 2, { global_state: { mine_closed: true } }),
+      ev('tick_end', 2, { clock: { tick: 2, max_ticks: 24 }, agents: agents(['Ana', 'Bea', 'Medic 1']) }),
+    ]);
+    expect(s.runAgents).toEqual(['Ana', 'Bea', 'Medic 1']);
+    expect(s.sim?.clock.tick).toBe(2);
+    expect(s.feed.map((f) => `${f.source} ${f.text}`.trim())).toEqual([
+      '▶ Colony started',
+      'Ana ha muerto en Mine',
+      'Medic 1 llega (paramedic) a Camp',
+      'Medic 1 works: triage',
+      'Bea se marcha de Camp',
+      'El mundo cambia: mine_closed = true',
+    ]);
+    expect(s.feed[1].reasoning).toBe('Cave-in');
+    expect(s.banner).toMatchObject({ kind: 'arrival', text: 'Medic 1 ha llegado' });
+    s = run([ev('simulation_end', 3, { reason: 'no_agents_left' })], s);
+    expect(s.status).toBe('ended');
+    expect(s.endReason).toBe('no_agents_left');
+  });
+
   it('ignores an end that arrives before the new run has a tick', () => {
     const s = run([ev('simulation_start', 0, { config: 'B' }), ev('simulation_end', 1, {})]);
     expect(s.status).toBe('running');

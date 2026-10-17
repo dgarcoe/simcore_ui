@@ -43,7 +43,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival';
   text: string;
   location: string;
 }
@@ -94,7 +94,8 @@ export function initialLlm(): LlmStatus {
   };
 }
 
-const LLM_ERROR = /^LLM error:\s*/;
+// "LLM failed after N attempts:" comes from Simcore forks that retry.
+const LLM_ERROR = /^(LLM error|LLM failed after \d+ attempts):\s*/;
 const PARSE_ERROR = /^Parse error:\s*/;
 
 /** Progress of the tick being computed: who has already decided. */
@@ -122,6 +123,8 @@ export interface SimSnapshot {
   runMaxTicks: number | null;
   /** Set when this UI asked Simcore to stop, so an early simulation_end is expected. */
   stopRequested: boolean;
+  /** Why the run ended (Simcore versions that report it): completed, stopped, no_agents_left. */
+  endReason: string;
   progress: TickProgress;
   /** Latest decision of each agent with its reasoning. */
   reasoning: Record<string, { tick: number; action: string; text: string }>;
@@ -149,11 +152,23 @@ export function initialSnapshot(): SimSnapshot {
     runAgents: null,
     runMaxTicks: null,
     stopRequested: false,
+    endReason: '',
     progress: { tick: 0, phase: 'idle', decided: [] },
     reasoning: {},
     seq: 0,
     recent: [],
   };
+}
+
+/** Dead and departed agents no longer act (Simcore versions without health: everyone is alive). */
+export function isAlive(a: Agent): boolean {
+  const status = a.status ?? a.state?.status;
+  return !status || status === 'alive';
+}
+
+/** True when Simcore reports health, i.e. supports deaths, arrivals and effects. */
+export function hasLifecycle(sim: SimState | null): boolean {
+  return !!sim && Object.values(sim.agents).some((a) => typeof a.state?.health === 'number');
 }
 
 export function agentByName(sim: SimState | null, name: string): Agent | undefined {
@@ -185,7 +200,9 @@ export function isStale(s: SimSnapshot, e: SimEvent): boolean {
   if (e.type === 'simulation_start' || s.lastTick < 0) return false;
   if (e.tick > s.lastTick + 1) return true;
   // A run only ends early when someone stops it; otherwise at its last tick.
-  if (e.type === 'simulation_end' && !s.stopRequested && (s.runMaxTicks === null || e.tick < s.runMaxTicks)) return true;
+  // (Simcore versions with a `reason` also end early when nobody is left.)
+  if (e.type === 'simulation_end' && !s.stopRequested && e.data.reason !== 'no_agents_left' && (s.runMaxTicks === null || e.tick < s.runMaxTicks))
+    return true;
   if (!s.runAgents?.length) return false;
   if (AGENT_EVENTS.has(e.type) && e.source && !s.runAgents.includes(e.source)) return true;
   if (e.type === 'tick_end') {
@@ -216,13 +233,52 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         recent: [e],
         feed: [feedItem(seq, e, `▶ ${e.data.config ?? 'Simulation'} started`)],
       };
-    case 'simulation_end':
+    case 'simulation_end': {
+      const text = e.data.reason === 'no_agents_left' ? 'No queda nadie: la simulación termina' : 'Simulation finished';
       return {
         ...next,
         status: 'ended',
-        banner: { id: seq, tick: e.tick, kind: 'end', text: 'Simulation finished', location: '' },
-        feed: pushFeed(next.feed, feedItem(seq, e, '■ Simulation finished')),
+        endReason: String(e.data.reason ?? ''),
+        banner: { id: seq, tick: e.tick, kind: 'end', text, location: '' },
+        feed: pushFeed(next.feed, feedItem(seq, e, `■ ${text}`)),
       };
+    }
+    case 'agent_spawn':
+    case 'agent_death':
+    case 'agent_depart': {
+      const where = String(e.data.location ?? '');
+      const cause = String(e.data.cause ?? '');
+      const name = e.source || String(e.data.agent ?? '');
+      const text =
+        e.type === 'agent_spawn'
+          ? `llega${e.data.profession ? ` (${e.data.profession})` : ''}${where ? ` a ${where}` : ''}`
+          : e.type === 'agent_death'
+            ? `ha muerto${where ? ` en ${where}` : ''}`
+            : `se marcha${where ? ` de ${where}` : ''}`;
+      next = {
+        ...next,
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: name, reasoning: cause || undefined }),
+        // Newcomers belong to this run: keep isStale from dropping their events.
+        runAgents: e.type === 'agent_spawn' && s.runAgents && !s.runAgents.includes(name) ? [...s.runAgents, name] : s.runAgents,
+      };
+      if (e.type === 'agent_depart') return next;
+      return {
+        ...next,
+        banner: {
+          id: seq,
+          tick: e.tick,
+          kind: e.type === 'agent_death' ? 'death' : 'arrival',
+          text: `${name} ${e.type === 'agent_death' ? 'ha muerto' : 'ha llegado'}${cause && e.type === 'agent_death' ? `: ${cause}` : ''}`,
+          location: where,
+        },
+      };
+    }
+    case 'environment_change': {
+      const changes = Object.entries((e.data.global_state ?? {}) as Record<string, unknown>)
+        .map(([k, v]) => `${k} = ${JSON.stringify(v)}`)
+        .join(', ');
+      return changes ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, `El mundo cambia: ${changes}`)) } : next;
+    }
     case 'tick_start':
       return {
         ...next,

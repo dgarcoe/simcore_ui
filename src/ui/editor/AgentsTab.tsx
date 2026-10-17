@@ -85,7 +85,7 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
               <Portrait theme={theme} name={a.name} profession={a.profession} scale={2} />
               <span className="grow">
                 <strong>{a.name || 'Sin nombre'}</strong>
-                <span className="dim"> · {a.profession || 'sin profesión'}{a.starting_location ? ` · ${a.starting_location}` : ''}</span>
+                <span className="dim"> · {a.profession || 'sin profesión'}{a.starting_location ? ` · ${a.starting_location}` : ''}{a.arrives_at ? ` · llega en t${a.arrives_at}` : ''}</span>
               </span>
               <button className="btn" title="Duplicar" onClick={(e) => { e.stopPropagation(); add(a); }}>⧉</button>
               <button
@@ -115,6 +115,29 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                     Profesión
                     <input className="input" value={a.profession ?? ''} placeholder="médica, piloto, mecánico…" onChange={(e) => set((x) => void (x.profession = e.target.value))} />
                     <span className="dim small">{arch ? `Aspecto: ${ARCHETYPE_LABEL[arch.id] ?? arch.id}` : 'Aspecto: según el tema'}</span>
+                  </label>
+                  <label>
+                    Salud inicial
+                    <input
+                      type="range"
+                      min={0.05}
+                      max={1}
+                      step={0.05}
+                      value={a.health ?? 1}
+                      onChange={(e) => set((x) => void (Number(e.target.value) >= 1 ? delete x.health : (x.health = Number(e.target.value))))}
+                    />
+                    <span className="dim small">{Math.round((a.health ?? 1) * 100)}%</span>
+                  </label>
+                  <label>
+                    Llega en el tick
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      value={a.arrives_at ?? 0}
+                      onChange={(e) => set((x) => void (Number(e.target.value) > 0 ? (x.arrives_at = Number(e.target.value)) : delete x.arrives_at))}
+                    />
+                    <span className="dim small">0 = desde el principio</span>
                   </label>
                   <label>
                     Empieza en

@@ -1,0 +1,98 @@
+# Example scenario for simcore_ui's 'town' theme that uses the agent life cycle
+# (health, deaths, arrivals, departures and event effects). Needs a Simcore
+# version that supports it; older ones show the events but nobody dies.
+simulation:
+  name: La noche más larga
+  description: Algo ataca las granjas de Valdeoscuro al caer la noche. Los vecinos deben decidir si se atrincheran en la
+    iglesia, huyen o esperan al ejército.
+  time_step: 1 hour
+  duration: 18 hours
+  seed: 2
+  language: es
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.8
+environment:
+  type: grid
+  size: [12, 12]
+  global_state:
+    ui_theme: town
+    hora: anochecer
+    amenaza: desconocida
+  locations:
+    - {name: Plaza, type: public, position: [6, 6], capacity: 20}
+    - {name: Iglesia, type: religious, position: [6, 2], capacity: 15}
+    - {name: Taberna, type: commercial, position: [9, 5], capacity: 12}
+    - {name: Granja, type: farm, position: [2, 9], capacity: 6}
+    - {name: Consultorio, type: health, position: [10, 9], capacity: 6}
+    - {name: Casa de Elena, type: residential, position: [2, 3], capacity: 4}
+agents:
+  - name: Elena
+    age: 41
+    profession: médica
+    personality: {openness: 0.7, conscientiousness: 0.85, extraversion: 0.5, agreeableness: 0.8, neuroticism: 0.35}
+    goals: [Atender a los heridos, Averiguar qué está atacando al pueblo]
+    starting_location: Consultorio
+    resources: {medicine: 4}
+    backstory: Llegó al pueblo hace diez años y conoce a todos sus vecinos.
+  - name: Tomás
+    age: 58
+    profession: granjero
+    personality: {openness: 0.3, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.6}
+    goals: [Proteger su granja y sus animales]
+    starting_location: Granja
+    backstory: Desconfía de los forasteros y no quiere abandonar sus tierras.
+  - name: Lucía
+    age: 34
+    profession: tabernera
+    personality: {openness: 0.6, conscientiousness: 0.5, extraversion: 0.85, agreeableness: 0.65, neuroticism: 0.4}
+    goals: [Mantener unida a la gente, Que nadie salga solo de noche]
+    starting_location: Taberna
+  - name: Padre Julián
+    age: 66
+    profession: sacerdote
+    personality: {openness: 0.4, conscientiousness: 0.8, extraversion: 0.45, agreeableness: 0.75, neuroticism: 0.5}
+    goals: [Dar refugio en la iglesia a quien lo necesite]
+    starting_location: Iglesia
+  - name: Mateo
+    age: 19
+    profession: estudiante
+    personality: {openness: 0.8, conscientiousness: 0.3, extraversion: 0.7, agreeableness: 0.5, neuroticism: 0.7}
+    goals: [Grabar lo que ataca al pueblo, Salir de Valdeoscuro]
+    starting_location: Plaza
+  - name: Forastero
+    age: 45
+    profession: cazador
+    personality: {openness: 0.5, conscientiousness: 0.6, extraversion: 0.3, agreeableness: 0.35, neuroticism: 0.3}
+    goals: [Cazar a la criatura]
+    starting_location: Plaza
+    arrives_at: 5
+    backstory: Lleva semanas siguiendo el rastro de algo que mata ganado.
+events:
+  scheduled:
+    - tick: 3
+      type: crisis
+      description: Gritos en la granja. Algo ha atacado a Tomás y ha destrozado el corral.
+      effects:
+        health: {Tomás: -0.6}
+        amenaza: un animal enorme
+    - tick: 7
+      type: escalation
+      description: La criatura vuelve. La granja queda en ruinas y quien siga allí no sobrevive.
+      effects:
+        kill: [location:Granja]
+        granja: destruida
+    - tick: 10
+      type: turning_point
+      description: Mateo huye del pueblo en el último autobús.
+      effects:
+        depart: Mateo
+    - tick: 13
+      type: resolution
+      description: Llegan soldados del destacamento del valle para cazar a la criatura.
+      effects:
+        spawn:
+          - {name: Soldado, profession: soldado, starting_location: Plaza, count: 2}
+        amenaza: bajo control militar

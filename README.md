@@ -102,6 +102,16 @@ npm run build          # typecheck + build de producción en dist/
 | `factory` | interior | `scenarios/factory` |
 | `space-battle` | vacío: naves flotando unidas por rutas | `scenarios/space-battle` |
 
+### Salud, muertes, llegadas y salidas
+
+Si Simcore tiene el ciclo de vida de agentes (rama `feat/agent-lifecycle` del fork), la UI lo muestra:
+- **Mapa:** los muertos quedan tumbados donde caen, los que se van desaparecen, los que llegan aparecen con un destello y los heridos llevan una barra de salud.
+- **Sucesos:** el feed y los avisos recogen bajas, llegadas, salidas y cambios del estado del mundo.
+- **Panel de agentes:** la salud de cada uno y, en vivo, los botones Herir, Curar, Matar y Retirar, más «Hacer llegar a alguien».
+- **Editor:** cada agente tiene salud inicial y tick de llegada, y cada suceso programado sus «Consecuencias»: quién muere, se hiere o cura, se marcha o llega, y variables del mundo.
+
+`scenarios/last-night` es un ejemplo, y la repetición «La noche más larga» se ve sin backend. Con un Simcore sin ciclo de vida todo lo demás funciona igual: simplemente no hay muertes ni llegadas.
+
 ![Editor de escenarios](docs/editor.png)
 
 ### Qué datos del escenario usa el mapa

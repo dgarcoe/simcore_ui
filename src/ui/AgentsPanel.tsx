@@ -1,8 +1,15 @@
 import type { Agent } from '../api/types';
 import { bus } from '../store/bus';
+import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
+import { AgentActions, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
+
+function statusLabel(a: Agent): string {
+  const status = a.status ?? a.state.status;
+  return status === 'dead' ? '✝ muerto' : status === 'departed' ? 'se ha ido' : '';
+}
 
 const TRAITS: Array<[keyof Agent['personality'], string]> = [
   ['openness', 'Apertura'],
@@ -33,11 +40,12 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
 
   return (
     <div className="panel-body">
+      <SpawnForm />
       <ul className="agent-list">
         {agents.map((a) => (
           <li key={a.id}>
             <button
-              className={`agent-row ${a.name === selected ? 'on' : ''}`}
+              className={`agent-row ${a.name === selected ? 'on' : ''} ${isAlive(a) ? '' : 'gone'}`}
               onClick={() => {
                 selectAgent(a.name === selected ? null : a.name);
                 bus.emit('focusAgent', a.name);
@@ -46,7 +54,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               <Portrait theme={theme} name={a.name} scale={2} />
               <span className="agent-row-text">
                 <strong>{a.name}</strong>
-                <span className="dim">{a.location}</span>
+                <span className="dim">{statusLabel(a) ? `${statusLabel(a)} · ` : ''}{a.location}</span>
               </span>
               <span className="mood-dot" style={{ background: a.state.mood >= 0 ? '#38b764' : '#b13e53', opacity: 0.4 + Math.abs(a.state.mood) }} />
             </button>
@@ -69,14 +77,22 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               </div>
             </div>
           </div>
-          {agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}
-          {lastWhy[agent.name]?.text && (
+          {statusLabel(agent) && <p className="bad-text">{statusLabel(agent)}</p>}
+          <AgentActions agent={agent} />
+          {isAlive(agent) && agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}
+          {isAlive(agent) && lastWhy[agent.name]?.text && (
             <p className="why-block">
               <span className="dim">Por qué (t{lastWhy[agent.name].tick}): </span>
               {lastWhy[agent.name].text}
             </p>
           )}
           <dl className="stats">
+            {typeof agent.state.health === 'number' && (
+              <>
+                <dt>Salud</dt>
+                <dd><Meter value={agent.state.health} color={agent.state.health > 0.6 ? '#38b764' : agent.state.health > 0.3 ? '#ffcd75' : '#b13e53'} /></dd>
+              </>
+            )}
             <dt>Ánimo</dt>
             <dd><Meter value={agent.state.mood} min={-1} max={1} color={agent.state.mood >= 0 ? '#38b764' : '#b13e53'} /></dd>
             <dt>Energía</dt>

@@ -3,5 +3,6 @@
   { "file": "spaceship.json", "name": "Derelict Signal", "theme": "Nave espacial", "description": "La tripulación de una nave recibe una señal de socorro de un pecio." },
   { "file": "warehouse.json", "name": "Peak Season", "theme": "Almacén", "description": "Un almacén logístico en plena campaña de Navidad." },
   { "file": "factory.json", "name": "The Strike", "theme": "Fábrica", "description": "Rumores de despidos y una posible huelga en una fábrica." },
-  { "file": "space-battle.json", "name": "Battle of Kepler Belt", "theme": "Batalla espacial", "description": "Dos flotas se enfrentan en un cinturón de asteroides." }
+  { "file": "space-battle.json", "name": "Battle of Kepler Belt", "theme": "Batalla espacial", "description": "Dos flotas se enfrentan en un cinturón de asteroides." },
+  { "file": "last-night.json", "name": "La noche más larga", "theme": "Pueblo", "description": "Algo ataca las granjas de noche: heridos, muertes, huidas y la llegada del ejército (ciclo de vida de agentes)." }
 ]

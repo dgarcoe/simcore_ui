@@ -21,6 +21,10 @@ export interface AgentConfig {
   starting_location?: string;
   resources?: Record<string, number>;
   backstory?: string;
+  /** 0..1 (Simcore with agent life cycle). */
+  health?: number;
+  /** Tick at which the agent enters (0 = from the start). */
+  arrives_at?: number;
 }
 
 export interface LocationConfig {
@@ -240,4 +244,61 @@ export function cleanScenario(cfg: ScenarioConfig): ScenarioConfig {
       scheduled: (cfg.events?.scheduled ?? []).filter((e) => e.description?.trim()),
     },
   };
+}
+
+// ── Event effects (Simcore with agent life cycle) ───────────────────────
+
+export interface SpawnSpec {
+  name: string;
+  profession?: string;
+  starting_location?: string;
+  count?: number;
+}
+
+/** Editable view of a scheduled event's `effects`. */
+export interface EffectsForm {
+  kill: string[];
+  depart: string[];
+  health: Array<{ target: string; delta: number }>;
+  spawn: SpawnSpec[];
+  /** Other keys: written to the world's global_state. */
+  world: Record<string, unknown>;
+}
+
+const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn'];
+
+function names(v: unknown): string[] {
+  return typeof v === 'string' ? [v] : Array.isArray(v) ? v.map(String) : [];
+}
+
+export function effectsToForm(effects: Record<string, unknown> | undefined): EffectsForm {
+  const fx = effects ?? {};
+  const health = fx.health && typeof fx.health === 'object' && !Array.isArray(fx.health) ? (fx.health as Record<string, unknown>) : {};
+  const spawn = Array.isArray(fx.spawn) ? fx.spawn : fx.spawn ? [fx.spawn] : [];
+  return {
+    kill: names(fx.kill),
+    depart: names(fx.depart),
+    health: Object.entries(health).map(([target, delta]) => ({ target, delta: Number(delta) || 0 })),
+    spawn: spawn.filter((x): x is SpawnSpec => !!x && typeof x === 'object'),
+    world: Object.fromEntries(Object.entries(fx).filter(([k]) => !AGENT_EFFECTS.includes(k))),
+  };
+}
+
+/** Back to Simcore's shape, leaving out empty parts (no `effects` at all when empty). */
+export function formToEffects(f: EffectsForm): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = { ...f.world };
+  if (f.kill.length) out.kill = f.kill;
+  if (f.depart.length) out.depart = f.depart;
+  const health = f.health.filter((h) => h.target && h.delta);
+  if (health.length) out.health = Object.fromEntries(health.map((h) => [h.target, h.delta]));
+  const spawn = f.spawn.filter((s) => s.name.trim());
+  if (spawn.length) out.spawn = spawn;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** "all", "location:X" or an agent name, in words. */
+export function targetLabel(target: string): string {
+  if (target === 'all') return 'Todos';
+  if (target.startsWith('location:')) return `Todos en ${target.slice('location:'.length)}`;
+  return target;
 }

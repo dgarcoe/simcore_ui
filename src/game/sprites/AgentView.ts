@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { P } from '../../themes/palette';
+import type { AgentStatus } from '../../api/types';
 import type { ThemePack } from '../../themes/types';
 import type { Facing } from '../art/sprites';
 import { ensureAgentTexture } from '../art/textures';
@@ -28,6 +29,8 @@ export class AgentView {
   private readonly ring: Phaser.GameObjects.Ellipse;
   private readonly tag: Phaser.GameObjects.Text;
   private readonly pip: Phaser.GameObjects.Rectangle;
+  private readonly hpBack: Phaser.GameObjects.Rectangle;
+  private readonly hp: Phaser.GameObjects.Rectangle;
   private readonly texKey: string;
   private bubble: Bubble | null = null;
   private emote: Phaser.GameObjects.Image | null = null;
@@ -39,6 +42,7 @@ export class AgentView {
   /** Zone the agent is in or walking to. */
   zone: string;
   walking = false;
+  status: AgentStatus = 'alive';
   /** Tiles per second; tired agents walk slower. */
   speed = 6;
 
@@ -59,13 +63,16 @@ export class AgentView {
     this.ring = scene.add.ellipse(0, 0, 18, 7).setStrokeStyle(1, 0xffcd75).setVisible(false);
     this.sprite = scene.add.sprite(0, 1, this.texKey, 0).setOrigin(0.5, 1);
     this.pip = scene.add.rectangle(0, -19, 4, 4, moodColor(0)).setStrokeStyle(1, 0x1a1c2c);
+    // Health bar, only shown when hurt.
+    this.hpBack = scene.add.rectangle(0, 4, 12, 3, 0x1a1c2c).setVisible(false);
+    this.hp = scene.add.rectangle(-5, 4, 10, 1, 0x38b764).setOrigin(0, 0.5).setVisible(false);
     this.tag = scene.add
       .text(0, -22, name.split(' ').slice(-1)[0], { fontFamily: PIXEL_FONT, fontSize: '8px', color: P.white })
       .setOrigin(0.5, 1)
       .setResolution(4)
       .setStroke(P.ink, 3)
       .setVisible(false);
-    this.container = scene.add.container(x, y, [shadow, this.ring, this.sprite, this.pip, this.tag]);
+    this.container = scene.add.container(x, y, [shadow, this.ring, this.sprite, this.pip, this.hpBack, this.hp, this.tag]);
     this.container.setDepth(y);
     this.sprite.setInteractive({ useHandCursor: true, pixelPerfect: false });
     this.sprite.on('pointerover', () => this.tag.setVisible(true));
@@ -94,6 +101,48 @@ export class AgentView {
     this.speed = 3 + Math.max(0, Math.min(1, energy)) * 4;
   }
 
+  /** Health 0..1; undefined on Simcore versions without health. */
+  setHealth(health: number | undefined): void {
+    const hurt = this.status === 'alive' && health !== undefined && health < 0.995;
+    this.hpBack.setVisible(hurt);
+    this.hp.setVisible(hurt);
+    if (!hurt) return;
+    const h = Math.max(0, Math.min(1, health));
+    this.hp.setSize(Math.max(1, Math.round(10 * h)), 1);
+    this.hp.setFillStyle(h > 0.6 ? 0x38b764 : h > 0.3 ? 0xffcd75 : 0xb13e53);
+  }
+
+  /** Falls where it stands and stays there as a body. */
+  die(animated: boolean): void {
+    if (this.status === 'dead') return;
+    this.status = 'dead';
+    this.stop();
+    this.bubble?.destroy();
+    this.sprite.stop();
+    this.sprite.setTexture(this.texKey, 0).setTint(0x8b9bb4);
+    this.pip.setVisible(false);
+    this.hpBack.setVisible(false);
+    this.hp.setVisible(false);
+    if (animated) {
+      this.showEmote('skull');
+      this.scene.tweens.add({ targets: this.sprite, angle: 90, y: -3, duration: 400, ease: 'Bounce.easeOut' });
+    } else this.sprite.setAngle(90).setY(-3);
+  }
+
+  /** Pops in with a sparkle (new arrivals). */
+  appear(): void {
+    this.container.setAlpha(0);
+    this.scene.tweens.add({ targets: this.container, alpha: 1, duration: 400 });
+    this.showEmote('sparkle');
+  }
+
+  /** Fades out (agents leaving the simulation); destroy afterwards. */
+  leave(onDone: () => void): void {
+    this.status = 'departed';
+    this.stop();
+    this.scene.tweens.add({ targets: this.container, alpha: 0, duration: 600, onComplete: onDone });
+  }
+
   face(dx: number, dy: number): void {
     if (Math.abs(dx) > Math.abs(dy)) {
       this.facing = 'side';
@@ -110,6 +159,7 @@ export class AgentView {
   }
 
   private playIdle(): void {
+    if (this.status !== 'alive') return;
     this.sprite.play(`${this.texKey}:idle:${this.facing}`, true);
   }
 
@@ -119,6 +169,7 @@ export class AgentView {
    */
   walk(path: Tile[], isLane: (t: Tile) => boolean, onArrive?: () => void): void {
     this.stop();
+    if (this.status !== 'alive') return;
     this.walking = true;
     let i = path.length > 1 && path[0].x === this.tile.x && path[0].y === this.tile.y ? 1 : 0;
     const step = () => {
@@ -159,7 +210,7 @@ export class AgentView {
     this.tile = t;
     const { x, y } = tileToWorld(t);
     this.container.setPosition(x, y).setDepth(y);
-    this.sprite.setTexture(this.texKey, 0);
+    if (this.status === 'alive') this.sprite.setTexture(this.texKey, 0);
     this.playIdle();
   }
 

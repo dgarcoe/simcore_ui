@@ -13,7 +13,7 @@ export function Banner() {
   }, [banner]);
 
   if (!banner || visible !== banner.id) return null;
-  const title = banner.kind === 'injected' ? '¡ÚLTIMA HORA!' : banner.kind === 'end' ? 'FIN' : 'SUCESO';
+  const title = { injected: '¡ÚLTIMA HORA!', end: 'FIN', death: 'BAJA', arrival: 'LLEGADA', scheduled: 'SUCESO' }[banner.kind];
   return (
     <div className={`banner banner-${banner.kind}`} role="status" onClick={() => setVisible(null)}>
       <span className="banner-title">{title}</span>

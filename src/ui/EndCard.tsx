@@ -6,10 +6,13 @@ import { useSim } from '../store/simStore';
 export function EndCard() {
   const status = useSim((s) => s.status);
   const mode = useSim((s) => s.mode);
+  const reason = useSim((s) => s.endReason);
+  const sim = useSim((s) => s.sim);
   const [open, setOpen] = useState(true);
   const [text, setText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   if (status !== 'ended' || !open) return null;
+  const fallen = sim ? Object.values(sim.agents).filter((a) => (a.status ?? a.state.status) === 'dead').map((a) => a.name) : [];
 
   const chronicle = async () => {
     setLoading(true);
@@ -26,6 +29,8 @@ export function EndCard() {
     <div className="endcard">
       <button className="close" onClick={() => setOpen(false)} aria-label="Cerrar">×</button>
       <h2>Fin de la simulación</h2>
+      {reason === 'no_agents_left' && <p>No queda nadie con vida en el escenario.</p>}
+      {fallen.length > 0 && <p className="dim">✝ {fallen.join(', ')}</p>}
       {mode === 'live' && !text && (
         <button className="btn btn-accent" disabled={loading} onClick={chronicle}>
           {loading ? 'Escribiendo…' : 'Generar crónica'}

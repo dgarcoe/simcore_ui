@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { SimState } from '../api/types';
+import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 
 const PARSE_HINT =
@@ -87,7 +89,7 @@ function elapsed(ms: number): string {
 export function TickProgress() {
   const progress = useSim((s) => s.progress);
   // Before the run's first tick arrives, its agents are known from the scenario config.
-  const total = useSim((s) => s.runAgents?.length ?? (s.sim ? Object.keys(s.sim.agents).length : 0));
+  const total = useSim((s) => activeAgents(s.runAgents, s.sim, s.scenarioConfig?.agents, s.progress.tick));
   const startedAt = useSim((s) => s.tickStartedAt);
   const live = useSim((s) => s.mode === 'live' && s.status === 'running' && !s.paused);
   const [now, setNow] = useState(() => Date.now());
@@ -109,4 +111,17 @@ export function TickProgress() {
       {elapsed(now - startedAt)}
     </div>
   );
+}
+
+/** Agents expected to decide this tick: the run's agents minus the dead, the departed and later arrivals. */
+export function activeAgents(
+  runAgents: string[] | null,
+  sim: SimState | null,
+  config: Array<{ name: string; arrives_at?: number }> | undefined,
+  tick: number,
+): number {
+  if (!runAgents) return sim ? Object.values(sim.agents).filter(isAlive).length : 0;
+  const gone = new Set(sim ? Object.values(sim.agents).filter((a) => !isAlive(a)).map((a) => a.name) : []);
+  const later = new Set((config ?? []).filter((a) => (a.arrives_at ?? 0) > tick).map((a) => a.name));
+  return runAgents.filter((n) => !gone.has(n) && !later.has(n)).length;
 }

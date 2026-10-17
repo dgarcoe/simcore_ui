@@ -16,13 +16,17 @@ const ICON: Partial<Record<EventType, string>> = {
   reflection: '☁',
   simulation_start: '▶',
   simulation_end: '■',
+  agent_spawn: '✚',
+  agent_death: '✝',
+  agent_depart: '⇥',
+  environment_change: '🌐',
 };
 
 const FILTERS: Array<[string, EventType[] | null]> = [
   ['Todo', null],
   ['Diálogo', ['agent_speak', 'interaction', 'agent_post']],
   ['Movimiento', ['agent_move']],
-  ['Mundo', ['scheduled_event', 'injected_event', 'simulation_start', 'simulation_end']],
+  ['Mundo', ['scheduled_event', 'injected_event', 'environment_change', 'agent_spawn', 'agent_death', 'agent_depart', 'simulation_start', 'simulation_end']],
   ['Reflexión', ['reflection']],
 ];
 
@@ -74,7 +78,7 @@ export function EventsPanel() {
                 </button>
               )}{' '}
               {f.text}
-              {f.reasoning && <span className={`why ${/^(LLM|Parse) error/.test(f.reasoning) ? 'why-bad' : ''}`}>{shortWhy(f.reasoning)}</span>}
+              {f.reasoning && <span className={`why ${/^(LLM error|LLM failed|Parse error)/.test(f.reasoning) ? 'why-bad' : ''}`}>{shortWhy(f.reasoning)}</span>}
             </span>
           </li>
         ))}

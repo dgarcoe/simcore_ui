@@ -116,6 +116,15 @@ export function restartReplay(): void {
   replay.start();
 }
 
+/**
+ * Applies event effects to the running simulation (Simcore versions with an
+ * agent life cycle): health, kill, depart, spawn, or world-state keys.
+ */
+export async function applyEffects(description: string, effects: Record<string, unknown>): Promise<void> {
+  if (useSim.getState().mode !== 'live') return;
+  await api.injectEvent(description, '', effects);
+}
+
 export async function inject(description: string, location: string): Promise<void> {
   const { mode, sim, ingest } = useSim.getState();
   if (mode === 'live') return api.injectEvent(description, location);

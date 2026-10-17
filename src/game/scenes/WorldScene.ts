@@ -287,7 +287,7 @@ export class WorldScene extends Phaser.Scene {
     return this.zones.get(name) ?? this.map.zones[0];
   }
 
-  private ensureAgent(name: string, location: string): AgentView | null {
+  private ensureAgent(name: string, location: string, profession?: string): AgentView | null {
     const existing = this.agents.get(name);
     if (existing) return existing;
     const zone = this.zoneFor(location);
@@ -304,7 +304,7 @@ export class WorldScene extends Phaser.Scene {
         const s = useSim.getState();
         s.selectAgent(s.selectedAgent === n ? null : n);
       },
-      useSim.getState().professions[name],
+      useSim.getState().professions[name] ?? profession,
     );
     this.agents.set(name, view);
     return view;
@@ -331,11 +331,18 @@ export class WorldScene extends Phaser.Scene {
   private reconcile(sim: SimState, instant = false): void {
     const seen = new Set<string>();
     for (const agent of Object.values(sim.agents)) {
+      const status = agent.status ?? agent.state.status ?? 'alive';
+      if (status === 'departed') continue;
       seen.add(agent.name);
       const loc = agent.location || agent.state.location;
-      const view = this.ensureAgent(agent.name, loc);
+      const view = this.ensureAgent(agent.name, loc, agent.profession);
       if (!view) continue;
       view.setMood(agent.state.mood, agent.state.energy);
+      if (status === 'dead') {
+        view.die(false);
+        continue;
+      }
+      view.setHealth(agent.state.health);
       // Agents in virtual places (chats, networks) stay where they were on the map.
       if (view.zone !== loc && this.zones.has(loc)) {
         if (instant) {
@@ -344,12 +351,14 @@ export class WorldScene extends Phaser.Scene {
         } else this.walkTo(view, loc);
       }
     }
-    for (const [name, view] of this.agents)
-      if (!seen.has(name)) {
-        view.destroy();
-        this.agents.delete(name);
-        this.occupancy.release(name);
-      }
+    for (const [name, view] of this.agents) if (!seen.has(name)) this.removeAgent(name, view, !instant);
+  }
+
+  private removeAgent(name: string, view: AgentView, animated: boolean): void {
+    this.agents.delete(name);
+    this.occupancy.release(name);
+    if (animated) view.leave(() => view.destroy());
+    else view.destroy();
   }
 
   private syncSelection(): void {
@@ -392,6 +401,9 @@ export class WorldScene extends Phaser.Scene {
       case 'agent_speak':
       case 'agent_action':
       case 'agent_post':
+      case 'agent_spawn':
+      case 'agent_death':
+      case 'agent_depart':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -403,10 +415,26 @@ export class WorldScene extends Phaser.Scene {
 
   private playCue(e: SimEvent): void {
     if (e.type === 'tick_end') return this.reconcile(e.data as SimState);
+    if (e.type === 'agent_spawn') {
+      if (this.agents.has(e.source)) return;
+      this.ensureAgent(e.source, String(e.data.location ?? ''), String(e.data.profession ?? '') || undefined)?.appear();
+      return;
+    }
+    if (e.type === 'agent_depart') {
+      const leaving = this.agents.get(e.source);
+      if (leaving) this.removeAgent(e.source, leaving, true);
+      return;
+    }
     const sim = useSim.getState().sim;
     const view = this.agents.get(e.source) ?? (sim ? this.ensureAgent(e.source, this.locationOf(sim, e.source)) : null);
     if (!view) return;
 
+    if (e.type === 'agent_death') {
+      view.die(true);
+      this.cameras.main.shake(200, 0.003);
+      return;
+    }
+    if (view.status !== 'alive') return;
     if (e.type === 'reflection') return view.say(String(e.data.summary ?? ''), 'thought');
 
     const action = parseAction(e.data.action);

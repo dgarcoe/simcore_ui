@@ -1,10 +1,13 @@
 import { useDraft } from './draft';
+import { EffectsEditor } from './EffectsEditor';
 
 const EVENT_TYPES = ['crisis', 'escalation', 'revelation', 'turning_point', 'resolution', 'social_event', 'market_change', 'weather', 'political', 'infrastructure'];
 
 export function EventsTab() {
   const [draft, update] = useDraft();
   const events = draft.events?.scheduled ?? [];
+  const agents = draft.agents.map((a) => a.name).filter(Boolean);
+  const places = draft.environment.locations.map((l) => l.name).filter(Boolean);
 
   return (
     <div className="ed-section">
@@ -52,6 +55,18 @@ export function EventsTab() {
             placeholder="Qué ocurre (todos los agentes lo perciben)"
             value={e.description}
             onChange={(ev) => update((d) => void (d.events!.scheduled![i].description = ev.target.value))}
+          />
+          <EffectsEditor
+            effects={e.effects}
+            agents={agents}
+            places={places}
+            onChange={(fx) =>
+              update((d) => {
+                const ev = d.events!.scheduled![i];
+                if (fx) ev.effects = fx;
+                else delete ev.effects;
+              })
+            }
           />
         </article>
       ))}
