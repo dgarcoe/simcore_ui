@@ -105,16 +105,35 @@ describe('event effects form', () => {
     expect(formToEffects(form)).toEqual({ ...fx, kill: ['Ana'], spawn: [{ name: 'Medic', count: 2 }] });
   });
 
-  it('drops empty parts', () => {
+  it('drops empty parts but keeps arrivals being typed', () => {
     const form = effectsToForm(undefined);
     form.health.push({ target: '', delta: -0.2 });
-    form.spawn.push({ name: '  ' });
     expect(formToEffects(form)).toBeUndefined();
+    form.spawn.push({ name: '' });
+    expect(formToEffects(form)).toEqual({ spawn: [{ name: '' }] });
+  });
+
+  it('validates effect targets and arrival names', () => {
+    const cfg: ScenarioConfig = structuredClone(ship);
+    cfg.events = { scheduled: [{ tick: 1, type: 'x', description: 'd', effects: { kill: ['Nobody', 'all'], health: { 'location:Nowhere': -0.1 }, spawn: [{ name: '' }] } }] };
+    const msgs = validateScenario(cfg).map((i) => i.message);
+    expect(msgs).toContain('El suceso #1 afecta a «Nobody», que no existe.');
+    expect(msgs).toContain('El suceso #1 afecta a «Todos en Nowhere», que no existe.');
+    expect(msgs).toContain('Una llegada del suceso #1 no tiene nombre.');
+    expect(msgs.filter((m) => m.includes('Todos»'))).toHaveLength(0);
   });
 
   it('labels targets', () => {
     expect(targetLabel('all')).toBe('Todos');
     expect(targetLabel('location:Clínica')).toBe('Todos en Clínica');
     expect(targetLabel('Rosa')).toBe('Rosa');
+  });
+});
+
+describe('example scenarios', () => {
+  it('La noche más larga validates cleanly', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/last-night/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
   });
 });

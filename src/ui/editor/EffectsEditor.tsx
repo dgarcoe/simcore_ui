@@ -66,7 +66,7 @@ export function EffectsEditor({ effects, onChange, agents, places }: Props) {
               <button className="btn" onClick={() => set((f) => void f.spawn.splice(i, 1))}>✕</button>
             </span>
           ))}
-          <button className="btn" onClick={() => set((f) => void f.spawn.push({ name: '', profession: '', starting_location: places[0] ?? '', count: 1 }))}>+ Llegada</button>
+          <button className="btn" onClick={() => set((f) => void f.spawn.push({ name: 'Recién llegado', profession: '', starting_location: places[0] ?? '', count: 1 }))}>+ Llegada</button>
         </div>
       </div>
 

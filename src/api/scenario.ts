@@ -227,6 +227,13 @@ export function validateScenario(cfg: ScenarioConfig): ValidationIssue[] {
 
   for (const [i, e] of (cfg.events?.scheduled ?? []).entries()) {
     if (!e.description?.trim()) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} no tiene descripción.` });
+    const fx = effectsToForm(e.effects);
+    if (fx.spawn.some((s) => !String(s.name ?? '').trim()))
+      issues.push({ path: `events.${i}`, message: `Una llegada del suceso #${i + 1} no tiene nombre.` });
+    for (const t of [...fx.kill, ...fx.depart, ...fx.health.map((h) => h.target)]) {
+      const known = t === 'all' || (t.startsWith('location:') ? names.has(t.slice(9)) : agentNames.has(t));
+      if (!known) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} afecta a «${targetLabel(t)}», que no existe.` });
+    }
   }
   return issues;
 }
@@ -291,8 +298,8 @@ export function formToEffects(f: EffectsForm): Record<string, unknown> | undefin
   if (f.depart.length) out.depart = f.depart;
   const health = f.health.filter((h) => h.target && h.delta);
   if (health.length) out.health = Object.fromEntries(health.map((h) => [h.target, h.delta]));
-  const spawn = f.spawn.filter((s) => s.name.trim());
-  if (spawn.length) out.spawn = spawn;
+  // Arrivals are kept even while their name is being typed; validateScenario flags empty ones.
+  if (f.spawn.length) out.spawn = f.spawn;
   return Object.keys(out).length ? out : undefined;
 }
 
