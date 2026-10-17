@@ -64,7 +64,7 @@ docker compose --profile ollama up --build    # + Ollama local en CPU (qwen2.5:7
 ```
 
 Servicios:
-- **`simcore`**: imagen construida desde [elisonfrank/simcore](https://github.com/elisonfrank/simcore), fijada a un commit (`SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados desde el editor se guardan en un volumen. La API queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
+- **`simcore`**: imagen construida desde [dgarcoe/simcore](https://github.com/dgarcoe/simcore) (fork de [elisonfrank/simcore](https://github.com/elisonfrank/simcore) con el ciclo de vida de agentes), fijada a un commit (`SIMCORE_REPO`, `SIMCORE_REF`). Arranca `simcore manage`, que sirve la API sin ninguna simulación cargada; los escenarios se lanzan desde la UI. La imagen incluye los escenarios de ejemplo de `scenarios/`, y los creados desde el editor se guardan en un volumen. La API queda expuesta en `localhost:8420` (`SIMCORE_PORT`).
 - **`ui`**: build de producción servido por nginx, que redirige `/api` y `/ws` a `simcore`.
 - **`ollama`** + **`ollama-pull`** (perfil `ollama`): el LLM local y la descarga del modelo.
 - **Proveedores en la nube:** para usar OpenAI o Anthropic, pon las claves en `.env` y elige el modelo del escenario en el editor. El editor lista en un desplegable los modelos instalados en Ollama.
@@ -104,7 +104,7 @@ npm run build          # typecheck + build de producción en dist/
 
 ### Salud, muertes, llegadas y salidas
 
-Si Simcore tiene el ciclo de vida de agentes (rama `feat/agent-lifecycle` del fork), la UI lo muestra:
+Con el Simcore que trae la imagen Docker (rama `feat/agent-lifecycle` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
 - **Mapa:** los muertos quedan tumbados donde caen, los que se van desaparecen, los que llegan aparecen con un destello y los heridos llevan una barra de salud.
 - **Sucesos:** el feed y los avisos recogen bajas, llegadas, salidas y cambios del estado del mundo.
 - **Panel de agentes:** la salud de cada uno y, en vivo, los botones Herir, Curar, Matar y Retirar, más «Hacer llegar a alguien».
