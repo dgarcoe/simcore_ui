@@ -38,13 +38,38 @@ export async function startLive(): Promise<void> {
   }
   stopCurrent = connectSocket({
     onEvent: (e) => {
+      if (e.type === 'tick_end') runHasTick = true;
       useSim.getState().ingest(e);
-      // Someone may start another scenario; fetch its config for agent looks and map hints.
-      if (e.type === 'simulation_start') void refreshScenarioDescription();
+      if (e.type === 'simulation_start') {
+        runHasTick = false;
+        // The first tick_end only comes once every agent has asked the LLM (slow on a Jetson):
+        // Simcore already knows places and starting positions, so draw the map now.
+        void seedNewRun();
+        // Someone may start another scenario; fetch its config for agent looks and map hints.
+        void refreshScenarioDescription();
+      }
     },
     onStatus: (connected) => useSim.getState().set({ connected }),
   });
   void refreshScenarioDescription();
+}
+
+/** Whether the current live run already delivered a tick_end (then its state is newer than /api/state at start). */
+let runHasTick = false;
+
+/** Draws a run that just started from Simcore's initial state, unless its first tick already arrived. */
+export async function seedNewRun(fetchState = api.fetchState): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const state = await fetchState().catch(() => null);
+    if (runHasTick || useSim.getState().mode !== 'live') return false;
+    if (state) {
+      // Not silent: the map scene must place the new run's agents (same map, new run).
+      useSim.getState().ingest({ type: 'tick_end', tick: state.clock.tick, data: state as any, source: '' });
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
 }
 
 /** Seeds the store from /api/state so the map shows up before the next tick. */
