@@ -175,6 +175,15 @@ En la UI:
 
 `scenarios/last-night` («La noche más larga») usa todo esto.
 
+### Ejemplo avanzado: Estación Kepler-7
+
+`scenarios/kepler-station` reúne todas las funciones en un mismo escenario (tema nave espacial). También está como repetición, la primera de la lista.
+- **Estados y reglas:** unas esporas convierten a la tripulación en «poseídos», que controlan reglas y no gastan llamadas al LLM.
+- **Mundo:** el oxígeno baja cada tick y los ingenieros reparan los recicladores con piezas. La comandante puede sellar el laboratorio con su tarjeta, una fuga inunda la sala de máquinas y al puente solo entran los mandos.
+- **Necesidades:** hambre y sueño.
+- **Personajes:** una inspectora de la compañía llega a mitad de la simulación. La comandante guarda un secreto, circula un rumor cierto y hay creencias falsas. Hay una madre y su hijo, una pareja y una amistad.
+- **Dos finales posibles:** la nave de rescate atraca en el tick 30 o las esporas se quedan con la estación.
+
 `scenarios/last-night` es un ejemplo, y la repetición «La noche más larga» se ve sin backend. Con un Simcore sin ciclo de vida todo lo demás funciona igual: simplemente no hay muertes ni llegadas.
 
 ![Editor de escenarios](docs/editor.png)

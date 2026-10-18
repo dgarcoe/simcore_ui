@@ -346,7 +346,17 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const changes = Object.entries((e.data.global_state ?? {}) as Record<string, unknown>)
         .map(([k, v]) => `${k} = ${JSON.stringify(v)}`)
         .join(', ');
-      return changes ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, `El mundo cambia: ${changes}`)) } : next;
+      if (!changes) return next;
+      const item = feedItem(seq, e, `El mundo cambia: ${changes}`);
+      // A variable nudged every tick (oxygen, fuel…) updates its last line instead of flooding the feed.
+      const last = next.feed[next.feed.length - 1];
+      const keys = (d: Record<string, unknown> | undefined) => Object.keys(d ?? {}).sort().join(',');
+      let prev: SimEvent | undefined;
+      if (last?.type === 'environment_change')
+        for (let i = next.recent.length - 1; i >= 0 && !prev; i--) if (next.recent[i].type === 'environment_change' && next.recent[i] !== e) prev = next.recent[i];
+      if (last && prev && keys(prev.data.global_state as Record<string, unknown>) === keys(e.data.global_state as Record<string, unknown>))
+        return { ...next, feed: [...next.feed.slice(0, -1), item] };
+      return { ...next, feed: pushFeed(next.feed, item) };
     }
     case 'tick_start':
       return {

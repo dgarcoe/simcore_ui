@@ -287,3 +287,16 @@ describe('minds', () => {
     expect(validateScenario(cfg)).toEqual([]);
   });
 });
+
+describe('advanced example', () => {
+  it('Estación Kepler-7 validates cleanly and uses every feature', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/kepler-station/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
+    expect(scenarioWarnings(cfg)).toEqual([]);
+    expect(Object.keys(cfg.needs ?? {}).length).toBeGreaterThan(0);
+    expect(cfg.rules?.some((r) => (r.then as { end?: string })?.end)).toBe(true);
+    expect(cfg.simulation.planning).toBe(true);
+    expect(cfg.agents.some((a) => a.arrives_at) && cfg.agents.some((a) => a.secrets?.length) && cfg.agents.some((a) => a.relationships)).toBe(true);
+  });
+});

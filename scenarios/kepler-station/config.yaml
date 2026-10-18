@@ -1,0 +1,270 @@
+# Advanced example for simcore_ui's 'spaceship' theme: uses every feature of
+# dgarcoe/simcore (main) at once —
+#   life cycle (late arrival, deaths), items (stock, production, trade),
+#   conditions (infected → possessed, injured, panic) with rule-controlled agents,
+#   scenario actions (attack, repair, sedate, shoot, seal), needs (hunger, sleep),
+#   world rules (oxygen leak, alarms, two possible endings), places with state
+#   (restricted bridge, sealable lab, coolant leak), daily plans, beliefs,
+#   secrets, rumors and typed relationships (mother and son, a couple, friends).
+simulation:
+  name: Estación Kepler-7
+  description: Una estación minera en órbita de Kepler-7 abre una muestra de un cometa. Las esporas se extienden, el soporte
+    vital falla y la comandante guarda un secreto. La nave de rescate llegará en 30 horas… si queda alguien.
+  time_step: 1 hour
+  duration: 36 hours
+  seed: 2
+  language: es
+  planning: true
+  plan_every: 8
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.8
+
+needs:
+  hambre:
+    label: hambre
+    grows: 0.04
+    relief: 0.6
+    satisfied_by: {items: [racion]}
+    at_max: {health: -0.03, mood: -0.05}
+    who: {not_conditions: [poseido]}
+  sueno:
+    label: sueño
+    grows: 0.035
+    relief: 0.5
+    satisfied_by: {places: [Camarotes]}
+    at_max: {energy: -0.1, mood: -0.05}
+    who: {not_conditions: [poseido]}
+
+conditions:
+  infectado:
+    description: las esporas te queman por dentro; oyes un zumbido que no se va
+    appearance: venas oscuras en el cuello
+    per_tick: {health: -0.02, energy: -0.03}
+    duration: 6
+    becomes: poseido
+    contagion: {chance: 0.2, via: interaction}
+    color: "#a05fd6"
+  poseido:
+    description: ya no eres tú; las esporas mueven tu cuerpo
+    appearance: ojos en blanco, se mueve a sacudidas
+    controller: rules
+    rules: {action: atacar, seek: true, wander: 0.3}
+    color: "#6b2fa0"
+  herido:
+    description: tienes una herida abierta que no deja de sangrar
+    appearance: sangra
+    per_tick: {health: -0.03}
+    color: "#b13e53"
+  en_panico:
+    description: el miedo te impide pensar con claridad
+    appearance: respira a bocanadas
+    per_tick: {mood: -0.1}
+    duration: 3
+    color: "#ef7d57"
+
+actions:
+  atacar:
+    description: atacar a alguien
+    who: {conditions: [poseido]}
+    target_requires: {not_conditions: [poseido]}
+    chance: 0.6
+    on_target: {health: -0.3, add_conditions: [infectado, herido, en_panico]}
+    message: se abalanza sobre {target}
+    fail_message: intenta atrapar a {target}, que se escapa
+  reparar:
+    description: reparar el soporte vital con piezas de recambio (en la sala de máquinas)
+    target: none
+    who: {professions: [ingenier, técnic], not_conditions: [poseido]}
+    cost: {piezas: 1}
+    chance: 0.7
+    on_self: {energy: -0.2, mood: 0.1}
+    world: {soporte_vital: reparado}
+    message: repara los recicladores de aire
+    fail_message: intenta reparar los recicladores, pero una válvula revienta
+  sedar:
+    description: sedar a alguien en pánico o herido para estabilizarlo
+    who: {professions: [médic], not_conditions: [poseido]}
+    target_requires: {not_conditions: [poseido]}
+    cost: {sedante: 1}
+    on_target: {energy: -0.3, mood: 0.3, remove_conditions: [en_panico]}
+    message: seda a {target}
+  curar:
+    description: limpiar y suturar una herida
+    who: {professions: [médic], not_conditions: [poseido]}
+    target_requires: {conditions: [herido]}
+    on_target: {health: 0.2, remove_conditions: [herido]}
+    message: sutura la herida de {target}
+  disparar:
+    description: disparar la pistola a un tripulante poseído
+    who: {items: {pistola: 1}, not_conditions: [poseido]}
+    target_requires: {conditions: [poseido]}
+    cost: {bateria: 1}
+    chance: 0.7
+    on_target: {health: -1.0}
+    message: dispara a {target}
+    fail_message: dispara a {target} y falla
+  sellar_laboratorio:
+    description: sellar el laboratorio por orden de la comandancia (nadie podrá entrar)
+    target: none
+    who: {professions: [comandante, inspector]}
+    cost: {tarjeta_sellado: 1}
+    world: {laboratorio_sellado: true}
+    message: ordena sellar el laboratorio
+
+items:
+  racion: {description: ración de comida, on_use: {energy: 0.3, mood: 0.05}}
+  medkit: {description: botiquín, on_use: {health: 0.4}, cures: [herido]}
+  sedante: {description: sedante, on_use: {mood: 0.2}, cures: [en_panico]}
+  antiviral: {description: antiviral experimental, cures: [infectado]}
+  piezas: {description: piezas de recambio para el soporte vital}
+  pistola: {description: pistola de dardos, consumable: false}
+  bateria: {description: batería para la pistola}
+  tarjeta_sellado: {description: tarjeta de seguridad para sellar compartimentos}
+
+rules:
+  - when: {every: 1}
+    then: {adjust: {oxigeno: -0.03}}
+  - description: Los recicladores vuelven a funcionar. El aire mejora.
+    when: {global: {soporte_vital: {eq: reparado}}}
+    then: {adjust: {oxigeno: 0.3}, soporte_vital: estable}
+  - description: Salta la alarma de oxígeno en toda la estación.
+    when: {global: {oxigeno: {lt: 0.5}}}
+    then: {add_condition: {all: en_panico}}
+    once: true
+  - description: El aire es irrespirable.
+    when: {global: {oxigeno: {lt: 0.2}}}
+    then: {health: {all: -0.1}}
+  - description: Las compuertas del laboratorio se cierran. Nadie entra ni sale.
+    when: {global: {laboratorio_sellado: {eq: true}}}
+    then: {locations: {Laboratorio: {closed: true}}}
+    once: true
+  - description: Una tubería revienta y la sala de máquinas se llena de refrigerante.
+    when: {at: 14}
+    then: {locations: {Sala de máquinas: {hazard: {label: fuga de refrigerante, per_tick: {health: -0.15}, condition: en_panico}}}}
+    once: true
+  - description: Los drones de mantenimiento contienen la fuga de refrigerante.
+    when: {at: 20}
+    then: {locations: {Sala de máquinas: {hazard: null}}}
+    once: true
+  - description: Las esporas controlan a casi toda la tripulación.
+    when: {count: {condition: poseido, gte: 4}}
+    then: {end: Kepler-7 se ha perdido. La estación queda en silencio, flotando con su carga.}
+    once: true
+  - description: La nave de rescate Hermes atraca en la esclusa.
+    when: {at: 30, alive: {gte: 1}}
+    then: {end: La Hermes atraca y evacúa a los supervivientes de Kepler-7.}
+    once: true
+
+environment:
+  type: grid
+  size: [14, 14]
+  global_state:
+    ui_theme: spaceship
+    oxigeno: 1.0
+    soporte_vital: estable
+    laboratorio_sellado: false
+  locations:
+    - {name: Puente de mando, type: command, position: [7, 1], capacity: 8, access: {professions: [comandante, inspector]}}
+    - {name: Laboratorio, type: education, position: [11, 3], capacity: 6}
+    - {name: Enfermería, type: healthcare, position: [3, 3], capacity: 6, stock: {medkit: 2, sedante: 2}}
+    - {name: Comedor, type: social, position: [7, 6], capacity: 12, stock: {racion: 6}}
+    - {name: Hidroponía, type: agriculture, position: [11, 8], capacity: 6, produces: {racion: 2}}
+    - {name: Sala de máquinas, type: engineering, position: [3, 9], capacity: 6, stock: {piezas: 2}}
+    - {name: Bodega de carga, type: storage, position: [7, 11], capacity: 10, stock: {piezas: 2, bateria: 3, racion: 4}}
+    - {name: Camarotes, type: residential, position: [11, 12], capacity: 10}
+    - {name: Esclusa, type: transit, position: [2, 13], capacity: 6}
+
+agents:
+  - name: Comandante Reyes
+    age: 48
+    profession: comandante
+    personality: {openness: 0.5, conscientiousness: 0.85, extraversion: 0.5, agreeableness: 0.45, neuroticism: 0.4}
+    goals: [Mantener la estación operativa hasta el rescate, Que nadie descubra lo de la muestra]
+    starting_location: Puente de mando
+    resources: {pistola: 1, bateria: 2, racion: 1, tarjeta_sellado: 1}
+    relationships:
+      Kai: {type: hijo, sentiment: 0.9}
+      Dra. Okafor: {type: amiga, sentiment: 0.6}
+      Vance: {type: superior, sentiment: -0.3}
+    secrets: [La compañía me ordenó subir la muestra del cometa a bordo sin avisar a la tripulación]
+    backstory: Veinte años en estaciones mineras. Su hijo Kai está a bordo en prácticas.
+  - name: Dra. Okafor
+    age: 44
+    profession: médica
+    personality: {openness: 0.7, conscientiousness: 0.8, extraversion: 0.45, agreeableness: 0.8, neuroticism: 0.35}
+    goals: [Mantener viva a la tripulación, Entender qué hacen las esporas]
+    starting_location: Enfermería
+    resources: {medkit: 1, sedante: 1}
+    relationships:
+      Comandante Reyes: {type: amiga, sentiment: 0.6}
+    beliefs:
+      - {text: Las esporas solo se contagian por la sangre, true: false}
+  - name: Iker
+    age: 36
+    profession: ingeniero
+    personality: {openness: 0.4, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.6, neuroticism: 0.5}
+    goals: [Mantener el soporte vital funcionando, Proteger a Mara]
+    starting_location: Sala de máquinas
+    resources: {piezas: 1}
+    relationships:
+      Mara: {type: pareja, sentiment: 0.85}
+  - name: Mara
+    age: 33
+    profession: técnica de hidroponía
+    personality: {openness: 0.6, conscientiousness: 0.6, extraversion: 0.7, agreeableness: 0.7, neuroticism: 0.45}
+    goals: [Que no falte comida, Salir de aquí con Iker]
+    starting_location: Hidroponía
+    needs: {hambre: 0.4}
+    relationships:
+      Iker: {type: pareja, sentiment: 0.85}
+  - name: Dr. Sato
+    age: 51
+    profession: científico
+    personality: {openness: 0.9, conscientiousness: 0.5, extraversion: 0.3, agreeableness: 0.4, neuroticism: 0.6}
+    goals: [Estudiar la muestra del cometa, Ocultar que está infectado]
+    starting_location: Laboratorio
+    conditions: [infectado]
+    secrets: [Me corté con la muestra al abrirla; el zumbido empezó después]
+    beliefs:
+      - {text: Las esporas mueren si se baja la temperatura de la estación, true: false}
+    backstory: Contratado por la compañía para analizar la muestra.
+  - name: Kai
+    age: 19
+    profession: cadete
+    personality: {openness: 0.8, conscientiousness: 0.35, extraversion: 0.75, agreeableness: 0.6, neuroticism: 0.6}
+    goals: [Demostrar que vale para esto, Averiguar qué esconde su madre]
+    starting_location: Comedor
+    needs: {sueno: 0.5}
+    relationships:
+      Comandante Reyes: {type: madre, sentiment: 0.7}
+  - name: Vance
+    age: 40
+    profession: inspectora de la compañía
+    personality: {openness: 0.3, conscientiousness: 0.9, extraversion: 0.4, agreeableness: 0.2, neuroticism: 0.3}
+    goals: [Recuperar la muestra a cualquier precio, Que la compañía no pierda la estación]
+    starting_location: Esclusa
+    arrives_at: 8
+    resources: {pistola: 1, bateria: 3, antiviral: 1}
+    relationships:
+      Comandante Reyes: {type: subordinada, sentiment: -0.2}
+    beliefs:
+      - {text: La muestra vale más que toda la tripulación junta, true: true}
+
+events:
+  scheduled:
+    - tick: 4
+      type: rumor
+      description: En el comedor alguien comenta lo que vio en el laboratorio.
+      effects:
+        rumor: {"location:Comedor": {text: La comandante sabía lo de la muestra desde el principio, true: true}}
+    - tick: 8
+      type: arrival
+      description: Una lanzadera de la compañía atraca en la esclusa. Baja una inspectora.
+    - tick: 16
+      type: supplies
+      description: La impresora química de la bodega termina dos dosis de antiviral.
+      effects:
+        items: {"location:Bodega de carga": {antiviral: 2}}

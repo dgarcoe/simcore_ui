@@ -297,3 +297,15 @@ describe('minds', () => {
     ]);
   });
 });
+
+describe('world variables', () => {
+  it('collapses repeated changes of the same variables into one line', () => {
+    const s = run([
+      ev('environment_change', 1, { global_state: { oxigeno: 0.97 } }),
+      ev('environment_change', 2, { global_state: { oxigeno: 0.94 } }),
+      ev('environment_change', 2, { global_state: { luz: false } }),
+      ev('environment_change', 3, { global_state: { oxigeno: 0.91 } }),
+    ]);
+    expect(s.feed.map((f) => f.text)).toEqual(['El mundo cambia: oxigeno = 0.94', 'El mundo cambia: luz = false', 'El mundo cambia: oxigeno = 0.91']);
+  });
+});
