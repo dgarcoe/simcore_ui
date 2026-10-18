@@ -3,7 +3,7 @@ import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
-import { AgentActions, Conditions, Inventory, SpawnForm } from './AgentControls';
+import { AgentActions, Conditions, Inventory, Needs, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
 
 function statusLabel(a: Agent): string {
@@ -83,6 +83,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
           </div>
           {statusLabel(agent) && <p className="bad-text">{statusLabel(agent)}</p>}
           <Conditions agent={agent} />
+          <Needs agent={agent} />
           <AgentActions agent={agent} />
           {isAlive(agent) && agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}
           {isAlive(agent) && lastWhy[agent.name]?.text && (

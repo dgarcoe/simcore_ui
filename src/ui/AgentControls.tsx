@@ -203,3 +203,81 @@ export function Conditions({ agent }: { agent: Agent }) {
     </div>
   );
 }
+
+/** Scenario needs (hunger, sleep…) as bars; red once critical. */
+export function Needs({ agent }: { agent: Agent }) {
+  const catalog = useSim((s) => s.sim?.needs);
+  const needs = Object.entries(agent.state.needs ?? {});
+  if (!needs.length || !isAlive(agent)) return null;
+  return (
+    <dl className="stats needs">
+      {needs.map(([name, v]) => (
+        <span key={name} style={{ display: 'contents' }}>
+          <dt>{catalog?.[name]?.label || name}</dt>
+          <dd title={`${Math.round(v * 100)}%`}>
+            <div className="meter">
+              <div style={{ width: `${Math.round(v * 100)}%`, background: v >= 1 ? '#b13e53' : v >= 0.5 ? '#ef7d57' : '#94b0c2' }} />
+            </div>
+          </dd>
+        </span>
+      ))}
+    </dl>
+  );
+}
+
+/** Live: close/open places, light/put out a hazard, nudge a world variable. */
+export function WorldControls() {
+  const sim = useSim((s) => s.sim);
+  const live = useSim((s) => s.mode === 'live' && s.status === 'running');
+  const [place, setPlace] = useState('');
+  const [hazard, setHazard] = useState('en llamas');
+  const [variable, setVariable] = useState('');
+  const [delta, setDelta] = useState(-0.1);
+  const [error, setError] = useState('');
+  if (!live || !hasLifecycle(sim)) return null;
+  const places = mapLocations(sim!.environment).map((l) => l.name);
+  const where = place || places[0] || '';
+  const loc = sim!.environment.locations[where];
+  const numeric = Object.entries(sim!.environment.global_state ?? {}).filter(([k, v]) => typeof v === 'number' && !k.startsWith('ui_'));
+  const run = (description: string, effects: Record<string, unknown>) =>
+    applyEffects(description, effects).then(
+      () => setError(''),
+      (err: Error) => setError(err.message),
+    );
+  return (
+    <details className="world-controls">
+      <summary>⌂ Mundo</summary>
+      <div className="row wrap">
+        <select className="select" value={where} onChange={(e) => setPlace(e.target.value)}>
+          {places.map((p) => <option key={p}>{p}</option>)}
+        </select>
+        <button className="btn" onClick={() => run(`${where} ${loc?.closed ? 'se abre' : 'se cierra'}`, { locations: { [where]: { closed: !loc?.closed } } })}>
+          {loc?.closed ? 'Abrir' : 'Cerrar'}
+        </button>
+        {loc?.hazard ? (
+          <button className="btn" onClick={() => run(`${where} ya no es peligroso`, { locations: { [where]: { hazard: null } } })}>Quitar peligro</button>
+        ) : (
+          <>
+            <input className="input" value={hazard} onChange={(e) => setHazard(e.target.value)} placeholder="en llamas, inundado…" />
+            <button
+              className="btn"
+              onClick={() => run(`${where}: ${hazard}`, { locations: { [where]: { hazard: { label: hazard, per_tick: { health: -0.1 } } } } })}
+            >
+              Peligro
+            </button>
+          </>
+        )}
+      </div>
+      {numeric.length > 0 && (
+        <div className="row wrap">
+          <select className="select" value={variable || numeric[0][0]} onChange={(e) => setVariable(e.target.value)}>
+            {numeric.map(([k, v]) => <option key={k} value={k}>{k} = {String(v)}</option>)}
+          </select>
+          <input className="input tiny" type="number" step={0.05} value={delta} onChange={(e) => setDelta(Number(e.target.value))} />
+          <button className="btn" onClick={() => run('', { adjust: { [variable || numeric[0][0]]: delta } })}>Ajustar</button>
+        </div>
+      )}
+      {error && <span className="bad-text small">{error}</span>}
+    </details>
+  );
+}

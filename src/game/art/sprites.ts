@@ -680,4 +680,6 @@ export const EMOTES: Record<string, Pixels> = {
   ammo: ['........', '.a..a..a', 'aAaaAaaA', 'aAaaAaaA', 'aAaaAaaA', 'aAaaAaaA', 'aaaaaaaa', '........'],
   box: ['........', '.aaaaaa.', 'aAAAAAAa', 'aAaaaaAa', 'aaaaaaaa', 'aAaaaaAa', 'aAAAAAAa', '.aaaaaa.'],
   book: ['........', 'aaa.aaa.', 'aAaaaAa.', 'aAaaaAa.', 'aAaaaAa.', 'aaa.aaa.', '...a....', '........'],
+  lock: ['..aaaa..', '.a....a.', '.a....a.', 'AAAAAAAA', 'AAAaaAAA', 'AAAaaAAA', 'AAAAAAAA', '........'],
+  fire: ['...a....', '..aa..a.', '..aAa.a.', '.aaAaaa.', '.aAAAaa.', 'aaAAAAaa', '.aAAAAa.', '..aaaa..'],
 };

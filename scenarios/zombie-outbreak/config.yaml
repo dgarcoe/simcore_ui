@@ -1,13 +1,14 @@
 # Example scenario for simcore_ui's 'town' theme with conditions (infected →
 # zombie), scenario actions (bite, shoot, barricade, treat) and rule-controlled
-# agents (zombies don't use the LLM). Needs dgarcoe/simcore (feat/conditions).
+# agents (zombies don't use the LLM), needs (hunger, sleep), world rules and
+# places that close or catch fire. Needs dgarcoe/simcore (main).
 simulation:
   name: Brote en Valdeoscuro
   description: Un vecino vuelve del monte con una mordedura. En pocas horas la fiebre se convierte en otra cosa.
     Los supervivientes deben decidir si curar, atrincherarse o disparar.
   time_step: 1 hour
   duration: 24 hours
-  seed: 5
+  seed: 1
   language: es
 llm:
   model: ollama/qwen2.5:7b
@@ -67,6 +68,39 @@ actions:
     target_requires: {not_conditions: [zombie]}
     on_target: {health: 0.3, remove_conditions: [panicked]}
     message: cura las heridas de {target}
+needs:
+  hunger:
+    label: hambre
+    grows: 0.05
+    relief: 0.6
+    satisfied_by: {items: [food]}
+    at_max: {health: -0.03, mood: -0.05}
+    who: {not_conditions: [zombie]}
+  sleep:
+    label: sueño
+    grows: 0.04
+    relief: 0.5
+    satisfied_by: {places: [Iglesia, Taberna]}
+    at_max: {energy: -0.1}
+    who: {not_conditions: [zombie]}
+rules:
+  - description: Hay tres zombis o más. Valdeoscuro ha caído.
+    when: {count: {condition: zombie, gte: 3}}
+    then: {end: Valdeoscuro ha caído en manos de los muertos}
+    once: true
+  - description: Alguien atranca la iglesia desde dentro.
+    when: {global: {barricadas: {eq: true}}}
+    then: {locations: {Iglesia: {closed: true}}}
+    once: true
+  - description: Un candil cae en el pajar y el monte arde.
+    when: {at: 12}
+    then:
+      locations: {Monte: {hazard: {label: en llamas, per_tick: {health: -0.2}, condition: panicked}}}
+    once: true
+  - description: Los guardias apagan el fuego del monte.
+    when: {at: 17}
+    then: {locations: {Monte: {hazard: null}}}
+    once: true
 items:
   antidote: {description: suero experimental, cures: [infected]}
   medicine: {description: botiquín, on_use: {health: 0.4}}
@@ -88,6 +122,7 @@ environment:
     - {name: Monte, type: outdoor, position: [2, 9], capacity: 10}
 agents:
   - name: Ramón
+    needs: {hunger: 0.3}
     age: 52
     profession: pastor
     personality: {openness: 0.4, conscientiousness: 0.6, extraversion: 0.5, agreeableness: 0.6, neuroticism: 0.5}

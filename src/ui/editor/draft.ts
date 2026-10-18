@@ -36,6 +36,8 @@ export function normalize(raw: Partial<ScenarioConfig> | Record<string, any>): S
     ...(cfg.items && Object.keys(cfg.items).length ? { items: structuredClone(cfg.items) } : {}),
     ...(cfg.conditions && Object.keys(cfg.conditions).length ? { conditions: structuredClone(cfg.conditions) } : {}),
     ...(cfg.actions && Object.keys(cfg.actions).length ? { actions: structuredClone(cfg.actions) } : {}),
+    ...(cfg.needs && Object.keys(cfg.needs).length ? { needs: structuredClone(cfg.needs) } : {}),
+    ...(cfg.rules?.length ? { rules: structuredClone(cfg.rules) } : {}),
   };
 }
 

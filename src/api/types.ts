@@ -24,7 +24,17 @@ export type EventType =
   | 'trade_offer'
   | 'trade_result'
   // Conditions (infected, zombie…) of Simcore forks with scenario conditions.
-  | 'condition_change';
+  | 'condition_change'
+  // Needs, world rules and place state.
+  | 'need_change'
+  | 'place_change'
+  | 'rule_fired';
+
+export interface HazardInfo {
+  label?: string;
+  per_tick?: Record<string, number>;
+  condition?: string;
+}
 
 /** Catalog entry of a scenario condition, as exposed in the state. */
 export interface ConditionInfo {
@@ -84,6 +94,8 @@ export interface AgentState {
   status?: AgentStatus;
   /** Scenario conditions → ticks left (null = until removed). */
   conditions?: Record<string, number | null>;
+  /** Scenario needs → level 0..1. */
+  needs?: Record<string, number>;
 }
 
 export interface Agent {
@@ -111,6 +123,9 @@ export interface Location {
   /** Items lying here (Simcore with inventories). */
   stock?: Record<string, number>;
   produces?: Record<string, number>;
+  closed?: boolean;
+  access?: Record<string, unknown> | null;
+  hazard?: HazardInfo | null;
 }
 
 export interface Environment {
@@ -138,6 +153,7 @@ export interface SimState {
   offers?: TradeOfferInfo[];
   conditions?: Record<string, ConditionInfo>;
   actions?: Record<string, { description?: string; target?: 'agent' | 'none' }>;
+  needs?: Record<string, { label?: string }>;
   pending_arrivals?: string[];
 }
 

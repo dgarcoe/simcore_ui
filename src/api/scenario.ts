@@ -27,6 +27,8 @@ export interface AgentConfig {
   arrives_at?: number;
   /** Scenario conditions it starts with. */
   conditions?: string[];
+  /** Initial level of scenario needs, 0..1. */
+  needs?: Record<string, number>;
 }
 
 export interface LocationConfig {
@@ -41,6 +43,53 @@ export interface LocationConfig {
   stock?: Record<string, number>;
   /** Items added to whoever works here, per work action. */
   produces?: Record<string, number>;
+  closed?: boolean;
+  access?: Requirement | null;
+  hazard?: HazardConfig | null;
+}
+
+export interface HazardConfig {
+  label?: string;
+  per_tick?: Partial<Record<Stat, number>>;
+  condition?: string;
+}
+
+export interface NeedConfig {
+  label?: string;
+  grows?: number;
+  relief?: number;
+  satisfied_by?: { items?: string[]; actions?: string[]; places?: string[] };
+  at_max?: Partial<Record<Stat, number>>;
+  who?: Requirement;
+}
+
+export type CompareOp = 'lt' | 'lte' | 'gt' | 'gte' | 'eq' | 'ne';
+export const COMPARE_OPS: Array<[CompareOp, string]> = [
+  ['lt', '<'],
+  ['lte', '≤'],
+  ['gt', '>'],
+  ['gte', '≥'],
+  ['eq', '='],
+  ['ne', '≠'],
+];
+export type Compare = Partial<Record<CompareOp, number | string | boolean>>;
+
+export interface RuleWhen {
+  at?: number;
+  every?: number;
+  from?: number;
+  until?: number;
+  global?: Record<string, Compare>;
+  alive?: Compare;
+  count?: Compare & { condition?: string; not_condition?: string; location?: string };
+  place?: Record<string, { closed?: boolean; hazard?: boolean; occupants?: Compare }>;
+}
+
+export interface RuleConfig {
+  description?: string;
+  when?: RuleWhen;
+  then?: Record<string, unknown>;
+  once?: boolean;
 }
 
 /** Item catalog entry (Simcore with inventories). */
@@ -134,6 +183,8 @@ export interface ScenarioConfig {
   items?: Record<string, ItemConfig>;
   conditions?: Record<string, ConditionConfig>;
   actions?: Record<string, ActionConfig>;
+  needs?: Record<string, NeedConfig>;
+  rules?: RuleConfig[];
 }
 
 export const LOCATION_TYPES = [
@@ -352,13 +403,21 @@ export interface EffectsForm {
   /** Conditions added / removed: one row per target and condition. */
   addCondition: Array<{ target: string; condition: string }>;
   removeCondition: Array<{ target: string; condition: string }>;
+  /** Need changes (e.g. a feast: hunger -1). */
+  needs: Array<{ target: string; need: string; delta: number }>;
+  /** Place changes: close/open, set/remove a hazard. */
+  places: Array<{ place: string; closed?: boolean; hazard?: HazardConfig | null }>;
+  /** Numeric world variables to add to. */
+  adjust: Array<{ key: string; delta: number }>;
+  /** Ends the run with this text (rules). */
+  end: string;
   /** Items added (+) or removed (-) for an agent or a place ("location:<name>"). */
   items: Array<{ target: string; item: string; delta: number }>;
   /** Other keys: written to the world's global_state. */
   world: Record<string, unknown>;
 }
 
-const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items', 'add_condition', 'remove_condition'];
+const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items', 'add_condition', 'remove_condition', 'needs', 'locations', 'adjust', 'end'];
 
 function conditionRows(v: unknown): Array<{ target: string; condition: string }> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return [];
@@ -385,6 +444,16 @@ export function effectsToForm(effects: Record<string, unknown> | undefined): Eff
     depart: names(fx.depart),
     health: Object.entries(health).map(([target, delta]) => ({ target, delta: Number(delta) || 0 })),
     spawn: spawn.filter((x): x is SpawnSpec => !!x && typeof x === 'object'),
+    needs: Object.entries((fx.needs ?? {}) as Record<string, Record<string, unknown>>).flatMap(([target, ch]) =>
+      Object.entries(ch ?? {}).map(([need, delta]) => ({ target, need, delta: Number(delta) || 0 })),
+    ),
+    places: Object.entries((fx.locations ?? {}) as Record<string, { closed?: boolean; hazard?: HazardConfig | null }>).map(([place, ch]) => ({
+      place,
+      ...('closed' in (ch ?? {}) ? { closed: !!ch.closed } : {}),
+      ...('hazard' in (ch ?? {}) ? { hazard: ch.hazard ?? null } : {}),
+    })),
+    adjust: Object.entries((fx.adjust ?? {}) as Record<string, unknown>).map(([key, delta]) => ({ key, delta: Number(delta) || 0 })),
+    end: typeof fx.end === 'string' ? fx.end : '',
     addCondition: conditionRows(fx.add_condition),
     removeCondition: conditionRows(fx.remove_condition),
     items: Object.entries(items).flatMap(([target, changes]) =>
@@ -406,6 +475,21 @@ export function formToEffects(f: EffectsForm): Record<string, unknown> | undefin
   const items: Record<string, Record<string, number>> = {};
   for (const r of f.items) if (r.target && r.item.trim() && r.delta) (items[r.target] ??= {})[r.item.trim()] = r.delta;
   if (Object.keys(items).length) out.items = items;
+  const needs: Record<string, Record<string, number>> = {};
+  for (const r of f.needs) if (r.target && r.need && r.delta) (needs[r.target] ??= {})[r.need] = r.delta;
+  if (Object.keys(needs).length) out.needs = needs;
+  const places: Record<string, Record<string, unknown>> = {};
+  for (const r of f.places) {
+    if (!r.place) continue;
+    const ch: Record<string, unknown> = {};
+    if (r.closed !== undefined) ch.closed = r.closed;
+    if (r.hazard !== undefined) ch.hazard = r.hazard;
+    if (Object.keys(ch).length) places[r.place] = ch;
+  }
+  if (Object.keys(places).length) out.locations = places;
+  const adjust = Object.fromEntries(f.adjust.filter((a) => a.key.trim() && a.delta).map((a) => [a.key.trim(), a.delta]));
+  if (Object.keys(adjust).length) out.adjust = adjust;
+  if (f.end.trim()) out.end = f.end.trim();
   const add = conditionMap(f.addCondition);
   if (add) out.add_condition = add;
   const remove = conditionMap(f.removeCondition);
@@ -467,6 +551,40 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
       need(o?.add_conditions, `La acción ${k}`, `actions.${k}`);
       need(o?.remove_conditions, `La acción ${k}`, `actions.${k}`);
     }
+  }
+  const places = new Set(cfg.environment.locations.map((l) => l.name));
+  const needs = cfg.needs ?? {};
+  const effectIssues = (raw: Record<string, unknown> | undefined, where: string, path: string) => {
+    const fx = effectsToForm(raw);
+    for (const r of fx.places) if (!places.has(r.place)) issues.push({ path, message: `${where} cambia el lugar «${r.place}», que no existe.` });
+    for (const r of fx.needs) if (!needs[r.need]) issues.push({ path, message: `${where} usa la necesidad «${r.need}», que no existe.` });
+    need(
+      fx.places.map((r) => r.hazard?.condition ?? '').filter(Boolean),
+      where,
+      path,
+    );
+  };
+  (cfg.events?.scheduled ?? []).forEach((e, i) => effectIssues(e.effects, `El suceso #${i + 1}`, `events.${i}`));
+  (cfg.rules ?? []).forEach((r, i) => {
+    const where = `La regla #${i + 1}`;
+    effectIssues(r.then, where, `rules.${i}`);
+    if (!r.then || !Object.keys(r.then).length) issues.push({ path: `rules.${i}`, message: `${where} no hace nada (añade consecuencias o un final).` });
+    const c = r.when?.count;
+    need([c?.condition ?? '', c?.not_condition ?? ''].filter(Boolean), where, `rules.${i}`);
+    if (c?.location && !places.has(c.location)) issues.push({ path: `rules.${i}`, message: `${where} cuenta en «${c.location}», que no existe.` });
+    for (const p of Object.keys(r.when?.place ?? {})) if (!places.has(p)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${p}», que no existe.` });
+  });
+  cfg.agents.forEach((a, i) => {
+    for (const n of Object.keys(a.needs ?? {})) if (!needs[n]) issues.push({ path: `agents.${i}`, message: `${a.name || `El agente #${i + 1}`} tiene la necesidad «${n}», que no existe.` });
+  });
+  cfg.environment.locations.forEach((l, i) => {
+    need([l.hazard?.condition ?? ''].filter(Boolean), `El lugar ${l.name}`, `locations.${i}`);
+    need([...(l.access?.conditions ?? []), ...(l.access?.not_conditions ?? [])], `El lugar ${l.name}`, `locations.${i}`);
+  });
+  for (const [k, n] of Object.entries(needs)) {
+    for (const p of n.satisfied_by?.places ?? []) if (!places.has(p)) issues.push({ path: `needs.${k}`, message: `La necesidad ${k} usa el lugar «${p}», que no existe.` });
+    for (const a of n.satisfied_by?.actions ?? [])
+      if (!BUILTIN_ACTIONS.includes(a) && !acts[a]) issues.push({ path: `needs.${k}`, message: `La necesidad ${k} usa la acción «${a}», que no existe.` });
   }
   for (const [k, c] of Object.entries(conds)) {
     if (c.becomes) need([c.becomes], `El estado ${k}`, `conditions.${k}`);

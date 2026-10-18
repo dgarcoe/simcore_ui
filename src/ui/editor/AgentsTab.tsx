@@ -159,6 +159,35 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                   Historia
                   <textarea className="input" rows={3} value={a.backstory ?? ''} onChange={(e) => set((x) => void (x.backstory = e.target.value))} />
                 </label>
+                {Object.keys(draft.needs ?? {}).length > 0 && (
+                  <div className="fx-row">
+                    <span className="fx-label">Necesidades al empezar</span>
+                    <div className="fx-items">
+                      {Object.entries(draft.needs ?? {}).map(([k, n]) => (
+                        <span key={k} className="row">
+                          <span className="trait-label">{n.label || k}</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={a.needs?.[k] ?? 0}
+                            onChange={(e) =>
+                              set((x) => {
+                                const v = Number(e.target.value);
+                                const needs = { ...x.needs, [k]: v };
+                                if (!v) delete needs[k];
+                                if (Object.keys(needs).length) x.needs = needs;
+                                else delete x.needs;
+                              })
+                            }
+                          />
+                          <span className="dim">{Math.round((a.needs?.[k] ?? 0) * 100)}%</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {Object.keys(draft.conditions ?? {}).length > 0 && (
                   <label>
                     <span>Empieza con estos estados</span>

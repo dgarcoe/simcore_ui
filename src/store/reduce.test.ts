@@ -255,3 +255,28 @@ describe('conditions', () => {
     expect(s.banner).toMatchObject({ kind: 'transform', text: 'Ana se ha convertido en zombie' });
   });
 });
+
+describe('world', () => {
+  it('reports needs, place changes, rules and an end by rule', () => {
+    let s = run([
+      ev('simulation_start', 0, { config: 'W' }),
+      ev('tick_start', 1, {}),
+      ev('tick_end', 1, { clock: { tick: 1, max_ticks: 24 }, agents: {} }),
+      ev('tick_start', 2, {}),
+      ev('need_change', 2, { agent: 'Ana', need: 'hunger', label: 'hambre', level: 'high', cause: '' }, 'Ana'),
+      ev('need_change', 2, { agent: 'Ana', need: 'hunger', label: 'hambre', level: 'ok', cause: 'food' }, 'Ana'),
+      ev('place_change', 2, { location: 'Monte', closed: false, hazard: { label: 'en llamas' } }),
+      ev('rule_fired', 2, { rule: 0, description: 'El monte arde', effects: {} }),
+    ]);
+    expect(s.feed.slice(1).map((f) => `${f.source} ${f.text}`.trim())).toEqual([
+      'Ana hambre: alto',
+      'Ana hambre: satisfecho',
+      'Monte: abierto · en llamas',
+      'El monte arde',
+    ]);
+    expect(s.banner).toMatchObject({ kind: 'scheduled', text: 'El monte arde' });
+    s = run([ev('tick_start', 3, {}), ev('simulation_end', 3, { reason: 'rule', message: 'Valdeoscuro ha caído' })], s);
+    expect(s.status).toBe('ended');
+    expect(s.endMessage).toBe('Valdeoscuro ha caído');
+  });
+});

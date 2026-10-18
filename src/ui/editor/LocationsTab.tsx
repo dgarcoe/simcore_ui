@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { LOCATION_TYPES, type ScenarioConfig } from '../../api/scenario';
 import { resolveRole, ZONE_ROLES } from '../../game/map/roles';
 import { AmountsField } from './AmountsField';
+import { prune, RequirementEditor, StatSliders } from './RulesWidgets';
 import { useDraft } from './draft';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -153,6 +154,43 @@ export function LocationsTab({ selected, onSelect }: Props) {
                 Virtual (red social, chat)
               </label>
             </div>
+            <details>
+              <summary>Puertas, acceso y peligro{l.closed || l.access || l.hazard ? ' ●' : ''}</summary>
+              <label className="toggle">
+                <input type="checkbox" checked={!!l.closed} onChange={(e) => set((x) => void (e.target.checked ? (x.closed = true) : delete x.closed))} /> Cerrado (nadie puede entrar)
+              </label>
+              <div className="fx-row">
+                <span className="fx-label">Solo pueden entrar</span>
+                <RequirementEditor
+                  conditions={Object.keys(draft.conditions ?? {})}
+                  value={l.access ?? undefined}
+                  onChange={(r) => set((x) => void (Object.keys(prune(r)).length ? (x.access = prune(r)) : delete x.access))}
+                />
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={!!l.hazard}
+                  onChange={(e) => set((x) => void (e.target.checked ? (x.hazard = { label: 'en llamas', per_tick: { health: -0.1 } }) : delete x.hazard))}
+                />{' '}
+                Peligroso
+              </label>
+              {l.hazard && (
+                <div className="fx-row">
+                  <span className="fx-label">Peligro</span>
+                  <div className="fx-items">
+                    <input className="input" placeholder="en llamas, inundado…" value={l.hazard.label ?? ''} onChange={(e) => set((x) => void (x.hazard = { ...x.hazard, label: e.target.value }))} />
+                    <StatSliders value={l.hazard.per_tick} onChange={(v) => set((x) => void (x.hazard = { ...x.hazard, per_tick: v }))} />
+                    {Object.keys(draft.conditions ?? {}).length > 0 && (
+                      <select className="select" value={l.hazard.condition ?? ''} onChange={(e) => set((x) => void (x.hazard = prune({ ...x.hazard, condition: e.target.value })))}>
+                        <option value="">(no añade estado)</option>
+                        {Object.keys(draft.conditions ?? {}).map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+            </details>
             <div className="ed-grid">
               <AmountsField
                 label="Existencias (se pueden coger)"

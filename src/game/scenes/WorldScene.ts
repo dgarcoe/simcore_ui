@@ -17,6 +17,14 @@ export interface WorldData {
 }
 
 const ZOOMS = [0.5, 1, 1.5, 2, 3, 4];
+
+/** Emote for a pressing need: food for hunger/thirst, zzz for sleep, alert otherwise. */
+export function needIcon(name: string, label = ''): string {
+  const s = `${name} ${label}`.toLowerCase();
+  if (/hung|hambr|fome|food|comid|thirst|sed|agua|water/.test(s)) return 'food';
+  if (/sleep|sueñ|sono|tired|cansa|fatig|rest/.test(s)) return 'sleep';
+  return 'alert';
+}
 const CUE_MS = 260;
 
 /** Nudges overlapping speech bubbles upward so every line stays readable. */
@@ -75,6 +83,8 @@ export class WorldScene extends Phaser.Scene {
   /** Item icons + counts under each place's label (its stock). */
   private stockBadges = new Map<string, { sig: string; box: Phaser.GameObjects.Container }>();
   private labels = new Map<string, Phaser.GameObjects.Text>();
+  /** Padlock / fire markers and overlays for closed or dangerous places. */
+  private placeMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
 
   constructor() {
     super('world');
@@ -89,6 +99,7 @@ export class WorldScene extends Phaser.Scene {
     this.cues = [];
     this.stockBadges = new Map();
     this.labels = new Map();
+    this.placeMarks = new Map();
   }
 
   create(): void {
@@ -360,6 +371,50 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const [name, view] of this.agents) if (!seen.has(name)) this.removeAgent(name, view, !instant);
     this.updateStock(sim);
+    this.updatePlaces(sim);
+  }
+
+  /** Closed places get a padlock and a dark veil; dangerous ones a fire badge and a pulsing red veil. */
+  private updatePlaces(sim: SimState): void {
+    for (const z of this.map.zones) {
+      const loc = sim.environment.locations[z.name];
+      const closed = !!loc?.closed;
+      const hazard = loc?.hazard ?? null;
+      const sig = `${closed}|${hazard ? hazard.label ?? '?' : ''}`;
+      const current = this.placeMarks.get(z.name);
+      if (current?.sig === sig) continue;
+      current?.parts.forEach((p) => p.destroy());
+      this.placeMarks.delete(z.name);
+      if (!closed && !hazard) continue;
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      const x = z.body.x * TILE;
+      const y = z.body.y * TILE;
+      const w = z.body.w * TILE;
+      const h = z.body.h * TILE;
+      const label = this.labels.get(z.name);
+      const lx = label ? label.x - label.displayWidth / 2 - 9 : x;
+      const ly = label ? label.y - label.displayHeight / 2 : y;
+      if (closed) {
+        parts.push(this.add.rectangle(x, y, w, h, 0x1a1c2c, 0.35).setOrigin(0).setDepth(99990));
+        parts.push(this.add.image(lx, ly, 'emote:lock').setDepth(100001));
+      }
+      if (hazard) {
+        const veil = this.add.rectangle(x, y, w, h, 0xb13e53, 0.18).setOrigin(0).setDepth(99991);
+        this.tweens.add({ targets: veil, alpha: 0.05, duration: 500, yoyo: true, repeat: -1 });
+        parts.push(veil);
+        parts.push(this.add.image(closed ? lx - 13 : lx, ly, 'emote:fire').setDepth(100001));
+        if (hazard.label) {
+          parts.push(
+            this.add
+              .text(x + w / 2, y + h - 2, hazard.label, { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#ffcd75', backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
+              .setResolution(4)
+              .setOrigin(0.5, 1)
+              .setDepth(100001),
+          );
+        }
+      }
+      this.placeMarks.set(z.name, { sig, parts });
+    }
   }
 
   /** Shows what lies in each place (Simcore with inventories): icons with counts under the label. */
@@ -505,6 +560,7 @@ export class WorldScene extends Phaser.Scene {
       case 'agent_depart':
       case 'item_transfer':
       case 'condition_change':
+      case 'need_change':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -531,6 +587,11 @@ export class WorldScene extends Phaser.Scene {
     const view = this.agents.get(e.source) ?? (sim ? this.ensureAgent(e.source, this.locationOf(sim, e.source)) : null);
     if (!view) return;
 
+    if (e.type === 'need_change') {
+      const level = String(e.data.level);
+      if (level !== 'ok') view.showEmote(needIcon(String(e.data.need), String(e.data.label ?? '')));
+      return;
+    }
     if (e.type === 'condition_change') {
       const change = String(e.data.change);
       if (change === 'transformed') {

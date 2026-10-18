@@ -214,3 +214,49 @@ describe('conditions and scenario actions', () => {
     expect(scenarioWarnings(cfg)).toEqual([]);
   });
 });
+
+describe('world: needs, rules and places', () => {
+  it('round-trips needs, place changes, adjust and end', () => {
+    const fx = {
+      needs: { all: { hunger: -1 } },
+      locations: { Iglesia: { closed: true }, Monte: { hazard: { label: 'en llamas', per_tick: { health: -0.2 } } }, Plaza: { hazard: null } },
+      adjust: { oxygen: -0.1 },
+      end: 'Fin',
+      luz: false,
+    };
+    const form = effectsToForm(fx);
+    expect(form.places).toEqual([
+      { place: 'Iglesia', closed: true },
+      { place: 'Monte', hazard: { label: 'en llamas', per_tick: { health: -0.2 } } },
+      { place: 'Plaza', hazard: null },
+    ]);
+    expect(form.world).toEqual({ luz: false });
+    expect(formToEffects(form)).toEqual(fx);
+  });
+
+  it('reports unknown needs and places in rules, events, agents and needs', () => {
+    const cfg: ScenarioConfig = {
+      simulation: { name: 'W' },
+      environment: { locations: [{ name: 'Plaza', hazard: { condition: 'ghost' } }] },
+      agents: [{ name: 'Ana', starting_location: 'Plaza', needs: { thirst: 0.5 } }],
+      needs: { hunger: { satisfied_by: { places: ['Mars'], actions: ['dance'] } } },
+      rules: [
+        { when: { count: { location: 'Moon', gte: 1 }, place: { Venus: { closed: true } } }, then: { locations: { Pluto: { closed: true } } } },
+        { when: { every: 2 }, then: {} },
+      ],
+    };
+    const msgs = referenceIssues(cfg).map((i) => i.message);
+    expect(msgs).toEqual(
+      expect.arrayContaining([
+        'La regla #1 cambia el lugar «Pluto», que no existe.',
+        'La regla #1 cuenta en «Moon», que no existe.',
+        'La regla #1 mira el lugar «Venus», que no existe.',
+        'La regla #2 no hace nada (añade consecuencias o un final).',
+        'Ana tiene la necesidad «thirst», que no existe.',
+        'El lugar Plaza usa el estado «ghost», que no existe.',
+        'La necesidad hunger usa el lugar «Mars», que no existe.',
+        'La necesidad hunger usa la acción «dance», que no existe.',
+      ]),
+    );
+  });
+});

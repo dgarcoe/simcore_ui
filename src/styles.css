@@ -1194,3 +1194,27 @@ details summary {
   color: var(--accent);
   margin-top: 6px;
 }
+
+.end-message {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.world-controls {
+  margin: 6px 0 10px;
+}
+
+.world-controls summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.world-controls .row {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.when summary {
+  cursor: pointer;
+  color: var(--accent);
+}

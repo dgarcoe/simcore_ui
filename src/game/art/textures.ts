@@ -50,6 +50,8 @@ export function ensureSharedTextures(scene: Phaser.Scene, theme: ThemePack): voi
     ammo: [P.slate, P.yellow],
     box: [P.tan, P.orange],
     book: [P.blue, P.white],
+    lock: [P.slate, P.yellow],
+    fire: [P.red, P.yellow],
   };
   for (const [key, rows] of Object.entries(EMOTES)) {
     const k = `emote:${key}`;

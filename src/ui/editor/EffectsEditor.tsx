@@ -9,10 +9,14 @@ interface Props {
   items?: string[];
   /** Scenario conditions that events can add or remove. */
   conditions?: string[];
+  /** Scenario needs that events can raise or lower. */
+  needs?: string[];
+  /** Show the "ends the run" row (world rules). */
+  allowEnd?: boolean;
 }
 
 /** What a scheduled event changes: deaths, injuries, departures, arrivals and world variables. */
-export function EffectsEditor({ effects, onChange, agents, places, items = [], conditions = [] }: Props) {
+export function EffectsEditor({ effects, onChange, agents, places, items = [], conditions = [], needs = [], allowEnd = false }: Props) {
   const form = effectsToForm(effects);
   const set = (mutate: (f: EffectsForm) => void) => {
     const next = structuredClone(form);
@@ -30,6 +34,10 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [], c
     form.items.length +
     form.addCondition.length +
     form.removeCondition.length +
+    form.needs.length +
+    form.places.length +
+    form.adjust.length +
+    (form.end ? 1 : 0) +
     Object.keys(form.world).length;
 
   return (
@@ -126,6 +134,106 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [], c
             </div>
           </div>
         ))}
+
+      {needs.length > 0 && (
+        <div className="fx-row">
+          <span className="fx-label">Necesidades</span>
+          <div className="fx-items">
+            {form.needs.map((r, i) => (
+              <span key={i} className="row wrap">
+                <select className="select" value={r.target} onChange={(e) => set((f) => void (f.needs[i].target = e.target.value))}>
+                  {targets.map((t) => <option key={t} value={t}>{targetLabel(t)}</option>)}
+                </select>
+                <select className="select" value={r.need} onChange={(e) => set((f) => void (f.needs[i].need = e.target.value))}>
+                  {needs.map((n) => <option key={n}>{n}</option>)}
+                </select>
+                <input className="input tiny" type="number" step={0.1} value={r.delta} title="Negativo: la satisface" onChange={(e) => set((f) => void (f.needs[i].delta = Number(e.target.value)))} />
+                <button className="btn" onClick={() => set((f) => void f.needs.splice(i, 1))}>✕</button>
+              </span>
+            ))}
+            <button className="btn" onClick={() => set((f) => void f.needs.push({ target: 'all', need: needs[0], delta: -0.5 }))}>+ Cambiar necesidad</button>
+          </div>
+        </div>
+      )}
+
+      <div className="fx-row">
+        <span className="fx-label">Lugares</span>
+        <div className="fx-items">
+          {form.places.map((r, i) => (
+            <span key={i} className="row wrap">
+              <select className="select" value={r.place} onChange={(e) => set((f) => void (f.places[i].place = e.target.value))}>
+                {places.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              <select
+                className="select"
+                value={r.closed === undefined ? '' : r.closed ? 'close' : 'open'}
+                onChange={(e) => set((f) => void (e.target.value ? (f.places[i].closed = e.target.value === 'close') : delete f.places[i].closed))}
+              >
+                <option value="">(puertas igual)</option>
+                <option value="close">se cierra</option>
+                <option value="open">se abre</option>
+              </select>
+              <select
+                className="select"
+                value={r.hazard === undefined ? '' : r.hazard ? 'on' : 'off'}
+                onChange={(e) =>
+                  set((f) => {
+                    const v = e.target.value;
+                    if (!v) delete f.places[i].hazard;
+                    else f.places[i].hazard = v === 'on' ? { label: 'en llamas', per_tick: { health: -0.1 } } : null;
+                  })
+                }
+              >
+                <option value="">(peligro igual)</option>
+                <option value="on">pasa a ser peligroso</option>
+                <option value="off">deja de ser peligroso</option>
+              </select>
+              {r.hazard && (
+                <>
+                  <input className="input" placeholder="en llamas" value={r.hazard.label ?? ''} onChange={(e) => set((f) => void (f.places[i].hazard = { ...f.places[i].hazard, label: e.target.value }))} />
+                  <input
+                    className="input tiny"
+                    type="number"
+                    step={0.05}
+                    title="Salud por tick"
+                    value={r.hazard.per_tick?.health ?? 0}
+                    onChange={(e) => set((f) => void (f.places[i].hazard = { ...f.places[i].hazard, per_tick: { ...f.places[i].hazard?.per_tick, health: Number(e.target.value) } }))}
+                  />
+                  {conditions.length > 0 && (
+                    <select className="select" value={r.hazard.condition ?? ''} onChange={(e) => set((f) => void (f.places[i].hazard = { ...f.places[i].hazard, condition: e.target.value || undefined }))}>
+                      <option value="">(sin estado)</option>
+                      {conditions.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  )}
+                </>
+              )}
+              <button className="btn" onClick={() => set((f) => void f.places.splice(i, 1))}>✕</button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => set((f) => void f.places.push({ place: places[0] ?? '', closed: true }))}>+ Cambiar un lugar</button>
+        </div>
+      </div>
+
+      <div className="fx-row">
+        <span className="fx-label">Sumar a variables</span>
+        <div className="fx-items">
+          {form.adjust.map((r, i) => (
+            <span key={i} className="row">
+              <input className="input" placeholder="oxygen" value={r.key} onChange={(e) => set((f) => void (f.adjust[i].key = e.target.value))} />
+              <input className="input tiny" type="number" step={0.05} value={r.delta} onChange={(e) => set((f) => void (f.adjust[i].delta = Number(e.target.value)))} />
+              <button className="btn" onClick={() => set((f) => void f.adjust.splice(i, 1))}>✕</button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => set((f) => void f.adjust.push({ key: 'variable', delta: -0.1 }))}>+ Sumar o restar</button>
+        </div>
+      </div>
+
+      {allowEnd && (
+        <label className="fx-row">
+          <span className="fx-label">Termina la simulación</span>
+          <input className="input" placeholder="(no) · texto del final, p. ej. «La colonia ha caído»" value={form.end} onChange={(e) => set((f) => void (f.end = e.target.value))} />
+        </label>
+      )}
 
       <WorldVars world={form.world} onChange={(w) => set((f) => void (f.world = w))} />
       <p className="dim small">Necesita una versión de Simcore con ciclo de vida de agentes; las versiones anteriores solo muestran el suceso.</p>

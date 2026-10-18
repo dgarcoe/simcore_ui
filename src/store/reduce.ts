@@ -125,6 +125,8 @@ export interface SimSnapshot {
   stopRequested: boolean;
   /** Why the run ended (Simcore versions that report it): completed, stopped, no_agents_left. */
   endReason: string;
+  /** Text of the rule that ended the run, if any. */
+  endMessage: string;
   progress: TickProgress;
   /** Latest decision of each agent with its reasoning. */
   reasoning: Record<string, { tick: number; action: string; text: string }>;
@@ -153,6 +155,7 @@ export function initialSnapshot(): SimSnapshot {
     runMaxTicks: null,
     stopRequested: false,
     endReason: '',
+    endMessage: '',
     progress: { tick: 0, phase: 'idle', decided: [] },
     reasoning: {},
     seq: 0,
@@ -201,7 +204,13 @@ export function isStale(s: SimSnapshot, e: SimEvent): boolean {
   if (e.tick > s.lastTick + 1) return true;
   // A run only ends early when someone stops it; otherwise at its last tick.
   // (Simcore versions with a `reason` also end early when nobody is left.)
-  if (e.type === 'simulation_end' && !s.stopRequested && e.data.reason !== 'no_agents_left' && (s.runMaxTicks === null || e.tick < s.runMaxTicks))
+  if (
+    e.type === 'simulation_end' &&
+    !s.stopRequested &&
+    e.data.reason !== 'no_agents_left' &&
+    e.data.reason !== 'rule' &&
+    (s.runMaxTicks === null || e.tick < s.runMaxTicks)
+  )
     return true;
   if (!s.runAgents?.length) return false;
   if (AGENT_EVENTS.has(e.type) && e.source && !s.runAgents.includes(e.source)) return true;
@@ -234,11 +243,17 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         feed: [feedItem(seq, e, `▶ ${e.data.config ?? 'Simulation'} started`)],
       };
     case 'simulation_end': {
-      const text = e.data.reason === 'no_agents_left' ? 'No queda nadie: la simulación termina' : 'Simulation finished';
+      const text =
+        e.data.reason === 'no_agents_left'
+          ? 'No queda nadie: la simulación termina'
+          : e.data.reason === 'rule' && e.data.message
+            ? String(e.data.message)
+            : 'Simulation finished';
       return {
         ...next,
         status: 'ended',
         endReason: String(e.data.reason ?? ''),
+        endMessage: String(e.data.message ?? ''),
         banner: { id: seq, tick: e.tick, kind: 'end', text, location: '' },
         feed: pushFeed(next.feed, feedItem(seq, e, `■ ${text}`)),
       };
@@ -280,6 +295,26 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     }
     case 'trade_offer':
       return next;
+    case 'need_change': {
+      const { label, need, level } = e.data as Record<string, string>;
+      const name = label || need;
+      const text = level === 'critical' ? `${name}: crítico` : level === 'high' ? `${name}: alto` : `${name}: satisfecho`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: e.data.cause ? String(e.data.cause) : undefined }) };
+    }
+    case 'place_change': {
+      const d = e.data as { location: string; closed?: boolean; hazard?: { label?: string } | null };
+      const text = `${d.location}: ${d.closed ? 'cerrado' : 'abierto'}${d.hazard ? ` · ${d.hazard.label || 'peligro'}` : ''}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }) };
+    }
+    case 'rule_fired': {
+      const text = String(e.data.description ?? '');
+      if (!text) return next;
+      return {
+        ...next,
+        feed: pushFeed(next.feed, feedItem(seq, e, text)),
+        banner: { id: seq, tick: e.tick, kind: 'scheduled', text, location: '' },
+      };
+    }
     case 'condition_change': {
       const { condition, change, into, cause } = e.data as Record<string, string>;
       const text =
