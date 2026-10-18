@@ -8,7 +8,7 @@ simulation:
     Los supervivientes deben decidir si curar, atrincherarse o disparar.
   time_step: 1 hour
   duration: 24 hours
-  seed: 1
+  seed: 5
   language: es
 llm:
   model: ollama/qwen2.5:7b

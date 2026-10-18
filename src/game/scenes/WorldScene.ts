@@ -561,6 +561,8 @@ export class WorldScene extends Phaser.Scene {
       case 'item_transfer':
       case 'condition_change':
       case 'need_change':
+      case 'agent_plan':
+      case 'belief_shared':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -587,6 +589,20 @@ export class WorldScene extends Phaser.Scene {
     const view = this.agents.get(e.source) ?? (sim ? this.ensureAgent(e.source, this.locationOf(sim, e.source)) : null);
     if (!view) return;
 
+    if (e.type === 'agent_plan') {
+      view.showEmote('idea');
+      return;
+    }
+    if (e.type === 'belief_shared') {
+      const listener = this.agents.get(String(e.data.to ?? ''));
+      if (listener && listener !== view) {
+        view.faceToward(listener);
+        listener.faceToward(view);
+        this.linkBurst(view, listener, e.data.secret ? 0xb13e53 : 0x41a6f6);
+      }
+      (listener ?? view).showEmote('book');
+      return;
+    }
     if (e.type === 'need_change') {
       const level = String(e.data.level);
       if (level !== 'ok') view.showEmote(needIcon(String(e.data.need), String(e.data.label ?? '')));

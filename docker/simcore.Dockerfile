@@ -1,9 +1,9 @@
 # Simcore API server, built from a pinned commit of dgarcoe/simcore (a fork of
-# https://github.com/elisonfrank/simcore with agent life cycle, items and conditions; main branch).
+# https://github.com/elisonfrank/simcore with agent life cycle, items, conditions, world rules and minds; main branch).
 FROM python:3.12-slim
 
 ARG SIMCORE_REPO=https://github.com/dgarcoe/simcore
-ARG SIMCORE_REF=c5a670d8f5e174681ca035f735f9494cfad3d298
+ARG SIMCORE_REF=d407650cc3b5d86f72829719d7f99331dfceb8ce
 ENV SIMCORE_REPO=$SIMCORE_REPO SIMCORE_REF=$SIMCORE_REF
 
 # Fetch the source tarball for the pinned ref (no git needed in the image).

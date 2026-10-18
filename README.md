@@ -155,6 +155,26 @@ En la UI:
 
 `scenarios/zombie-outbreak` («Brote en Valdeoscuro») es el ejemplo, también como repetición.
 
+### Planes, creencias, secretos, rumores y relaciones
+
+**Planes del día** (opcionales, porque cuestan llamadas al LLM): cada agente escribe un plan corto, lo sigue y lo rehace cuando pasa algo importante.
+
+**Creencias y secretos:**
+- Los agentes tienen creencias, que pueden ser falsas, y secretos.
+- Al hablar pueden contar algo; quien lo oye se lo cree citando a quien se lo dijo.
+- Las mentiras quedan como «no se sabe».
+- Los sucesos pueden sembrar rumores.
+
+**Relaciones con tipo** (hermano, pareja, rival…): la familia llora una muerte aunque esté lejos y se pone contra quien les hace daño.
+
+**En la UI:**
+- **Mapa:** quien cuenta algo se une con quien lo escucha (en rojo si es un secreto).
+- **Sucesos:** «Lucía le cuenta a Tomás: …», marcado como falso, cierto o secreto revelado.
+- **Panel de agentes:** el plan del día con el paso actual, lo que cree cada agente (✓ cierto, ✗ falso, ? no se sabe) con su fuente, sus secretos y el tipo de cada relación. En vivo, «Susurrar» siembra un rumor en un agente.
+- **Editor:** «Planes del día» en General; relaciones, creencias y secretos en cada agente; rumores en las consecuencias.
+
+`scenarios/last-night` («La noche más larga») usa todo esto.
+
 `scenarios/last-night` es un ejemplo, y la repetición «La noche más larga» se ve sin backend. Con un Simcore sin ciclo de vida todo lo demás funciona igual: simplemente no hay muertes ni llegadas.
 
 ![Editor de escenarios](docs/editor.png)

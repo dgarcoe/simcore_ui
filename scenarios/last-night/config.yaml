@@ -1,15 +1,18 @@
 # Example scenario for simcore_ui's 'town' theme that uses the agent life cycle
 # (health, deaths, arrivals, departures, event effects) and items (stock,
-# production, give/take/use/trade). Needs dgarcoe/simcore; older Simcore
-# versions show the events but nobody dies and items are just numbers.
+# production, give/take/use/trade), daily plans, beliefs, secrets, rumors and
+# typed relationships. Needs dgarcoe/simcore (main); older Simcore versions
+# show the events but nobody dies and items are just numbers.
 simulation:
   name: La noche más larga
   description: Algo ataca las granjas de Valdeoscuro al caer la noche. Los vecinos deben decidir si se atrincheran en la
     iglesia, huyen o esperan al ejército.
   time_step: 1 hour
   duration: 18 hours
-  seed: 3
+  seed: 2
   language: es
+  planning: true
+  plan_every: 8
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
@@ -41,6 +44,8 @@ agents:
     personality: {openness: 0.7, conscientiousness: 0.85, extraversion: 0.5, agreeableness: 0.8, neuroticism: 0.35}
     goals: [Atender a los heridos, Averiguar qué está atacando al pueblo]
     starting_location: Consultorio
+    relationships:
+      Padre Julián: {type: amigo, sentiment: 0.6}
     resources: {medicine: 4}
     backstory: Llegó al pueblo hace diez años y conoce a todos sus vecinos.
   - name: Tomás
@@ -49,6 +54,9 @@ agents:
     personality: {openness: 0.3, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.6}
     goals: [Proteger su granja y sus animales]
     starting_location: Granja
+    relationships:
+      Lucía: {type: hermana, sentiment: 0.7}
+      Forastero: {type: rival, sentiment: -0.4}
     resources: {food: 2, money: 5}
     backstory: Desconfía de los forasteros y no quiere abandonar sus tierras.
   - name: Lucía
@@ -57,6 +65,8 @@ agents:
     personality: {openness: 0.6, conscientiousness: 0.5, extraversion: 0.85, agreeableness: 0.65, neuroticism: 0.4}
     goals: [Mantener unida a la gente, Que nadie salga solo de noche]
     starting_location: Taberna
+    relationships:
+      Tomás: {type: hermano, sentiment: 0.7}
     resources: {money: 20, food: 2}
   - name: Padre Julián
     age: 66
@@ -64,12 +74,17 @@ agents:
     personality: {openness: 0.4, conscientiousness: 0.8, extraversion: 0.45, agreeableness: 0.75, neuroticism: 0.5}
     goals: [Dar refugio en la iglesia a quien lo necesite]
     starting_location: Iglesia
+    relationships:
+      Elena: {type: amiga, sentiment: 0.6}
+    beliefs:
+      - {text: Esto es un castigo por los pecados del pueblo, true: false}
   - name: Mateo
     age: 19
     profession: estudiante
     personality: {openness: 0.8, conscientiousness: 0.3, extraversion: 0.7, agreeableness: 0.5, neuroticism: 0.7}
     goals: [Grabar lo que ataca al pueblo, Salir de Valdeoscuro]
     starting_location: Plaza
+    secrets: [Anoche vi algo enorme bajando del monte y no se lo he dicho a nadie]
   - name: Forastero
     age: 45
     profession: cazador
@@ -81,6 +96,11 @@ agents:
     backstory: Lleva semanas siguiendo el rastro de algo que mata ganado.
 events:
   scheduled:
+    - tick: 4
+      type: rumor
+      description: En la taberna corre un rumor sobre el forastero que ronda el pueblo.
+      effects:
+        rumor: {"location:Taberna": {text: El forastero trajo a la criatura para cazarla y cobrar la recompensa, true: false}}
     - tick: 3
       type: crisis
       description: Gritos en la granja. Algo ha atacado a Tomás y ha destrozado el corral.

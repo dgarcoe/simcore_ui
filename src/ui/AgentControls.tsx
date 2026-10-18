@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Agent, ItemInfo } from '../api/types';
+import type { Agent, Belief, ItemInfo } from '../api/types';
 import { mapLocations } from '../game/map/model';
 import { hasLifecycle, isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
@@ -279,5 +279,82 @@ export function WorldControls() {
       )}
       {error && <span className="bad-text small">{error}</span>}
     </details>
+  );
+}
+
+const TRUTH = (b: Belief) => (b.secret ? '🔒' : b.truth === true ? '✓' : b.truth === false ? '✗' : '?');
+
+/** Plan of the day, beliefs (with source and truth), secrets and, live, whispering a rumor. */
+export function Mind({ agent }: { agent: Agent }) {
+  const live = useSim((s) => s.mode === 'live' && s.status === 'running');
+  const supported = useSim((s) => hasLifecycle(s.sim));
+  const [text, setText] = useState('');
+  const [truth, setTruth] = useState<'' | 'true' | 'false'>('');
+  const [error, setError] = useState('');
+  const plan = agent.state.plan;
+  const beliefs = agent.state.beliefs ?? [];
+  const secrets = beliefs.filter((b) => b.secret);
+  const heard = beliefs.filter((b) => !b.secret);
+  const canWhisper = live && supported && isAlive(agent);
+  if (!plan && !beliefs.length && !canWhisper) return null;
+  return (
+    <>
+      {plan && plan.steps.length > 0 && (
+        <>
+          <h4>Plan del día</h4>
+          <ol className="plan">
+            {plan.steps.map((s, i) => (
+              <li key={i} className={i < plan.current ? 'done' : i === plan.current ? 'now' : ''}>{s}</li>
+            ))}
+          </ol>
+        </>
+      )}
+      {heard.length > 0 && (
+        <>
+          <h4>Cree que…</h4>
+          <ul className="beliefs">
+            {heard.slice(-8).reverse().map((b, i) => (
+              <li key={i} title={b.truth === null ? 'No se sabe si es cierto' : b.truth ? 'Es cierto' : 'Es falso'}>
+                <span className={`truth t-${String(b.truth)}`}>{TRUTH(b)}</span> {b.text}
+                <span className="dim"> · {b.source === 'rumor' ? 'rumor' : b.source ? `se lo dijo ${b.source}` : 'desde el principio'} · t{b.tick}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {secrets.length > 0 && (
+        <>
+          <h4>Secretos</h4>
+          <ul className="beliefs">
+            {secrets.map((b, i) => <li key={i}><span className="truth">🔒</span> {b.text}</li>)}
+          </ul>
+        </>
+      )}
+      {canWhisper && (
+        <form
+          className="row wrap whisper"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!text.trim()) return;
+            applyEffects('', { rumor: { [agent.name]: { text: text.trim(), ...(truth ? { true: truth === 'true' } : {}) } } }).then(
+              () => {
+                setText('');
+                setError('');
+              },
+              (err: Error) => setError(err.message),
+            );
+          }}
+        >
+          <input className="input grow" placeholder={`Susurrar a ${agent.name}: «el pozo está envenenado»…`} value={text} onChange={(e) => setText(e.target.value)} />
+          <select className="select" value={truth} onChange={(e) => setTruth(e.target.value as '' | 'true' | 'false')} title="¿Es verdad? (los agentes no lo saben)">
+            <option value="">¿?</option>
+            <option value="true">cierto</option>
+            <option value="false">falso</option>
+          </select>
+          <button className="btn" type="submit">Susurrar</button>
+          {error && <span className="bad-text small">{error}</span>}
+        </form>
+      )}
+    </>
   );
 }

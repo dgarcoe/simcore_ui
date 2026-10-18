@@ -1218,3 +1218,56 @@ details summary {
   cursor: pointer;
   color: var(--accent);
 }
+
+.plan {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+
+.plan li.done {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+.plan li.now {
+  color: var(--accent);
+}
+
+.beliefs {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px;
+}
+
+.beliefs li {
+  margin-bottom: 4px;
+}
+
+.truth {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+}
+
+.truth.t-true {
+  color: var(--good);
+}
+
+.truth.t-false {
+  color: var(--bad);
+}
+
+.whisper {
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.rel-kind {
+  color: var(--accent);
+}
+
+.mind-fields summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin: 6px 0;
+}

@@ -29,6 +29,12 @@ export interface AgentConfig {
   conditions?: string[];
   /** Initial level of scenario needs, 0..1. */
   needs?: Record<string, number>;
+  /** Typed relationships: name → {type, sentiment}. */
+  relationships?: Record<string, { type?: string; sentiment?: number }>;
+  /** What it believes (true: ground truth for the UI; agents never see it). */
+  beliefs?: Array<string | { text: string; true?: boolean | null }>;
+  /** True things it keeps to itself. */
+  secrets?: string[];
 }
 
 export interface LocationConfig {
@@ -170,6 +176,9 @@ export interface ScenarioConfig {
     duration?: string;
     seed?: number;
     language?: string;
+    /** Daily plans (extra LLM calls). */
+    planning?: boolean;
+    plan_every?: number;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {
@@ -361,6 +370,7 @@ export function validateScenario(cfg: ScenarioConfig): ValidationIssue[] {
       ...fx.health.map((h) => h.target),
       ...fx.items.map((r) => r.target),
       ...[...fx.addCondition, ...fx.removeCondition].map((r) => r.target),
+      ...fx.rumor.map((r) => r.target),
     ]) {
       const known = t === 'all' || (t.startsWith('location:') ? names.has(t.slice(9)) : agentNames.has(t));
       if (!known) issues.push({ path: `events.${i}`, message: `El suceso #${i + 1} afecta a «${targetLabel(t)}», que no existe.` });
@@ -411,13 +421,15 @@ export interface EffectsForm {
   adjust: Array<{ key: string; delta: number }>;
   /** Ends the run with this text (rules). */
   end: string;
+  /** Rumors planted in agents or places. */
+  rumor: Array<{ target: string; text: string; truth: boolean | null }>;
   /** Items added (+) or removed (-) for an agent or a place ("location:<name>"). */
   items: Array<{ target: string; item: string; delta: number }>;
   /** Other keys: written to the world's global_state. */
   world: Record<string, unknown>;
 }
 
-const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items', 'add_condition', 'remove_condition', 'needs', 'locations', 'adjust', 'end'];
+const AGENT_EFFECTS = ['kill', 'depart', 'health', 'spawn', 'items', 'add_condition', 'remove_condition', 'needs', 'locations', 'adjust', 'end', 'rumor'];
 
 function conditionRows(v: unknown): Array<{ target: string; condition: string }> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return [];
@@ -454,6 +466,9 @@ export function effectsToForm(effects: Record<string, unknown> | undefined): Eff
     })),
     adjust: Object.entries((fx.adjust ?? {}) as Record<string, unknown>).map(([key, delta]) => ({ key, delta: Number(delta) || 0 })),
     end: typeof fx.end === 'string' ? fx.end : '',
+    rumor: Object.entries((fx.rumor ?? {}) as Record<string, string | { text?: string; true?: boolean | null }>).map(([target, r]) =>
+      typeof r === 'string' ? { target, text: r, truth: null } : { target, text: r?.text ?? '', truth: r?.true ?? null },
+    ),
     addCondition: conditionRows(fx.add_condition),
     removeCondition: conditionRows(fx.remove_condition),
     items: Object.entries(items).flatMap(([target, changes]) =>
@@ -490,6 +505,9 @@ export function formToEffects(f: EffectsForm): Record<string, unknown> | undefin
   const adjust = Object.fromEntries(f.adjust.filter((a) => a.key.trim() && a.delta).map((a) => [a.key.trim(), a.delta]));
   if (Object.keys(adjust).length) out.adjust = adjust;
   if (f.end.trim()) out.end = f.end.trim();
+  const rumor: Record<string, unknown> = {};
+  for (const r of f.rumor) if (r.target && r.text.trim()) rumor[r.target] = r.truth === null ? r.text.trim() : { text: r.text.trim(), true: r.truth };
+  if (Object.keys(rumor).length) out.rumor = rumor;
   const add = conditionMap(f.addCondition);
   if (add) out.add_condition = add;
   const remove = conditionMap(f.removeCondition);
@@ -574,7 +592,10 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     if (c?.location && !places.has(c.location)) issues.push({ path: `rules.${i}`, message: `${where} cuenta en «${c.location}», que no existe.` });
     for (const p of Object.keys(r.when?.place ?? {})) if (!places.has(p)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${p}», que no existe.` });
   });
+  const agentNames = new Set(cfg.agents.map((a) => a.name));
   cfg.agents.forEach((a, i) => {
+    for (const n of Object.keys(a.relationships ?? {}))
+      if (!agentNames.has(n)) issues.push({ path: `agents.${i}`, message: `${a.name || `El agente #${i + 1}`} tiene relación con «${n}», que no existe.` });
     for (const n of Object.keys(a.needs ?? {})) if (!needs[n]) issues.push({ path: `agents.${i}`, message: `${a.name || `El agente #${i + 1}`} tiene la necesidad «${n}», que no existe.` });
   });
   cfg.environment.locations.forEach((l, i) => {

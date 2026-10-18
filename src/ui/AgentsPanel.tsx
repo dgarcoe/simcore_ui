@@ -3,7 +3,7 @@ import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
-import { AgentActions, Conditions, Inventory, Needs, SpawnForm } from './AgentControls';
+import { AgentActions, Conditions, Inventory, Mind, Needs, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
 
 function statusLabel(a: Agent): string {
@@ -108,12 +108,19 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
             ))}
           </dl>
           <Inventory agent={agent} />
+          <Mind agent={agent} />
           {Object.keys(agent.relationships ?? {}).length > 0 && (
             <>
               <h4>Relaciones</h4>
               <ul className="kv">
                 {Object.entries(agent.relationships).map(([k, v]) => (
-                  <li key={k}><button className="link" onClick={() => selectAgent(k)}>{k}</button><span className="dim">{v}</span></li>
+                  <li key={k}>
+                    <button className="link" onClick={() => selectAgent(k)}>{k}</button>
+                    <span className="dim">
+                      {agent.relationship_kinds?.[k] ? <strong className="rel-kind">{agent.relationship_kinds[k]} · </strong> : null}
+                      {v.replace(/^[^:(]*(: your [^(]*)?\(/, '(')}
+                    </span>
+                  </li>
                 ))}
               </ul>
             </>

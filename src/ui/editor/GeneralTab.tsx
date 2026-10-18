@@ -51,6 +51,22 @@ export function GeneralTab() {
           emptyLabel="(el mismo)"
           onChange={(m) => update((d) => void ((d.llm ??= {}).reflection_model = m || undefined))}
         />
+        <label className="toggle" title="Cada agente escribe un plan corto cada N ticks y lo rehace cuando pasa algo importante. Cuesta una llamada al LLM más por plan.">
+          <input type="checkbox" checked={!!sim.planning} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.planning = true) : delete d.simulation.planning))} />
+          Planes del día
+        </label>
+        {sim.planning && (
+          <label>
+            Replanificar cada (ticks)
+            <input
+              className="input"
+              type="number"
+              min={1}
+              value={sim.plan_every ?? 8}
+              onChange={(e) => update((d) => void (d.simulation.plan_every = Math.max(1, Number(e.target.value) || 8)))}
+            />
+          </label>
+        )}
         <label>
           Temperatura
           <input

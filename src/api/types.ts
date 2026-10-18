@@ -28,7 +28,20 @@ export type EventType =
   // Needs, world rules and place state.
   | 'need_change'
   | 'place_change'
-  | 'rule_fired';
+  | 'rule_fired'
+  // Plans, beliefs, secrets and rumors.
+  | 'agent_plan'
+  | 'belief_shared';
+
+export interface Belief {
+  text: string;
+  /** Who told it ('' = known from the start, 'rumor' = a rumor). */
+  source: string;
+  /** Ground truth when known; null = unknown (maybe a lie). */
+  truth: boolean | null;
+  secret: boolean;
+  tick: number;
+}
 
 export interface HazardInfo {
   label?: string;
@@ -96,6 +109,8 @@ export interface AgentState {
   conditions?: Record<string, number | null>;
   /** Scenario needs → level 0..1. */
   needs?: Record<string, number>;
+  beliefs?: Belief[];
+  plan?: { steps: string[]; current: number } | null;
 }
 
 export interface Agent {
@@ -107,6 +122,8 @@ export interface Agent {
   personality: Personality;
   state: AgentState;
   relationships: Record<string, string>;
+  /** Typed relationships: name → brother, partner, rival… */
+  relationship_kinds?: Record<string, string>;
   memory_summary: string;
 }
 

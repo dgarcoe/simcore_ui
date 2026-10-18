@@ -315,6 +315,17 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         banner: { id: seq, tick: e.tick, kind: 'scheduled', text, location: '' },
       };
     }
+    case 'agent_plan': {
+      const steps = (e.data.steps ?? []) as string[];
+      const text = `planea: ${steps.map((s, i) => `${i + 1}) ${s}`).join(' ')}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: e.data.reason ? String(e.data.reason) : undefined }) };
+    }
+    case 'belief_shared': {
+      const d = e.data as { from: string; to: string; text: string; truth: boolean | null; secret: boolean };
+      const mark = d.secret ? ' (secreto revelado)' : d.truth === false ? ' (falso)' : d.truth === true ? ' (cierto)' : '';
+      const text = d.from ? `le cuenta a ${d.to}: «${d.text}»${mark}` : `oye un rumor: «${d.text}»${mark}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: d.from || d.to }) };
+    }
     case 'condition_change': {
       const { condition, change, into, cause } = e.data as Record<string, string>;
       const text =

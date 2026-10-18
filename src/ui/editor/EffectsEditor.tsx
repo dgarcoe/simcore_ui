@@ -37,6 +37,7 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [], c
     form.needs.length +
     form.places.length +
     form.adjust.length +
+    form.rumor.length +
     (form.end ? 1 : 0) +
     Object.keys(form.world).length;
 
@@ -225,6 +226,31 @@ export function EffectsEditor({ effects, onChange, agents, places, items = [], c
             </span>
           ))}
           <button className="btn" onClick={() => set((f) => void f.adjust.push({ key: 'variable', delta: -0.1 }))}>+ Sumar o restar</button>
+        </div>
+      </div>
+
+      <div className="fx-row">
+        <span className="fx-label">Rumores</span>
+        <div className="fx-items">
+          {form.rumor.map((r, i) => (
+            <span key={i} className="row wrap">
+              <select className="select" value={r.target} onChange={(e) => set((f) => void (f.rumor[i].target = e.target.value))}>
+                {targets.map((t) => <option key={t} value={t}>{targetLabel(t)}</option>)}
+              </select>
+              <input className="input grow" placeholder="Lo que se cuenta" value={r.text} onChange={(e) => set((f) => void (f.rumor[i].text = e.target.value))} />
+              <select
+                className="select"
+                value={r.truth === null ? '' : String(r.truth)}
+                onChange={(e) => set((f) => void (f.rumor[i].truth = e.target.value === '' ? null : e.target.value === 'true'))}
+              >
+                <option value="">¿?</option>
+                <option value="true">cierto</option>
+                <option value="false">falso</option>
+              </select>
+              <button className="btn" onClick={() => set((f) => void f.rumor.splice(i, 1))}>✕</button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => set((f) => void f.rumor.push({ target: agents[0] ?? 'all', text: 'Dicen que…', truth: false }))}>+ Rumor</button>
         </div>
       </div>
 

@@ -280,3 +280,20 @@ describe('world', () => {
     expect(s.endMessage).toBe('Valdeoscuro ha caído');
   });
 });
+
+describe('minds', () => {
+  it('reports plans, things told, secrets and rumors', () => {
+    const s = run([
+      ev('agent_plan', 1, { agent: 'Ana', steps: ['Ir a la taberna', 'Hablar con Tomás'], reason: 'first plan' }, 'Ana'),
+      ev('belief_shared', 2, { from: 'Ana', to: 'Tomás', text: 'El pozo está envenenado', truth: false, secret: false }, 'Ana'),
+      ev('belief_shared', 3, { from: 'Mateo', to: 'Ana', text: 'Vi algo en el monte', truth: true, secret: true }, 'Mateo'),
+      ev('belief_shared', 4, { from: '', to: 'Lucía', text: 'El forastero trajo la criatura', truth: null, secret: false }, 'Lucía'),
+    ]);
+    expect(s.feed.map((f) => `${f.source} ${f.text}`)).toEqual([
+      'Ana planea: 1) Ir a la taberna 2) Hablar con Tomás',
+      'Ana le cuenta a Tomás: «El pozo está envenenado» (falso)',
+      'Mateo le cuenta a Ana: «Vi algo en el monte» (secreto revelado)',
+      'Lucía oye un rumor: «El forastero trajo la criatura»',
+    ]);
+  });
+});

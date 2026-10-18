@@ -260,3 +260,30 @@ describe('world: needs, rules and places', () => {
     );
   });
 });
+
+describe('minds', () => {
+  it('round-trips rumors with and without truth', () => {
+    const fx = { rumor: { Ana: 'El pozo está envenenado', 'location:Taberna': { text: 'El forastero miente', true: false } } };
+    const form = effectsToForm(fx);
+    expect(form.rumor).toEqual([
+      { target: 'Ana', text: 'El pozo está envenenado', truth: null },
+      { target: 'location:Taberna', text: 'El forastero miente', truth: false },
+    ]);
+    expect(formToEffects(form)).toEqual(fx);
+  });
+
+  it('flags relationships with agents that do not exist', () => {
+    const cfg: ScenarioConfig = {
+      simulation: { name: 'M' },
+      environment: { locations: [{ name: 'Plaza' }] },
+      agents: [{ name: 'Ana', starting_location: 'Plaza', relationships: { Tomás: { type: 'hermano' } } }],
+    };
+    expect(validateScenario(cfg).map((i) => i.message)).toContain('Ana tiene relación con «Tomás», que no existe.');
+  });
+
+  it('La noche más larga still validates cleanly', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/last-night/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
+  });
+});

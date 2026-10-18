@@ -92,7 +92,24 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                 <div className="ed-grid">
                   <label>
                     Nombre
-                    <input className="input" value={a.name} onChange={(e) => set((x) => void (x.name = e.target.value))} />
+                    <input
+                      className="input"
+                      value={a.name}
+                      onChange={(e) =>
+                        update((d) => {
+                          const old = d.agents[i].name;
+                          d.agents[i].name = e.target.value;
+                          // keep the others' relationships pointing at the renamed agent
+                          for (const other of d.agents) {
+                            const rel = other.relationships?.[old];
+                            if (rel && old !== e.target.value) {
+                              other.relationships![e.target.value] = rel;
+                              delete other.relationships![old];
+                            }
+                          }
+                        })
+                      }
+                    />
                   </label>
                   <label>
                     Edad
@@ -194,6 +211,7 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                     <ChipPicker options={Object.keys(draft.conditions ?? {})} value={a.conditions} onChange={(v) => set((x) => void (v.length ? (x.conditions = v) : delete x.conditions))} />
                   </label>
                 )}
+                <MindFields agent={a} others={draft.agents.map((o) => o.name).filter((n) => n && n !== a.name)} set={set} />
                 <AmountsField
                   label={<>Inventario (<code>objeto: cantidad</code>; se ven en el mapa y los agentes pueden darlos, usarlos o intercambiarlos)</>}
                   value={a.resources}
@@ -205,5 +223,111 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
         );
       })}
     </div>
+  );
+}
+
+const REL_TYPES = ['hermano', 'hermana', 'madre', 'padre', 'hijo', 'hija', 'pareja', 'amigo', 'amiga', 'rival', 'jefe', 'empleado', 'vecino'];
+
+/** Typed relationships, beliefs (with their ground truth) and secrets. */
+function MindFields({ agent: a, others, set }: { agent: AgentConfig; others: string[]; set: (fn: (x: AgentConfig) => void) => void }) {
+  const rels = Object.entries(a.relationships ?? {});
+  const beliefs = (a.beliefs ?? []).map((b) => (typeof b === 'string' ? { text: b, true: null as boolean | null } : { text: b.text, true: b.true ?? null }));
+  const free = others.filter((o) => !(o in (a.relationships ?? {})));
+  const setBeliefs = (list: Array<{ text: string; true: boolean | null }>) =>
+    set((x) => void (list.length ? (x.beliefs = list.map((b) => (b.true === null ? b.text : { text: b.text, true: b.true }))) : delete x.beliefs));
+  return (
+    <details className="mind-fields">
+      <summary>Relaciones, creencias y secretos{rels.length + beliefs.length + (a.secrets?.length ?? 0) ? ` (${rels.length + beliefs.length + (a.secrets?.length ?? 0)})` : ''}</summary>
+      <div className="fx-row">
+        <span className="fx-label">Relaciones</span>
+        <div className="fx-items">
+          {rels.map(([name, r]) => (
+            <span key={name} className="row wrap">
+              <strong>{name}</strong>
+              <input
+                className="input"
+                list="rel-types"
+                placeholder="hermano, pareja, rival…"
+                value={r.type ?? ''}
+                onChange={(e) => set((x) => void (x.relationships![name] = { ...x.relationships![name], type: e.target.value }))}
+              />
+              <input
+                type="range"
+                min={-1}
+                max={1}
+                step={0.1}
+                value={r.sentiment ?? 0}
+                title="Cómo se llevan"
+                onChange={(e) => set((x) => void (x.relationships![name] = { ...x.relationships![name], sentiment: Number(e.target.value) }))}
+              />
+              <span className={(r.sentiment ?? 0) < 0 ? 'bad-text' : 'ok-text'}>{(r.sentiment ?? 0).toFixed(1)}</span>
+              <button
+                className="btn"
+                onClick={() =>
+                  set((x) => {
+                    delete x.relationships![name];
+                    if (!Object.keys(x.relationships!).length) delete x.relationships;
+                  })
+                }
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          {free.length > 0 && (
+            <select className="select" value="" onChange={(e) => e.target.value && set((x) => void ((x.relationships ??= {})[e.target.value] = { type: '', sentiment: 0.5 }))}>
+              <option value="">+ relación con…</option>
+              {free.map((o) => <option key={o}>{o}</option>)}
+            </select>
+          )}
+          <datalist id="rel-types">{REL_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+          <span className="dim small">La familia y la pareja sufren mucho su muerte (aunque estén lejos) y se ponen contra quien les haga daño.</span>
+        </div>
+      </div>
+      <div className="fx-row">
+        <span className="fx-label">Cree que…</span>
+        <div className="fx-items">
+          {beliefs.map((b, j) => (
+            <span key={j} className="row">
+              <input className="input grow" value={b.text} onChange={(e) => setBeliefs(beliefs.map((x, k) => (k === j ? { ...x, text: e.target.value } : x)))} />
+              <select
+                className="select"
+                value={b.true === null ? '' : String(b.true)}
+                title="¿Es verdad? (el agente no lo sabe)"
+                onChange={(e) => setBeliefs(beliefs.map((x, k) => (k === j ? { ...x, true: e.target.value === '' ? null : e.target.value === 'true' } : x)))}
+              >
+                <option value="">¿?</option>
+                <option value="true">cierto</option>
+                <option value="false">falso</option>
+              </select>
+              <button className="btn" onClick={() => setBeliefs(beliefs.filter((_, k) => k !== j))}>✕</button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => setBeliefs([...beliefs, { text: 'Algo que cree', true: null }])}>+ Creencia</button>
+        </div>
+      </div>
+      <div className="fx-row">
+        <span className="fx-label">Secretos</span>
+        <div className="fx-items">
+          {(a.secrets ?? []).map((s, j) => (
+            <span key={j} className="row">
+              <input className="input grow" value={s} onChange={(e) => set((x) => void (x.secrets![j] = e.target.value))} />
+              <button
+                className="btn"
+                onClick={() =>
+                  set((x) => {
+                    x.secrets!.splice(j, 1);
+                    if (!x.secrets!.length) delete x.secrets;
+                  })
+                }
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          <button className="btn" onClick={() => set((x) => void (x.secrets ??= []).push('Algo que nadie sabe'))}>+ Secreto</button>
+        </div>
+      </div>
+    </details>
   );
 }
