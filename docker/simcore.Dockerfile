@@ -1,5 +1,5 @@
 # Simcore API server, built from a pinned commit of dgarcoe/simcore (a fork of
-# https://github.com/elisonfrank/simcore with the agent life cycle).
+# https://github.com/elisonfrank/simcore with agent life cycle, items and conditions; main branch).
 FROM python:3.12-slim
 
 ARG SIMCORE_REPO=https://github.com/dgarcoe/simcore

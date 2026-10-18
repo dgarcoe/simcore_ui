@@ -104,7 +104,7 @@ npm run build          # typecheck + build de producción en dist/
 
 ### Salud, muertes, llegadas y salidas
 
-Con el Simcore que trae la imagen Docker (rama `feat/conditions` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
+Con el Simcore que trae la imagen Docker (`main` de [dgarcoe/simcore](https://github.com/dgarcoe/simcore)) la UI muestra el ciclo de vida de los agentes:
 - **Mapa:** los muertos quedan tumbados donde caen, los que se van desaparecen, los que llegan aparecen con un destello y los heridos llevan una barra de salud.
 - **Sucesos:** el feed y los avisos recogen bajas, llegadas, salidas y cambios del estado del mundo.
 - **Panel de agentes:** la salud de cada uno y, en vivo, los botones Herir, Curar, Matar y Retirar, más «Hacer llegar a alguien».
