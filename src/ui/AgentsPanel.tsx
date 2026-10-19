@@ -84,6 +84,18 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
           </div>
           {statusLabel(agent) && <p className="bad-text">{statusLabel(agent)}</p>}
           <Conditions agent={agent} />
+          {agent.mind && isAlive(agent) && (
+            <div className="mind-shift">
+              <p>
+                <strong>🧠 Mente de {agent.mind.condition}</strong>
+                <span className="dim small">
+                  {' '}· sigue el LLM{agent.mind.speech ? '' : ' · no habla'}{agent.mind.memories ? '' : ' · no recuerda quién era'}
+                </span>
+              </p>
+              {agent.mind.identity && <p className="small">{agent.mind.identity}</p>}
+              {agent.mind.goals.length > 0 && <p className="small dim">Metas: {agent.mind.goals.join(' · ')}</p>}
+            </div>
+          )}
           <Needs agent={agent} />
           <AgentActions agent={agent} />
           {isAlive(agent) && agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}

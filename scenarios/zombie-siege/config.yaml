@@ -1,10 +1,12 @@
 # Long advanced example for simcore_ui's 'town' theme (5 days, 120 ticks). Uses every feature
 # of dgarcoe/simcore (main):
 #   life cycle (arrivals, deaths, hordes spawned by rules), items (stock, production, a supply
-#   drop), conditions (infected → zombie, wounded, panic, exhausted) with rule-controlled zombies,
+#   drop), conditions (infected → zombie, wounded, panic, exhausted): turned villagers keep thinking
+#   with the LLM as zombies (a changed mind: no speech, no memories, new goals) and the nightly
+#   hordes are rule-driven (no LLM calls),
 #   scenario actions (bite, shoot, barricade, treat, repair the radio, research a cure, burn the
 #   bodies), needs (hunger, sleep), world rules (day/night cycle, hordes every night, a fire,
-#   the radio, the cure, four endings), places with state (a barricaded church, a restricted
+#   the radio, the cure, three endings), places with state (a barricaded church, a restricted
 #   barracks, a cemetery that is deadly at night), daily plans, beliefs, secrets, rumors and
 #   typed relationships, plus situational awareness and private talk.
 simulation:
@@ -14,7 +16,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 5
+  seed: 1
   language: es
   planning: true
   plan_every: 12
@@ -53,8 +55,18 @@ conditions:
   zombi:
     description: ya no eres tú
     appearance: un cuerpo que camina y gruñe
+    # Sigue decidiendo el LLM, pero como otro tipo de agente: sin habla, sin recuerdos y con otras metas.
+    mind:
+      identity: "Ya no eres {name}. Eres un muerto que camina: no piensas, no hablas, no recuerdas a nadie; solo sientes un hambre que no se acaba."
+      goals: [Encontrar a los vivos, Morderlos, Seguir el olor de la sangre y el ruido]
+      speech: false
+      memories: false
+      actions: [move, wait, observe, follow, morder]
+  muerto_errante:
+    description: un muerto de las hordas que no piensa
+    # Las hordas no gastan llamadas al LLM: las mueve una regla (y esta manda sobre la mente de zombi).
     controller: rules
-    rules: {action: morder, seek: false, wander: 0.5}
+    rules: {action: morder, seek: false, wander: 0.5, targets: {not_conditions: [zombi]}}
     color: "#7bc950"
   herido:
     description: tienes una herida abierta que no deja de sangrar
@@ -174,7 +186,7 @@ rules:
       hora: noche
       remove_condition: {all: [de_dia]}
       locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
-      spawn: [{name: Muerto del cementerio, profession: difunto, starting_location: Cementerio, count: 2, conditions: [zombi]}]
+      spawn: [{name: Muerto del cementerio, profession: difunto, starting_location: Cementerio, count: 2, conditions: [zombi, muerto_errante]}]
     once: true
   - description: Anochece por segunda vez. Algo se mueve en la granja.
     when: {at: 44}
@@ -182,7 +194,7 @@ rules:
       hora: noche
       remove_condition: {all: [de_dia]}
       locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
-      spawn: [{name: Jornalero, profession: difunto, starting_location: Granja, count: 3, conditions: [zombi]}]
+      spawn: [{name: Jornalero, profession: difunto, starting_location: Granja, count: 3, conditions: [zombi, muerto_errante]}]
     once: true
   - description: Tercera noche. La niebla baja y con ella más muertos.
     when: {at: 68}
@@ -190,7 +202,7 @@ rules:
       hora: noche
       remove_condition: {all: [de_dia]}
       locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
-      spawn: [{name: Caminante, profession: difunto, starting_location: Cementerio, count: 3, conditions: [zombi]}]
+      spawn: [{name: Caminante, profession: difunto, starting_location: Cementerio, count: 3, conditions: [zombi, muerto_errante]}]
     once: true
   - description: Cuarta noche. Una horda baja por la carretera hacia la plaza.
     when: {at: 92}
@@ -198,7 +210,7 @@ rules:
       hora: noche
       remove_condition: {all: [de_dia]}
       locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
-      spawn: [{name: Forastero muerto, profession: difunto, starting_location: Plaza, count: 4, conditions: [zombi]}]
+      spawn: [{name: Forastero muerto, profession: difunto, starting_location: Plaza, count: 4, conditions: [zombi, muerto_errante]}]
     once: true
   - description: Quinta y última noche.
     when: {at: 116}

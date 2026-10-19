@@ -1276,3 +1276,12 @@ details summary {
   color: var(--accent);
   margin: 6px 0;
 }
+
+.mind-shift {
+  border-left: 3px solid var(--accent);
+  padding: 2px 0 2px 8px;
+  margin: 6px 0;
+}
+.mind-shift p {
+  margin: 2px 0;
+}

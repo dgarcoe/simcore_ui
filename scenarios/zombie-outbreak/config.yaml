@@ -1,6 +1,6 @@
 # Example scenario for simcore_ui's 'town' theme with conditions (infected →
-# zombie), scenario actions (bite, shoot, barricade, treat) and rule-controlled
-# agents (zombies don't use the LLM), needs (hunger, sleep), world rules and
+# zombie), scenario actions (bite, shoot, barricade, treat), a changed mind
+# (zombies keep using the LLM, without speech or memories), needs (hunger, sleep), world rules and
 # places that close or catch fire. Needs dgarcoe/simcore (main).
 simulation:
   name: Brote en Valdeoscuro
@@ -27,8 +27,13 @@ conditions:
   zombie:
     description: ya no eres tú
     appearance: un cuerpo que camina y gruñe
-    controller: rules
-    rules: {action: bite, seek: true, wander: 0.4}
+    # Sigue decidiendo el LLM, como otro tipo de agente: sin habla y con otras metas.
+    mind:
+      identity: "Ya no eres {name}. Eres un muerto que camina: no hablas, solo sientes hambre de carne viva."
+      goals: [Encontrar a los vivos, Morderlos]
+      speech: false
+      memories: false
+      actions: [move, wait, observe, follow, bite]
     color: "#7bc950"
   panicked:
     description: el miedo te impide pensar con claridad

@@ -126,6 +126,8 @@ export interface Agent {
   /** Typed relationships: name → brother, partner, rival… */
   relationship_kinds?: Record<string, string>;
   memory_summary: string;
+  /** A condition changed who this agent is (it still thinks with the LLM). */
+  mind?: { condition: string; identity: string; goals: string[]; speech: boolean; memories: boolean };
 }
 
 export interface Location {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { ConditionConfig } from '../../api/scenario';
+import { BUILTIN_ACTIONS, type ConditionConfig, type MindConfig } from '../../api/scenario';
+import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 import { prune, RequirementEditor, StatSliders } from './RulesWidgets';
 
@@ -31,8 +32,8 @@ export function ConditionsTab() {
       <h3>Estados ({names.length})</h3>
       <p className="dim small">
         Estados en los que puede estar un agente: infectado, herido, en pánico, zombi… Pueden afectar cada tick, durar un tiempo y
-        convertirse en otro, contagiarse, y hacer que un agente lo controlen reglas en vez del LLM (zombis, animales, multitudes: no
-        gastan llamadas al LLM).
+        convertirse en otro y contagiarse. Un estado puede cambiar la mente del agente (un zombi que sigue pensando con el LLM, con
+        otra identidad, otras metas y sin hablar) o dejarlo en manos de reglas (hordas, animales: no gastan llamadas al LLM).
       </p>
       <form
         className="row"
@@ -108,9 +109,29 @@ export function ConditionsTab() {
             <span className="fx-label">Cada tick</span>
             <StatSliders value={c.per_tick} onChange={(v) => set(key, (x) => void (x.per_tick = v))} />
           </div>
-          <label className="toggle">
-            <input type="checkbox" checked={c.controller === 'rules'} onChange={(e) => set(key, (x) => void (x.controller = e.target.checked ? 'rules' : undefined))} />
-            Lo controlan reglas, no el LLM
+          <label className="toggle" title="Sigue decidiendo el LLM, pero como otro tipo de agente: otra identidad, otras metas y lo que tú permitas">
+            <input
+              type="checkbox"
+              checked={!!c.mind && c.controller !== 'rules'}
+              onChange={(e) =>
+                set(key, (x) => {
+                  if (e.target.checked) {
+                    x.mind = x.mind ?? { identity: 'Ya no eres {name}. ', goals: [] };
+                    delete x.controller;
+                  } else delete x.mind;
+                })
+              }
+            />
+            Cambia su mente (sigue usando el LLM)
+          </label>
+          {c.mind && c.controller !== 'rules' && <MindEditor mind={c.mind} actions={[...BUILTIN_ACTIONS.filter((a) => a !== 'custom'), ...actions]} onChange={(m) => set(key, (x) => void (x.mind = m))} />}
+          <label className="toggle" title="Sin llamadas al LLM: útil para hordas o animales">
+            <input
+              type="checkbox"
+              checked={c.controller === 'rules'}
+              onChange={(e) => set(key, (x) => void (x.controller = e.target.checked ? 'rules' : undefined))}
+            />
+            Lo controlan reglas, no el LLM (más barato)
           </label>
           {c.controller === 'rules' && (
             <div className="fx-row">
@@ -140,6 +161,50 @@ export function ConditionsTab() {
           )}
         </article>
       ))}
+    </div>
+  );
+}
+
+/** A condition that turns the agent into someone else while the LLM keeps deciding for it. */
+function MindEditor({ mind, actions, onChange }: { mind: MindConfig; actions: string[]; onChange: (m: MindConfig) => void }) {
+  const set = (patch: Partial<MindConfig>) => {
+    const next: MindConfig = { ...mind, ...patch };
+    // speech / memories default to true: only false is written
+    if (next.speech !== false) delete next.speech;
+    if (next.memories !== false) delete next.memories;
+    if (!next.actions?.length) delete next.actions;
+    onChange(next);
+  };
+  return (
+    <div className="fx-row">
+      <span className="fx-label">Su mente</span>
+      <div className="fx-items">
+        <label>
+          Quién es ahora <span className="dim small">({'{name}'} y {'{profession}'} se sustituyen)</span>
+          <textarea className="input" rows={2} value={mind.identity ?? ''} onChange={(e) => set({ identity: e.target.value })} />
+        </label>
+        <label>
+          Sus metas ahora (una por línea)
+          <textarea
+            className="input"
+            rows={2}
+            value={(mind.goals ?? []).join('\n')}
+            onChange={(e) => set({ goals: e.target.value.split('\n') })}
+            onBlur={(e) => set({ goals: e.target.value.split('\n').map((g) => g.trim()).filter(Boolean) })}
+          />
+        </label>
+        <label className="toggle">
+          <input type="checkbox" checked={mind.speech !== false} onChange={(e) => set({ speech: e.target.checked })} /> Puede hablar
+        </label>
+        <label className="toggle">
+          <input type="checkbox" checked={mind.memories !== false} onChange={(e) => set({ memories: e.target.checked })} /> Conserva sus recuerdos
+          (relaciones, secretos, planes)
+        </label>
+        <span className="row wrap" title="Vacío: todas">
+          <span className="trait-label">Solo puede</span>
+          <ChipPicker options={actions} value={mind.actions} placeholder="+ acción (vacío: todas)" onChange={(v) => set({ actions: v })} />
+        </span>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 # Advanced example for simcore_ui's 'spaceship' theme: uses every feature of
 # dgarcoe/simcore (main) at once —
 #   life cycle (late arrival, deaths), items (stock, production, trade),
-#   conditions (infected → possessed, injured, panic) with rule-controlled agents,
+#   conditions (infected → possessed, injured, panic) with a changed mind (the possessed keep
+#   using the LLM, without speech or memories),
 #   scenario actions (attack, repair, sedate, shoot, seal), needs (hunger, sleep),
 #   world rules (oxygen leak, alarms, two possible endings), places with state
 #   (restricted bridge, sealable lab, coolant leak), daily plans, beliefs,
@@ -50,8 +51,13 @@ conditions:
   poseido:
     description: ya no eres tú; las esporas mueven tu cuerpo
     appearance: ojos en blanco, se mueve a sacudidas
-    controller: rules
-    rules: {action: atacar, seek: true, wander: 0.3}
+    # Sigue decidiendo el LLM: las esporas piensan por {name}; no habla y ha olvidado quién era.
+    mind:
+      identity: "Ya no eres {name}. Las esporas mueven tu cuerpo: solo quieren crecer y pasar a otros cuerpos."
+      goals: [Extender las esporas a toda la tripulación, Llegar a los camarotes y al comedor donde hay gente]
+      speech: false
+      memories: false
+      actions: [move, wait, observe, follow, atacar]
     color: "#6b2fa0"
   herido:
     description: tienes una herida abierta que no deja de sangrar

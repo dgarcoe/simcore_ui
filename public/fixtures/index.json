@@ -7,5 +7,5 @@
   {"file": "factory.json", "name": "The Strike", "theme": "Fábrica", "description": "Rumores de despidos y una posible huelga en una fábrica."},
   {"file": "space-battle.json", "name": "Battle of Kepler Belt", "theme": "Batalla espacial", "description": "Dos flotas se enfrentan en un cinturón de asteroides."},
   {"file": "last-night.json", "name": "La noche más larga", "theme": "Pueblo", "description": "Algo ataca las granjas de noche: planes del día, rumores falsos, secretos, hermanos que se lloran, objetos que cambian de manos y la llegada del ejército."},
-  {"file": "zombie-outbreak.json", "name": "Brote en Valdeoscuro", "theme": "Pueblo", "description": "Una mordedura se convierte en epidemia: zombis controlados por reglas, hambre y sueño, el monte en llamas, disparos, curas y un final por regla."}
+  {"file": "zombie-outbreak.json", "name": "Brote en Valdeoscuro", "theme": "Pueblo", "description": "Una mordedura se convierte en epidemia: zombis que siguen pensando con el LLM (sin habla ni recuerdos), hambre y sueño, el monte en llamas, disparos, curas y un final por regla."}
 ]

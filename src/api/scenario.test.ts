@@ -300,6 +300,17 @@ describe('advanced example', () => {
     expect(cfg.agents.some((a) => a.arrives_at) && cfg.agents.some((a) => a.secrets?.length) && cfg.agents.some((a) => a.relationships)).toBe(true);
   });
 
+  it('zombies keep thinking with the LLM as a changed mind; hordes stay rule-driven', async () => {
+    const { parse } = await import('yaml');
+    const load = (f: string) => parse(readFileSync(new URL(`../../scenarios/${f}/config.yaml`, import.meta.url), 'utf8')) as ScenarioConfig;
+    const siege = load('zombie-siege');
+    expect(siege.conditions?.zombi.mind).toMatchObject({ speech: false, memories: false });
+    expect(siege.conditions?.zombi.controller).toBeUndefined();
+    expect(siege.conditions?.muerto_errante.controller).toBe('rules');
+    expect(load('zombie-outbreak').conditions?.zombie.mind?.speech).toBe(false);
+    expect(load('kepler-station').conditions?.poseido.mind?.goals?.length).toBeGreaterThan(0);
+  });
+
   it('El asedio de San Lorenzo validates cleanly and lasts five days', async () => {
     const { parse } = await import('yaml');
     const cfg = parse(readFileSync(new URL('../../scenarios/zombie-siege/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
@@ -307,5 +318,17 @@ describe('advanced example', () => {
     expect(scenarioWarnings(cfg)).toEqual([]);
     expect(cfg.simulation.duration).toBe('120 hours');
     expect(cfg.rules?.filter((r) => (r.then as { end?: string })?.end)).toHaveLength(3);
+  });
+});
+
+describe('changed minds', () => {
+  it('flags unknown actions in a mind and unknown conditions in any_conditions', () => {
+    const cfg = emptyScenario();
+    cfg.conditions = { zombi: { mind: { goals: ['morder'], actions: ['move', 'volar'] } } };
+    cfg.actions = { morder: { who: { any_conditions: ['zombi', 'vampiro'] } } };
+    const messages = referenceIssues(cfg).map((i) => i.message);
+    expect(messages).toContain('El estado zombi permite la acción «volar», que no existe.');
+    expect(messages).toContain('La acción morder usa el estado «vampiro», que no existe.');
+    expect(messages.some((m) => m.includes('«move»'))).toBe(false);
   });
 });

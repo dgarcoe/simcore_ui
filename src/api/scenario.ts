@@ -116,6 +116,8 @@ export const STATS: Array<[Stat, string]> = [
 
 export interface Requirement {
   conditions?: string[];
+  /** At least one of these. */
+  any_conditions?: string[];
   not_conditions?: string[];
   professions?: string[];
   items?: Record<string, number>;
@@ -141,7 +143,21 @@ export interface ConditionConfig {
   contagion?: { chance?: number; via?: 'interaction' | 'place' } | null;
   controller?: 'llm' | 'rules';
   rules?: { action?: string; targets?: Requirement; seek?: boolean; wander?: number };
+  /** With the LLM controller: the agent becomes someone else (a zombie that still thinks). */
+  mind?: MindConfig;
   color?: string;
+}
+
+export interface MindConfig {
+  /** Who it is now; {name} and {profession} are replaced. */
+  identity?: string;
+  goals?: string[];
+  /** false: can't speak, whisper, invite, interact, trade or give (default true). */
+  speech?: boolean;
+  /** false: forgets who it was — no memories, relationships, beliefs or plans (default true). */
+  memories?: boolean;
+  /** If set, the only actions it may take. */
+  actions?: string[];
 }
 
 /** Scenario action (bite, shoot, treat…). */
@@ -159,7 +175,7 @@ export interface ActionConfig {
   fail_message?: string;
 }
 
-export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline'];
+export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline', 'whisper', 'invite', 'follow'];
 
 export interface ScheduledEventConfig {
   tick: number;
@@ -561,10 +577,17 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
   };
   cfg.agents.forEach((a, i) => need(a.conditions, a.name || `El agente #${i + 1}`, `agents.${i}`));
   Object.entries(cfg.items ?? {}).forEach(([k, it]) => need(it.cures, `El objeto ${k}`, `items.${k}`));
+  for (const [k, c] of Object.entries(conds)) {
+    const t = c.rules?.targets;
+    for (const list of [t?.conditions, t?.any_conditions, t?.not_conditions]) need(list, `El estado ${k}`, `conditions.${k}`);
+    for (const a of c.mind?.actions ?? [])
+      if (!BUILTIN_ACTIONS.includes(a) && !acts[a]) issues.push({ path: `conditions.${k}`, message: `El estado ${k} permite la acción «${a}», que no existe.` });
+  }
   for (const [k, a] of Object.entries(acts)) {
     if (BUILTIN_ACTIONS.includes(k)) issues.push({ path: `actions.${k}`, message: `La acción «${k}» choca con una acción básica de Simcore.` });
     for (const r of [a.who, a.target_requires]) {
       need(r?.conditions, `La acción ${k}`, `actions.${k}`);
+      need(r?.any_conditions, `La acción ${k}`, `actions.${k}`);
       need(r?.not_conditions, `La acción ${k}`, `actions.${k}`);
     }
     for (const o of [a.on_target, a.on_self]) {

@@ -39,6 +39,7 @@ export function RequirementEditor({ value, onChange, conditions, withItems = tru
   return (
     <div className="fx-items">
       <span className="row wrap"><span className="trait-label">Con estado</span><ChipPicker options={conditions} value={r.conditions} onChange={(v) => set({ conditions: v })} /></span>
+      <span className="row wrap" title="Basta con tener uno de ellos"><span className="trait-label">Con alguno de</span><ChipPicker options={conditions} value={r.any_conditions} onChange={(v) => set({ any_conditions: v })} /></span>
       <span className="row wrap"><span className="trait-label">Sin estado</span><ChipPicker options={conditions} value={r.not_conditions} onChange={(v) => set({ not_conditions: v })} /></span>
       <label className="row">
         <span className="trait-label">Profesión</span>
