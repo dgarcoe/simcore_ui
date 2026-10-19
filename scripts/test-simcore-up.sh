@@ -75,7 +75,7 @@ check() {
   shift
   local out dry=(--dry-run)
   [[ " $* " == *" doctor "* || -n ${NODRY:-} ]] && dry=()  # run for real against the stubs
-  out=$(SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" SIMCORE_OLLAMA="${OLLAMACLI:-$TMP/bin/ollama}" \
+  out=$(SIMCORE_ENV_FILE="${SIMCORE_ENV_FILE:-$TMP/none}" SIMCORE_DOCKER="$TMP/bin/docker" SIMCORE_CURL="$TMP/bin/curl" SIMCORE_OLLAMA="${OLLAMACLI:-$TMP/bin/ollama}" \
     SIMCORE_SS="$TMP/bin/ss" SIMCORE_SYSTEMCTL="$TMP/bin/systemctl" \
     SIMCORE_NVIDIA_SMI="${NVSMI:-$TMP/bin/nvidia-smi}" \
     SIMCORE_UNAME_S="${OS:-Linux}" SIMCORE_UNAME_M="${ARCH:-x86_64}" \
@@ -196,6 +196,12 @@ check "--fg se queda en primer plano" "up --build" "!--build -d" -- --fg
 check "otros comandos de compose se pasan tal cual" "logs -f" "!--build" -- logs -f
 
 FAKE_COMPOSE=2.20.0 check "compose antiguo → error claro" "2.24" --
+
+echo "SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" >"$TMP/env.old"
+SIMCORE_ENV_FILE=$TMP/env.old check ".env con un SIMCORE_REF antiguo → aviso" \
+  "SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" "Borra o comenta esa línea" --
+echo "# SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" >"$TMP/env.ok"
+SIMCORE_ENV_FILE=$TMP/env.ok check ".env sin SIMCORE_REF → sin aviso" "!Borra o comenta esa línea" --
 
 # ── doctor ──
 meminfo 16

@@ -7,6 +7,7 @@ import { leave, runScenario } from '../../store/sources';
 import { resolveTheme } from '../../themes/registry';
 import { AgentsTab } from './AgentsTab';
 import { normalize, useDraft } from './draft';
+import { saveDraft } from './save';
 import { EventsTab } from './EventsTab';
 import { GeneralTab } from './GeneralTab';
 import { ActionsTab } from './ActionsTab';
@@ -48,15 +49,24 @@ export function ScenarioEditor() {
     setBusy(true);
     setStatus(null);
     try {
-      const payload = cleanScenario(draft);
-      if (asCopy && !/\(copia\)$/.test(payload.simulation.name)) payload.simulation.name += ' (copia)';
-      const id = asCopy ? null : editing.id;
-      const rec = await api.saveScenario(payload, id);
-      useSim.getState().set({ editing: { id: rec.id, builtin: rec.builtin, draft: normalize(rec.data ?? payload) } });
-      setStatus({ kind: 'ok', text: asCopy || !id ? `Guardado como «${payload.simulation.name}».` : `Cambios guardados en «${payload.simulation.name}».` });
+      const { rec, name, kind } = await saveDraft(api, cleanScenario(draft), editing, asCopy);
+      useSim.getState().set({ editing: { id: rec.id, builtin: rec.builtin, draft: normalize(rec.data ?? draft) } });
+      setStatus(
+        kind === 'fallback'
+          ? {
+              kind: 'error',
+              text:
+                `Tu Simcore es una versión antigua que no permite modificar los escenarios incluidos: se ha guardado «${name}» como escenario propio. ` +
+                'Actualiza Simcore con ./scripts/simcore-up.sh (y revisa que .env no fije un SIMCORE_REF antiguo).',
+            }
+          : { kind: 'ok', text: kind === 'updated' ? `Cambios guardados en «${name}».` : `Guardado como «${name}».` },
+      );
       return rec.id;
     } catch (e) {
-      setStatus({ kind: 'error', text: `No se pudo guardar: ${(e as Error).message}. ¿Está Simcore en marcha?` });
+      const text = e instanceof api.NetworkError
+        ? 'No se pudo conectar con Simcore. ¿Está en marcha?'
+        : `No se pudo guardar: ${(e as Error).message}`;
+      setStatus({ kind: 'error', text });
       return null;
     } finally {
       setBusy(false);

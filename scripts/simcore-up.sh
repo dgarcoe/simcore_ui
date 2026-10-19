@@ -55,6 +55,7 @@ MEMINFO=${SIMCORE_MEMINFO:-/proc/meminfo}
 HOST_OLLAMA_URL=${SIMCORE_HOST_OLLAMA_URL:-http://localhost:11434}
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ENV_FILE=${SIMCORE_ENV_FILE:-$ROOT/.env}
 DEFAULT_SCENARIO_MODEL=qwen2.5:7b
 
 demo=0 force_cpu=0 use_host=1 dry_run=0 alias_on=1 fallback_on=1 foreground=0 model=""
@@ -98,6 +99,19 @@ if ((cv_major < 2 || (cv_major == 2 && cv_minor < 24))); then
 fi
 docker_runtimes=$("$DOCKER" info --format '{{json .Runtimes}}' 2>/dev/null || true)
 [[ -n $docker_runtimes || $dry_run -eq 1 ]] || die "No se puede hablar con el daemon de Docker (¿está arrancado? ¿tu usuario está en el grupo docker?)."
+
+# ── Simcore version ─────────────────────────────────────────────────────
+# A SIMCORE_REF pinned in .env (or the environment) wins over docker-compose.yml:
+# warn when it isn't the version this UI expects, or features will be missing.
+compose_ref=$(sed -n 's/.*SIMCORE_REF:-\([0-9a-f]\{7,40\}\)}.*/\1/p' "$ROOT/docker-compose.yml" | head -n1)
+pinned_ref=${SIMCORE_REF:-}
+if [[ -z $pinned_ref && -r $ENV_FILE ]]; then
+  pinned_ref=$(sed -n 's/^SIMCORE_REF=//p' "$ENV_FILE" | tail -n1 | tr -d '"'"'"' ')
+fi
+if [[ -n $compose_ref && -n $pinned_ref && $pinned_ref != "$compose_ref" ]]; then
+  warn "SIMCORE_REF=$pinned_ref (fijado en .env o en el entorno) no es la versión de Simcore que espera esta UI (${compose_ref:0:7})."
+  warn "  Borra o comenta esa línea de .env para usar la buena; si no, faltarán funciones (p. ej. modificar escenarios incluidos)."
+fi
 
 # ── Hardware ────────────────────────────────────────────────────────────
 platform="$UNAME_S/$UNAME_M"
@@ -202,8 +216,8 @@ if [[ $accel != none ]]; then
 fi
 # An explicit choice wins: --model, then OLLAMA_MODEL from the environment or .env.
 env_model=${OLLAMA_MODEL:-}
-if [[ -z $env_model && -r "$ROOT/.env" ]]; then
-  env_model=$(sed -n 's/^OLLAMA_MODEL=//p' "$ROOT/.env" | tail -n1 | tr -d '"'"'"' ')
+if [[ -z $env_model && -r $ENV_FILE ]]; then
+  env_model=$(sed -n 's/^OLLAMA_MODEL=//p' "$ENV_FILE" | tail -n1 | tr -d '"'"'"' ')
 fi
 if [[ -z $model && -n $env_model && -n $auto_model ]]; then model=$env_model; fi
 model=${model:-$auto_model}

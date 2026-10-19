@@ -54,14 +54,26 @@ export async function postmortem(): Promise<string> {
   return res.narrative ?? '';
 }
 
+/** Simcore could not be reached at all (as opposed to answering with an error). */
+export class NetworkError extends Error {}
+
 export async function saveScenario(data: unknown, id?: string | null): Promise<ScenarioRecord> {
-  const res = id
-    ? await fetch(`/api/scenarios/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-    : await post('/api/scenarios', data);
+  let res: Response;
+  try {
+    res = id
+      ? await fetch(`/api/scenarios/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+      : await post('/api/scenarios', data);
+  } catch (e) {
+    throw new NetworkError((e as Error).message);
+  }
+  // With Simcore down, nginx answers 502/504 and the Vite dev proxy an empty 500.
+  const down = res.status === 502 || res.status === 503 || res.status === 504 ||
+    (res.status === 500 && !(await res.clone().text()).trim());
+  if (down) throw new NetworkError(`${res.status} ${res.statusText}`);
   const rec = await json<ScenarioRecord & { error?: string }>(res);
   if (rec.error) throw new Error(rec.error);
   return rec;
