@@ -643,6 +643,28 @@ export class WorldScene extends Phaser.Scene {
         view.say(action.content, 'speech');
         break;
       }
+      case 'whisper':
+        if (other) {
+          view.faceToward(other);
+          other.faceToward(view);
+          other.showEmote('dots');
+        }
+        view.showEmote('dots');
+        break;
+      case 'invite': {
+        if (other) {
+          view.faceToward(other);
+          other.showEmote('question');
+        }
+        view.showEmote('hand');
+        if (action.content) view.say(action.content, 'action', 2200);
+        if (view.zone !== action.place) this.walkTo(view, action.place);
+        break;
+      }
+      case 'follow':
+        if (other) view.faceToward(other);
+        view.showEmote('eye');
+        break;
       case 'trade':
       case 'interact':
         if (other) {

@@ -15,7 +15,7 @@ export interface FeedItem {
   reasoning?: string;
 }
 
-export type ChatKind = 'speak' | 'trade' | 'interact';
+export type ChatKind = 'speak' | 'trade' | 'interact' | 'whisper' | 'invite';
 
 export interface ChatLine {
   tick: number;
@@ -425,6 +425,10 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     case 'agent_post': {
       const action = parseAction(e.data.action);
       const reasoning = String(e.data.reasoning ?? '');
+      if (e.data.follow) {
+        // Moved by following someone: not a decision of its own.
+        return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, `${String(e.data.action ?? '')} (following ${String(e.data.follow)})`), action }) };
+      }
       next = {
         ...next,
         llm: llmAfterDecision(s.llm, e),
@@ -434,9 +438,14 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
           ? s.progress
           : { ...s.progress, tick: e.tick, decided: [...s.progress.decided, e.source] },
       };
-      if (action.kind === 'speak') {
+      if (action.kind === 'speak' || action.kind === 'whisper') {
         for (const target of targetsOf(e.data, action.target)) {
-          next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target, kind: 'speak', text: action.content });
+          next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target, kind: action.kind, text: action.content });
+        }
+      } else if (action.kind === 'invite') {
+        const text = `→ ${action.place}${action.content ? `: “${action.content}”` : ''}`;
+        for (const target of targetsOf(e.data, action.target)) {
+          next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target, kind: 'invite', text });
         }
       } else if (action.kind === 'post') {
         next = { ...next, posts: [...next.posts.slice(-100), { tick: e.tick, author: e.source, text: action.content }] };

@@ -22,6 +22,13 @@ describe('parseAction', () => {
     expect(parseAction(text)).toEqual(expected);
   });
 
+  it('parses private talk', () => {
+    expect(parseAction('whispers to Bob, Ana: "shh"')).toEqual({ kind: 'whisper', target: 'Bob, Ana', content: 'shh' });
+    expect(parseAction('invites Bob to Barn: "come alone"')).toEqual({ kind: 'invite', target: 'Bob', place: 'Barn', content: 'come alone' });
+    expect(parseAction('invites Bob to somewhere quiet')).toEqual({ kind: 'invite', target: 'Bob', place: 'somewhere quiet', content: '' });
+    expect(parseAction('follows Bob')).toEqual({ kind: 'follow', target: 'Bob' });
+  });
+
   it('handles null', () => {
     expect(parseAction(null)).toEqual({ kind: 'custom', content: '' });
   });

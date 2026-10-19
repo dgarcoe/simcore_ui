@@ -19,6 +19,9 @@ export type ParsedAction =
   | { kind: 'offer'; target: string; item: string; amount: number; askItem: string; askAmount: number }
   | { kind: 'accept'; target: string }
   | { kind: 'decline'; target: string }
+  | { kind: 'whisper'; target: string; content: string }
+  | { kind: 'invite'; target: string; place: string; content: string }
+  | { kind: 'follow'; target: string }
   | { kind: 'custom'; content: string };
 
 const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
@@ -40,6 +43,12 @@ const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
   ],
   [/^accepts the offer from (.+)$/s, (m) => ({ kind: 'accept', target: m[1] })],
   [/^declines the offer from (.+)$/s, (m) => ({ kind: 'decline', target: m[1] })],
+  [/^whispers to (.+?): "(.*)"$/s, (m) => ({ kind: 'whisper', target: m[1].trim(), content: m[2] })],
+  [
+    /^invites (.+?) to (.+?)(?:: "(.*)")?$/s,
+    (m) => ({ kind: 'invite', target: m[1].trim(), place: m[2].trim(), content: m[3] ?? '' }),
+  ],
+  [/^follows (.+)$/s, (m) => ({ kind: 'follow', target: m[1].trim() })],
   [/^waits$/, () => ({ kind: 'wait' })],
 ];
 

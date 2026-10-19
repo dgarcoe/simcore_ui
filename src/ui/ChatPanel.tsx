@@ -4,7 +4,7 @@ import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
 import { Portrait } from './Portrait';
 
-const KIND_ICON = { speak: '', trade: '⇄ ', interact: '✋ ' } as const;
+const KIND_ICON = { speak: '', trade: '⇄ ', interact: '✋ ', whisper: '🤫 ', invite: '🚪 ' } as const;
 
 export function ChatPanel({ theme }: { theme: ThemePack }) {
   const conversations = useSim((s) => s.conversations);
@@ -40,7 +40,7 @@ export function ChatPanel({ theme }: { theme: ThemePack }) {
               </button>
               <span className="what">
                 {KIND_ICON[l.kind]}
-                {l.kind === 'speak' ? `“${l.text}”` : l.text}
+                {l.kind === 'speak' ? `“${l.text}”` : l.kind === 'whisper' ? <em>“{l.text}”</em> : l.text}
               </span>
             </div>
           ))}

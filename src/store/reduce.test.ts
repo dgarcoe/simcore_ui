@@ -56,6 +56,18 @@ describe('reduce', () => {
     expect(s.conversations.every((c) => c.lines[0].kind === 'speak')).toBe(true);
   });
 
+  it('keeps whispers and invitations in the pair conversation; following is not a decision', () => {
+    const s = run([
+      ev('agent_action', 1, { action: 'whispers to Bob: "the key"', action_type: 'whisper', targets: ['Bob'] }, 'Ann'),
+      ev('agent_action', 2, { action: 'invites Bob to Barn: "come"', action_type: 'invite', targets: ['Bob'], place: 'Barn' }, 'Ann'),
+      ev('agent_move', 2, { action: 'moves to Barn', action_type: 'move', follow: 'Ann', reasoning: 'following Ann' }, 'Cid'),
+    ]);
+    const conv = s.conversations.find((c) => c.participants.includes('Bob'))!;
+    expect(conv.lines.map((l) => [l.kind, l.text])).toEqual([['whisper', 'the key'], ['invite', '→ Barn: “come”']]);
+    expect(s.progress.decided).not.toContain('Cid');
+    expect(s.feed.at(-1)?.text).toContain('following Ann');
+  });
+
   it('starts a new conversation after a long silence', () => {
     const s = run([
       ev('agent_speak', 1, { action: 'says to Bob: "hi"' }, 'Ann'),

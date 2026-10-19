@@ -55,6 +55,17 @@ export function GeneralTab() {
           <input type="checkbox" checked={!!sim.planning} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.planning = true) : delete d.simulation.planning))} />
           Planes del día
         </label>
+        <label title="Local: cada agente sabe solo lo que ha visto. Completa: sabe dónde está todo el mundo.">
+          Conciencia de los demás
+          <select
+            className="input"
+            value={sim.awareness ?? 'local'}
+            onChange={(e) => update((d) => void (e.target.value === 'full' ? (d.simulation.awareness = 'full') : delete d.simulation.awareness))}
+          >
+            <option value="local">Local (lo que ve)</option>
+            <option value="full">Completa</option>
+          </select>
+        </label>
         {sim.planning && (
           <label>
             Replanificar cada (ticks)

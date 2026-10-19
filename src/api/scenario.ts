@@ -179,6 +179,8 @@ export interface ScenarioConfig {
     /** Daily plans (extra LLM calls). */
     planning?: boolean;
     plan_every?: number;
+    /** What agents know of where the others are. */
+    awareness?: 'local' | 'full';
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {
