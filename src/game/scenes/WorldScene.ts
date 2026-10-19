@@ -564,6 +564,7 @@ export class WorldScene extends Phaser.Scene {
       case 'agent_plan':
       case 'belief_shared':
       case 'speech_ignored':
+      case 'agent_search':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -592,6 +593,17 @@ export class WorldScene extends Phaser.Scene {
 
     if (e.type === 'agent_plan') {
       view.showEmote('idea');
+      return;
+    }
+    if (e.type === 'agent_search') {
+      if (e.data.step !== 'found') return;
+      const target = this.agents.get(String(e.data.target ?? ''));
+      view.showEmote('alert');
+      if (target && target.status === 'alive') {
+        view.faceToward(target);
+        target.faceToward(view);
+        target.showEmote('alert');
+      }
       return;
     }
     if (e.type === 'speech_ignored') {
@@ -671,6 +683,12 @@ export class WorldScene extends Phaser.Scene {
         if (other) view.faceToward(other);
         view.showEmote('eye');
         break;
+      case 'find': {
+        const place = String(e.data.place ?? '');
+        view.showEmote(e.data.step === 'asked' ? 'question' : 'eye');
+        if (e.data.step === 'moved' && place && view.zone !== place) this.walkTo(view, place);
+        break;
+      }
       case 'trade':
       case 'interact':
         if (other) {

@@ -327,6 +327,10 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const text = `planea: ${steps.map((s, i) => `${i + 1}) ${s}`).join(' ')}`;
       return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: e.data.reason ? String(e.data.reason) : undefined }) };
     }
+    case 'agent_search': {
+      const text = searchText(e.data as SearchData);
+      return text ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) } : next;
+    }
     case 'speech_ignored': {
       const d = e.data as { agent: string; text: string; turns: number };
       const text = `no le contesta a ${d.agent} (${d.turns} turnos): «${d.text}»`;
@@ -550,4 +554,32 @@ function addChat(s: SimSnapshot, tick: number, line: ChatLine): SimSnapshot {
     lines: [line],
   };
   return { ...s, conversations: [...convs.slice(-(CONVERSATION_LIMIT - 1)), conv] };
+}
+
+interface SearchData {
+  target: string;
+  step: 'started' | 'asked' | 'moved' | 'found' | 'gave_up' | 'lost';
+  place?: string;
+  clues?: Array<{ by: string; place: string; ago: number }>;
+}
+
+/** Feed line for a step of a search (null for the start: the action line already says it). */
+export function searchText(d: SearchData): string | null {
+  const clue = (c: { by: string; place: string; ago: number }) => `${c.by === 'you' ? 'lo vio' : c.by}: ${c.place}${c.ago > 0 ? ` (hace ${c.ago})` : ''}`;
+  switch (d.step) {
+    case 'asked': {
+      const clues = (d.clues ?? []).filter((c) => c.by !== 'you');
+      return `pregunta si alguien ha visto a ${d.target}${clues.length ? ' · ' + clues.map(clue).join(' · ') : ' · nadie lo ha visto'}`;
+    }
+    case 'moved':
+      return `va a ${d.place} buscando a ${d.target}`;
+    case 'found':
+      return `encuentra a ${d.target}${d.place ? ` en ${d.place}` : ''}`;
+    case 'gave_up':
+      return `deja de buscar a ${d.target}`;
+    case 'lost':
+      return `ya no puede encontrar a ${d.target}`;
+    default:
+      return null;
+  }
 }

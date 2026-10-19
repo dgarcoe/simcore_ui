@@ -22,6 +22,7 @@ export type ParsedAction =
   | { kind: 'whisper'; target: string; content: string }
   | { kind: 'invite'; target: string; place: string; content: string }
   | { kind: 'follow'; target: string }
+  | { kind: 'find'; target: string }
   | { kind: 'custom'; content: string };
 
 const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
@@ -49,6 +50,7 @@ const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
     (m) => ({ kind: 'invite', target: m[1].trim(), place: m[2].trim(), content: m[3] ?? '' }),
   ],
   [/^follows (.+)$/s, (m) => ({ kind: 'follow', target: m[1].trim() })],
+  [/^looks for (.+)$/s, (m) => ({ kind: 'find', target: m[1].trim() })],
   [/^waits$/, () => ({ kind: 'wait' })],
 ];
 

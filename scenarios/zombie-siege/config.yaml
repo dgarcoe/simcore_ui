@@ -16,7 +16,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 1
+  seed: 9
   language: es
   planning: true
   plan_every: 12

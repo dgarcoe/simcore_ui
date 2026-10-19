@@ -68,6 +68,20 @@ describe('reduce', () => {
     expect(s.feed.at(-1)?.text).toContain('following Ann');
   });
 
+  it('narrates a search step by step', () => {
+    const s = run([
+      ev('agent_search', 1, { agent: 'Ann', target: 'Tom', step: 'started', place: 'Plaza', clues: [] }, 'Ann'),
+      ev('agent_search', 1, { agent: 'Ann', target: 'Tom', step: 'asked', place: 'Plaza', clues: [{ by: 'Bob', place: 'Iglesia', ago: 2 }] }, 'Ann'),
+      ev('agent_search', 2, { agent: 'Ann', target: 'Tom', step: 'moved', place: 'Iglesia', clues: [] }, 'Ann'),
+      ev('agent_search', 2, { agent: 'Ann', target: 'Tom', step: 'found', place: 'Iglesia', clues: [] }, 'Ann'),
+    ]);
+    expect(s.feed.map((f) => f.text)).toEqual([
+      'pregunta si alguien ha visto a Tom · Bob: Iglesia (hace 2)',
+      'va a Iglesia buscando a Tom',
+      'encuentra a Tom en Iglesia',
+    ]);
+  });
+
   it('notes in the feed when someone ignores a speaker', () => {
     const s = run([ev('speech_ignored', 3, { agent: 'Ann', by: 'Bob', text: 'help?', turns: 2 }, 'Bob')]);
     expect(s.feed.at(-1)?.text).toBe('no le contesta a Ann (2 turnos): «help?»');

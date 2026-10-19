@@ -96,6 +96,20 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               {agent.mind.goals.length > 0 && <p className="small dim">Metas: {agent.mind.goals.join(' · ')}</p>}
             </div>
           )}
+          {agent.search && isAlive(agent) && (
+            <div className="mind-shift">
+              <p>
+                <strong>🔎 {agent.search.found ? `Ha encontrado a ${agent.search.target}` : `Buscando a ${agent.search.target}`}</strong>
+                {agent.search.why && <span className="dim small"> · {agent.search.why}</span>}
+              </p>
+              {agent.search.clues.length > 0 && (
+                <p className="small">
+                  Pistas: {agent.search.clues.map((c) => `${c.by === 'you' ? 'lo vio en' : `${c.by}: `} ${c.place}${c.ago > 0 ? ` (hace ${c.ago})` : ''}`).join(' · ')}
+                </p>
+              )}
+              {agent.search.checked.length > 0 && <p className="small dim">Ya miró: {agent.search.checked.join(', ')}</p>}
+            </div>
+          )}
           <Needs agent={agent} />
           <AgentActions agent={agent} />
           {isAlive(agent) && agent.state.current_action && <p className="action">» {agent.state.current_action}</p>}

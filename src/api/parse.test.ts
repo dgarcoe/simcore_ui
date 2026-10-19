@@ -27,6 +27,7 @@ describe('parseAction', () => {
     expect(parseAction('invites Bob to Barn: "come alone"')).toEqual({ kind: 'invite', target: 'Bob', place: 'Barn', content: 'come alone' });
     expect(parseAction('invites Bob to somewhere quiet')).toEqual({ kind: 'invite', target: 'Bob', place: 'somewhere quiet', content: '' });
     expect(parseAction('follows Bob')).toEqual({ kind: 'follow', target: 'Bob' });
+    expect(parseAction('looks for Padre Julián')).toEqual({ kind: 'find', target: 'Padre Julián' });
   });
 
   it('handles null', () => {

@@ -32,7 +32,8 @@ export type EventType =
   // Plans, beliefs, secrets and rumors.
   | 'agent_plan'
   | 'belief_shared'
-  | 'speech_ignored';
+  | 'speech_ignored'
+  | 'agent_search';
 
 export interface Belief {
   text: string;
@@ -128,6 +129,8 @@ export interface Agent {
   memory_summary: string;
   /** A condition changed who this agent is (it still thinks with the LLM). */
   mind?: { condition: string; identity: string; goals: string[]; speech: boolean; memories: boolean };
+  /** Who it is looking for, the clues it has and where it already looked. */
+  search?: { target: string; why: string; found: boolean; checked: string[]; clues: SearchClue[] };
 }
 
 export interface Location {
@@ -194,4 +197,11 @@ export interface ScenarioRecord {
   modified?: boolean;
   meta: ScenarioMeta;
   data: Record<string, any>;
+}
+
+export interface SearchClue {
+  /** Who gave the clue ("you" when the seeker saw them). */
+  by: string;
+  place: string;
+  ago: number;
 }
