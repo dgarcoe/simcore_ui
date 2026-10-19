@@ -33,7 +33,9 @@ export type EventType =
   | 'agent_plan'
   | 'belief_shared'
   | 'speech_ignored'
-  | 'agent_search';
+  | 'agent_search'
+  | 'story_moment'
+  | 'story_chapter';
 
 export interface Belief {
   text: string;
@@ -126,6 +128,8 @@ export interface Agent {
   relationships: Record<string, string>;
   /** Typed relationships: name → brother, partner, rival… */
   relationship_kinds?: Record<string, string>;
+  /** Sentiment -1..1 towards each person (Simcore versions that report it). */
+  relationship_scores?: Record<string, number>;
   memory_summary: string;
   /** A condition changed who this agent is (it still thinks with the LLM). */
   mind?: { condition: string; identity: string; goals: string[]; speech: boolean; memories: boolean };

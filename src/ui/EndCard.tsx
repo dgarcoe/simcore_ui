@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as api from '../api/client';
+import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
 
 /** Shown when a run finishes; live runs can ask Simcore for an LLM-written chronicle. */
@@ -18,7 +19,9 @@ export function EndCard() {
   const chronicle = async () => {
     setLoading(true);
     try {
-      setText(await api.postmortem());
+      const narrative = await api.postmortem();
+      setText(narrative);
+      useSim.getState().set({ epilogue: narrative });
     } catch (e) {
       setText(`No se pudo generar la crónica: ${(e as Error).message}`);
     } finally {
@@ -39,6 +42,7 @@ export function EndCard() {
         </button>
       )}
       {text && <div className="chronicle">{text}</div>}
+      <button className="btn" onClick={() => bus.emit('openTab', 'story')}>📖 Ver la historia</button>
     </div>
   );
 }

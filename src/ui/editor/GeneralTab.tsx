@@ -55,6 +55,22 @@ export function GeneralTab() {
           <input type="checkbox" checked={!!sim.planning} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.planning = true) : delete d.simulation.planning))} />
           Planes del día
         </label>
+        <label className="toggle" title="Un narrador (el LLM de reflexión) escribe un capítulo breve cada N ticks con los momentos clave. Una llamada por capítulo.">
+          <input type="checkbox" checked={!!sim.story} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.story = true) : delete d.simulation.story))} />
+          Crónica por capítulos
+        </label>
+        {sim.story && (
+          <label>
+            Un capítulo cada (ticks)
+            <input
+              className="input"
+              type="number"
+              min={1}
+              value={sim.chapter_every ?? 24}
+              onChange={(e) => update((d) => void (d.simulation.chapter_every = Math.max(1, Number(e.target.value) || 24)))}
+            />
+          </label>
+        )}
         <label title="Local: cada agente sabe solo lo que ha visto. Completa: sabe dónde está todo el mundo.">
           Conciencia de los demás
           <select

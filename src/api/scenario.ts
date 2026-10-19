@@ -195,6 +195,9 @@ export interface ScenarioConfig {
     /** Daily plans (extra LLM calls). */
     planning?: boolean;
     plan_every?: number;
+    /** A narrator writes a chapter every chapter_every ticks (one LLM call each). */
+    story?: boolean;
+    chapter_every?: number;
     /** What agents know of where the others are. */
     awareness?: 'local' | 'full';
   };

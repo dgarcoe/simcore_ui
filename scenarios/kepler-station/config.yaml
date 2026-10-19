@@ -15,6 +15,8 @@ simulation:
   duration: 36 hours
   seed: 2
   language: es
+  story: true
+  chapter_every: 8
   planning: true
   plan_every: 8
 llm:

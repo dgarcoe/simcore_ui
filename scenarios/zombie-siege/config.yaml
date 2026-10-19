@@ -18,6 +18,8 @@ simulation:
   duration: 120 hours
   seed: 9
   language: es
+  story: true
+  chapter_every: 24
   planning: true
   plan_every: 12
   awareness: local

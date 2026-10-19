@@ -10,6 +10,8 @@ simulation:
   duration: 24 hours
   seed: 5
   language: es
+  story: true
+  chapter_every: 6
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b

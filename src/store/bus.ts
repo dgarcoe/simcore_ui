@@ -9,6 +9,8 @@ export interface BusEvents {
   focusAgent: string;
   focusZone: string;
   zoom: 'in' | 'out' | 'fit';
+  /** Open a sidebar tab (e.g. from the end card). */
+  openTab: 'chat' | 'events' | 'agents' | 'story';
 }
 
 type Handler<T> = (payload: T) => void;

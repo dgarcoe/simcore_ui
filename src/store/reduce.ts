@@ -2,6 +2,7 @@
 // state: current snapshot, activity feed, conversations, posts, banners.
 
 import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../api/parse';
+import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
 import type { Agent, EventType, SimEvent, SimState } from '../api/types';
 
 export interface FeedItem {
@@ -137,6 +138,14 @@ export interface SimSnapshot {
   reasoning: Record<string, { tick: number; action: string; text: string }>;
   seq: number;
   recent: SimEvent[];
+  /** Key moments of the run (computed from the events). */
+  moments: Moment[];
+  /** Chronicle chapters written by Simcore's narrator. */
+  chapters: Chapter[];
+  /** Relationships at each tick, for the graph. */
+  relFrames: RelFrame[];
+  /** The narrator's closing text, once asked for (end card). */
+  epilogue: string;
 }
 
 export const FEED_LIMIT = 400;
@@ -166,6 +175,10 @@ export function initialSnapshot(): SimSnapshot {
     reasoning: {},
     seq: 0,
     recent: [],
+    moments: [],
+    chapters: [],
+    relFrames: [],
+    epilogue: '',
   };
 }
 
@@ -235,6 +248,8 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
   const recent = e.type === 'tick_end' ? s.recent : [...s.recent.slice(-30), e];
   const seq = s.seq + 1;
   let next: SimSnapshot = { ...s, recent, seq };
+  const moment = scoreEvent(e);
+  if (moment) next = { ...next, moments: [...next.moments.slice(-(MOMENT_LIMIT - 1)), moment] };
 
   switch (e.type) {
     case 'simulation_start':
@@ -327,6 +342,12 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const text = `planea: ${steps.map((s, i) => `${i + 1}) ${s}`).join(' ')}`;
       return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: e.data.reason ? String(e.data.reason) : undefined }) };
     }
+    case 'story_chapter': {
+      const c = e.data as unknown as Chapter;
+      return { ...next, chapters: [...next.chapters, c], feed: pushFeed(next.feed, feedItem(seq, e, `📖 ${c.title}`)) };
+    }
+    case 'story_moment':
+      return next; // already a moment (computed above) and its event has its own feed line
     case 'agent_search': {
       const text = searchText(e.data as SearchData);
       return text ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) } : next;
@@ -385,6 +406,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     case 'tick_end':
       return {
         ...next,
+        relFrames: [...next.relFrames.slice(-(FRAME_LIMIT - 1)), relFrame(e.tick, e.data as SimState)],
         sim: e.data as SimState,
         simFresh: true,
         status: s.status === 'idle' ? 'running' : s.status,
