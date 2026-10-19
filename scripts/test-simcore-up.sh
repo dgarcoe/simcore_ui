@@ -199,9 +199,16 @@ FAKE_COMPOSE=2.20.0 check "compose antiguo → error claro" "2.24" --
 
 echo "SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" >"$TMP/env.old"
 SIMCORE_ENV_FILE=$TMP/env.old check ".env con un SIMCORE_REF antiguo → aviso" \
-  "SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" "Borra o comenta esa línea" --
+  "SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" "Borra o comenta la línea" --
 echo "# SIMCORE_REF=629bfc47720b9e46b1c82c14542b83df7c723f0d" >"$TMP/env.ok"
-SIMCORE_ENV_FILE=$TMP/env.ok check ".env sin SIMCORE_REF → sin aviso" "!Borra o comenta esa línea" --
+SIMCORE_ENV_FILE=$TMP/env.ok check ".env sin SIMCORE_REF → sin aviso" "!SIMCORE_REF=" --
+current_ref=$(sed -n 's/.*SIMCORE_REF:-\([0-9a-f]\{7,40\}\)}.*/\1/p' "$HERE/../docker-compose.yml" | head -n1)
+echo "SIMCORE_REF=${current_ref:0:7}" >"$TMP/env.short"
+SIMCORE_ENV_FILE=$TMP/env.short check ".env con el hash corto del mismo commit → sin aviso" "!SIMCORE_REF=" --
+echo "SIMCORE_REF=\"$current_ref\"" >"$TMP/env.full"
+SIMCORE_ENV_FILE=$TMP/env.full check ".env con el mismo hash completo → sin aviso" "!SIMCORE_REF=" --
+echo "SIMCORE_REF=main" >"$TMP/env.branch"
+SIMCORE_ENV_FILE=$TMP/env.branch check ".env con una rama → aviso suave" "SIMCORE_REF=main fija una rama" --
 
 # ── doctor ──
 meminfo 16

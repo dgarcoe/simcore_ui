@@ -108,9 +108,17 @@ pinned_ref=${SIMCORE_REF:-}
 if [[ -z $pinned_ref && -r $ENV_FILE ]]; then
   pinned_ref=$(sed -n 's/^SIMCORE_REF=//p' "$ENV_FILE" | tail -n1 | tr -d '"'"'"' ')
 fi
-if [[ -n $compose_ref && -n $pinned_ref && $pinned_ref != "$compose_ref" ]]; then
-  warn "SIMCORE_REF=$pinned_ref (fijado en .env o en el entorno) no es la versión de Simcore que espera esta UI (${compose_ref:0:7})."
-  warn "  Borra o comenta esa línea de .env para usar la buena; si no, faltarán funciones (p. ej. modificar escenarios incluidos)."
+if [[ -n $compose_ref && -n $pinned_ref ]]; then
+  pinned_lc=${pinned_ref,,}
+  if [[ $pinned_lc =~ ^[0-9a-f]{7,40}$ ]]; then
+    # A short hash names the same commit when it is a prefix of the full one (or vice versa).
+    if [[ $compose_ref != "$pinned_lc"* && $pinned_lc != "$compose_ref"* ]]; then
+      warn "SIMCORE_REF=$pinned_ref (fijado en .env o en el entorno) no es la versión de Simcore que espera esta UI ($compose_ref)."
+      warn "  Borra o comenta la línea SIMCORE_REF=$pinned_ref de .env para usar la buena; si no, faltarán funciones (p. ej. modificar escenarios incluidos)."
+    fi
+  else
+    warn "SIMCORE_REF=$pinned_ref fija una rama o etiqueta; esta UI está probada con Simcore ${compose_ref:0:7}. Si algo falla, borra esa línea de .env."
+  fi
 fi
 
 # ── Hardware ────────────────────────────────────────────────────────────
