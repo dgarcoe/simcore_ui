@@ -563,6 +563,7 @@ export class WorldScene extends Phaser.Scene {
       case 'need_change':
       case 'agent_plan':
       case 'belief_shared':
+      case 'speech_ignored':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -591,6 +592,11 @@ export class WorldScene extends Phaser.Scene {
 
     if (e.type === 'agent_plan') {
       view.showEmote('idea');
+      return;
+    }
+    if (e.type === 'speech_ignored') {
+      const speaker = this.agents.get(String(e.data.agent ?? ''));
+      if (speaker && speaker.status === 'alive') speaker.showEmote('question');
       return;
     }
     if (e.type === 'belief_shared') {

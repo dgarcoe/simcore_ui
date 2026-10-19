@@ -68,6 +68,11 @@ describe('reduce', () => {
     expect(s.feed.at(-1)?.text).toContain('following Ann');
   });
 
+  it('notes in the feed when someone ignores a speaker', () => {
+    const s = run([ev('speech_ignored', 3, { agent: 'Ann', by: 'Bob', text: 'help?', turns: 2 }, 'Bob')]);
+    expect(s.feed.at(-1)?.text).toBe('no le contesta a Ann (2 turnos): «help?»');
+  });
+
   it('starts a new conversation after a long silence', () => {
     const s = run([
       ev('agent_speak', 1, { action: 'says to Bob: "hi"' }, 'Ann'),

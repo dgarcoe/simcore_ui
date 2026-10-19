@@ -327,6 +327,11 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const text = `planea: ${steps.map((s, i) => `${i + 1}) ${s}`).join(' ')}`;
       return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), reasoning: e.data.reason ? String(e.data.reason) : undefined }) };
     }
+    case 'speech_ignored': {
+      const d = e.data as { agent: string; text: string; turns: number };
+      const text = `no le contesta a ${d.agent} (${d.turns} turnos): «${d.text}»`;
+      return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) };
+    }
     case 'belief_shared': {
       const d = e.data as { from: string; to: string; text: string; truth: boolean | null; secret: boolean };
       const mark = d.secret ? ' (secreto revelado)' : d.truth === false ? ' (falso)' : d.truth === true ? ' (cierto)' : '';

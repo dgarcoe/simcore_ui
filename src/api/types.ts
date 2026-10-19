@@ -31,7 +31,8 @@ export type EventType =
   | 'rule_fired'
   // Plans, beliefs, secrets and rumors.
   | 'agent_plan'
-  | 'belief_shared';
+  | 'belief_shared'
+  | 'speech_ignored';
 
 export interface Belief {
   text: string;
