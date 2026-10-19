@@ -62,3 +62,10 @@ export function parseInteraction(
   const content = kind === 'speak' ? m[4].replace(/^"(.*)"$/s, '$1') : m[4];
   return { initiator: m[1], target: m[3], kind, content };
 }
+
+/** Everyone a speech or interaction is aimed at: the engine's `targets` list, or "Ana, Bob" split. */
+export function targetsOf(data: Record<string, unknown>, target: string): string[] {
+  const list = data.targets;
+  if (Array.isArray(list) && list.length) return list.map(String);
+  return target.split(/\s*,\s*/).filter(Boolean);
+}

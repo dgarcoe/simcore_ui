@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { parseAction } from '../../api/parse';
+import { parseAction, targetsOf } from '../../api/parse';
 import type { SimEvent, SimState } from '../../api/types';
 import { bus } from '../../store/bus';
 import { useSim } from '../../store/simStore';
@@ -626,19 +626,23 @@ export class WorldScene extends Phaser.Scene {
     if (e.type === 'reflection') return view.say(String(e.data.summary ?? ''), 'thought');
 
     const action = parseAction(e.data.action);
-    const other = 'target' in action ? this.agents.get(action.target) : undefined;
+    const other = 'target' in action ? this.agents.get(targetsOf(e.data, action.target)[0] ?? '') : undefined;
     switch (action.kind) {
       case 'move':
         if (view.zone !== action.target) this.walkTo(view, action.target);
         break;
-      case 'speak':
-        if (other) {
-          view.faceToward(other);
-          other.faceToward(view);
-          other.showEmote('alert');
+      case 'speak': {
+        const listeners = targetsOf(e.data, action.target)
+          .map((n) => this.agents.get(n))
+          .filter((a): a is NonNullable<typeof a> => !!a);
+        if (listeners[0]) view.faceToward(listeners[0]);
+        for (const l of listeners) {
+          l.faceToward(view);
+          l.showEmote('alert');
         }
         view.say(action.content, 'speech');
         break;
+      }
       case 'trade':
       case 'interact':
         if (other) {

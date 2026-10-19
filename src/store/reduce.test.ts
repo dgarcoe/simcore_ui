@@ -47,6 +47,15 @@ describe('reduce', () => {
     expect(annBob.lines[1]).toMatchObject({ speaker: 'Bob', target: 'Ann', text: 'hello' });
   });
 
+  it('adds a line spoken to several people to each pair conversation', () => {
+    const s = run([
+      ev('agent_speak', 1, { action: 'says to Bob, Cid: "the bridge is down"', targets: ['Bob', 'Cid'] }, 'Ann'),
+      ev('agent_speak', 2, { action: 'says to Dee, Eve: "run"' }, 'Ann'),
+    ]);
+    expect(s.conversations.map((c) => [...c.participants].sort().join('+')).sort()).toEqual(['Ann+Bob', 'Ann+Cid', 'Ann+Dee', 'Ann+Eve']);
+    expect(s.conversations.every((c) => c.lines[0].kind === 'speak')).toBe(true);
+  });
+
   it('starts a new conversation after a long silence', () => {
     const s = run([
       ev('agent_speak', 1, { action: 'says to Bob: "hi"' }, 'Ann'),

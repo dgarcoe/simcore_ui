@@ -1,7 +1,7 @@
 // Pure reducer that turns the raw Simcore event stream into UI-friendly
 // state: current snapshot, activity feed, conversations, posts, banners.
 
-import { parseAction, parseInteraction, type ParsedAction } from '../api/parse';
+import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../api/parse';
 import type { Agent, EventType, SimEvent, SimState } from '../api/types';
 
 export interface FeedItem {
@@ -435,7 +435,9 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
           : { ...s.progress, tick: e.tick, decided: [...s.progress.decided, e.source] },
       };
       if (action.kind === 'speak') {
-        next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target: action.target, kind: 'speak', text: action.content });
+        for (const target of targetsOf(e.data, action.target)) {
+          next = addChat(next, e.tick, { tick: e.tick, speaker: e.source, target, kind: 'speak', text: action.content });
+        }
       } else if (action.kind === 'post') {
         next = { ...next, posts: [...next.posts.slice(-100), { tick: e.tick, author: e.source, text: action.content }] };
       }
