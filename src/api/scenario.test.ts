@@ -318,6 +318,9 @@ describe('advanced example', () => {
     expect(scenarioWarnings(cfg)).toEqual([]);
     expect(cfg.simulation.duration).toBe('120 hours');
     expect(cfg.rules?.filter((r) => (r.then as { end?: string })?.end)).toHaveLength(3);
+    expect(cfg.factions?.Guardia.leader).toBe('Sargento Ortega');
+    expect(Object.keys(cfg.votes?.soldado.options ?? {})).toEqual(['sí', 'no']);
+    expect(cfg.items?.escopeta.weapon?.ammo).toBe('cartuchos');
   });
 });
 
@@ -330,5 +333,22 @@ describe('changed minds', () => {
     expect(messages).toContain('El estado zombi permite la acción «volar», que no existe.');
     expect(messages).toContain('La acción morder usa el estado «vampiro», que no existe.');
     expect(messages.some((m) => m.includes('«move»'))).toBe(false);
+  });
+});
+
+describe('society', () => {
+  it('checks groups, routines and the effects of each vote outcome', () => {
+    const cfg = emptyScenario();
+    cfg.environment.locations = [{ name: 'Plaza', type: 'public', position: [0, 0], capacity: 10 }];
+    cfg.agents = [{ name: 'Ana', starting_location: 'Plaza' }];
+    cfg.factions = { Guardia: { members: ['Ana', 'Fantasma'], leader: 'Nadie' } };
+    cfg.routines = { '*': { night: { rest: ['Luna'] } } };
+    cfg.votes = { cerrar: { question: '', options: { sí: { locations: { Iglesia: { closed: true } } } } } };
+    const messages = referenceIssues(cfg).map((i) => i.message);
+    expect(messages).toContain('El grupo Guardia tiene un miembro que no existe: «Fantasma».');
+    expect(messages).toContain('El líder de Guardia («Nadie») no existe.');
+    expect(messages).toContain('La rutina de * va a «Luna», que no existe.');
+    expect(messages).toContain('La votación cerrar no tiene pregunta.');
+    expect(messages.some((m) => m.includes('Iglesia'))).toBe(true);
   });
 });

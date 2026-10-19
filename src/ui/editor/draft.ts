@@ -38,7 +38,21 @@ export function normalize(raw: Partial<ScenarioConfig> | Record<string, any>): S
     ...(cfg.actions && Object.keys(cfg.actions).length ? { actions: structuredClone(cfg.actions) } : {}),
     ...(cfg.needs && Object.keys(cfg.needs).length ? { needs: structuredClone(cfg.needs) } : {}),
     ...(cfg.rules?.length ? { rules: structuredClone(cfg.rules) } : {}),
+    ...(cfg.factions && Object.keys(cfg.factions).length ? { factions: structuredClone(cfg.factions) } : {}),
+    ...(cfg.votes && Object.keys(cfg.votes).length ? { votes: normalizeVotes(cfg.votes) } : {}),
+    ...(cfg.society && Object.keys(cfg.society).length ? { society: structuredClone(cfg.society) } : {}),
+    ...(cfg.routines && Object.keys(cfg.routines).length ? { routines: structuredClone(cfg.routines) } : {}),
   };
+}
+
+/** YAML reads unquoted yes/no option keys as booleans: give them their names back. */
+function normalizeVotes(votes: NonNullable<ScenarioConfig['votes']>): NonNullable<ScenarioConfig['votes']> {
+  return Object.fromEntries(
+    Object.entries(votes).map(([k, v]) => [
+      k,
+      { ...structuredClone(v), options: Object.fromEntries(Object.entries(v.options ?? {}).map(([o, fx]) => [o === 'true' ? 'yes' : o === 'false' ? 'no' : o, fx ?? {}])) },
+    ]),
+  );
 }
 
 export function openEditor(record?: ScenarioRecord): void {

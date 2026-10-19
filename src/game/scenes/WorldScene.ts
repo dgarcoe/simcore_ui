@@ -69,11 +69,24 @@ class Occupancy {
   }
 }
 
+/** Emote shown when an agent starts feeling something strongly (Simcore society). */
+const EMOTION_EMOTE: Record<string, string | undefined> = {
+  angry: 'fire',
+  afraid: 'alert',
+  sad: 'dots',
+  desperate: 'dots',
+  happy: 'heart',
+  relieved: 'sparkle',
+  hopeful: 'idea',
+  frustrated: 'question',
+};
+
 export class WorldScene extends Phaser.Scene {
   private map!: MapModel;
   private theme!: ThemePack;
   private zones = new Map<string, Zone>();
   private agents = new Map<string, AgentView>();
+  private feelings = new Map<string, string>();
   private occupancy = new Occupancy();
   private cues: SimEvent[] = [];
   private cueTimer = 0;
@@ -361,6 +374,13 @@ export class WorldScene extends Phaser.Scene {
       }
       view.setHealth(agent.state.health);
       view.setCondition(...this.conditionLook(sim, agent.state.conditions));
+      // A new strong feeling shows as a little emote over the head.
+      const emotion = agent.emotion ?? '';
+      if (emotion !== (this.feelings.get(agent.name) ?? '')) {
+        this.feelings.set(agent.name, emotion);
+        const emote = EMOTION_EMOTE[emotion];
+        if (emote && !instant) view.showEmote(emote);
+      }
       // Agents in virtual places (chats, networks) stay where they were on the map.
       if (view.zone !== loc && this.zones.has(loc)) {
         if (instant) {
@@ -682,6 +702,36 @@ export class WorldScene extends Phaser.Scene {
       case 'follow':
         if (other) view.faceToward(other);
         view.showEmote('eye');
+        break;
+      case 'attack': {
+        if (other) {
+          view.faceToward(other);
+          other.faceToward(view);
+          this.linkBurst(view, other, 0xb13e53);
+          if (e.data.hit) other.showEmote('alert');
+        }
+        view.showEmote('fire');
+        if (e.data.hit && e.data.damage) view.say(`−${Math.round(Number(e.data.damage) * 100)}`, 'action', 1400);
+        break;
+      }
+      case 'heal':
+        if (other) {
+          view.faceToward(other);
+          other.faceToward(view);
+          this.linkBurst(view, other, 0x38b764);
+          other.showEmote('medic');
+        } else view.showEmote('medic');
+        break;
+      case 'found_group':
+      case 'join':
+        view.showEmote('mega');
+        break;
+      case 'call_vote':
+        view.showEmote('mega');
+        view.say(`🗳 ${action.question}`, 'action', 2600);
+        break;
+      case 'vote':
+        view.showEmote('hand');
         break;
       case 'find': {
         const place = String(e.data.place ?? '');

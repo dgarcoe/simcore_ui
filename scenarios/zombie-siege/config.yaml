@@ -8,7 +8,9 @@
 #   bodies), needs (hunger, sleep), world rules (day/night cycle, hordes every night, a fire,
 #   the radio, the cure, three endings), places with state (a barricaded church, a restricted
 #   barracks, a cemetery that is deadly at night), daily plans, beliefs, secrets, rumors and
-#   typed relationships, plus situational awareness and private talk.
+#   typed relationships, situational awareness and private talk, a society (the Guard, groups the
+#   villagers may found, an assembly about the bitten soldier, routines, reputation, favors,
+#   emotions) and a chronicle written chapter by chapter.
 simulation:
   name: El asedio de San Lorenzo
   description: San Lorenzo lleva tres días aislado por la nieve cuando los muertos empiezan a levantarse del
@@ -16,7 +18,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 9
+  seed: 10
   language: es
   story: true
   chapter_every: 24
@@ -173,7 +175,7 @@ items:
   calmante: {description: calmantes, on_use: {mood: 0.2}, cures: [en_panico]}
   antidoto: {description: antídoto experimental, cures: [infectado]}
   cartuchos: {description: cartuchos de escopeta}
-  escopeta: {description: escopeta, consumable: false}
+  escopeta: {description: escopeta, consumable: false, weapon: {damage: 0.6, chance: 0.65, ammo: cartuchos}}
   tablones: {description: tablones y clavos}
   piezas_radio: {description: válvulas y cables para la radio}
   gasolina: {description: bidón de gasolina}
@@ -306,6 +308,29 @@ rules:
     when: {at: 119}
     then: {end: Cinco días después, la columna del ejército entra en San Lorenzo. Quien siga en pie lo ha conseguido.}
     once: true
+
+# ── Sociedad ───────────────────────────────────────────────────────
+# La Guardia existe desde el principio; los demás grupos los fundan los vecinos si quieren.
+factions:
+  Guardia: {goal: "Defender a los civiles hasta que llegue ayuda", leader: Sargento Ortega, members: [Sargento Ortega, Lola], color: "#41a6f6"}
+votes:
+  soldado:
+    question: "¿Dejamos que el soldado mordido se quede en el pueblo?"
+    from: 51          # cuando ya ha llegado
+    options:
+      "sí": {}
+      "no": {depart: "Cabo Ruiz"}
+  iglesia:
+    question: "¿Pasamos todos la noche en la iglesia?"
+    options:
+      "sí": {needs: {all: {sueno: -0.2}}}
+      "no": {}
+routines:
+  "*": {night: {rest: [Pensión, Iglesia]}}
+  guardia: {day: {work: [Cuartel de la Guardia]}, night: {rest: [Iglesia]}}
+  médica: {day: {work: [Hospital]}}
+  tendero: {day: {work: [Mercado]}}
+  sacerdote: {evening: {work: [Iglesia]}, night: {rest: [Iglesia]}}
 
 environment:
   type: grid

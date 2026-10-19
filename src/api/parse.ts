@@ -23,6 +23,14 @@ export type ParsedAction =
   | { kind: 'invite'; target: string; place: string; content: string }
   | { kind: 'follow'; target: string }
   | { kind: 'find'; target: string }
+  | { kind: 'attack'; target: string }
+  | { kind: 'heal'; target: string }
+  | { kind: 'found_group'; group: string }
+  | { kind: 'join'; group: string }
+  | { kind: 'leave'; group: string }
+  | { kind: 'expel'; target: string }
+  | { kind: 'call_vote'; question: string }
+  | { kind: 'vote'; option: string }
   | { kind: 'custom'; content: string };
 
 const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
@@ -51,6 +59,16 @@ const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ParsedAction]> = [
   ],
   [/^follows (.+)$/s, (m) => ({ kind: 'follow', target: m[1].trim() })],
   [/^looks for (.+)$/s, (m) => ({ kind: 'find', target: m[1].trim() })],
+  [/^attacks (.+)$/s, (m) => ({ kind: 'attack', target: m[1].trim() })],
+  [/^heals themself$/, () => ({ kind: 'heal', target: '' })],
+  [/^heals (.+)$/s, (m) => ({ kind: 'heal', target: m[1].trim() })],
+  [/^founds the group "(.*)"$/s, (m) => ({ kind: 'found_group', group: m[1] })],
+  [/^joins (.+)$/s, (m) => ({ kind: 'join', group: m[1].trim() })],
+  [/^leaves their group$/, () => ({ kind: 'leave', group: '' })],
+  [/^leaves (?!\d)(.+)$/s, (m) => ({ kind: 'leave', group: m[1].trim() })],
+  [/^expels (.+)$/s, (m) => ({ kind: 'expel', target: m[1].trim() })],
+  [/^calls a vote: "(.*)"$/s, (m) => ({ kind: 'call_vote', question: m[1] })],
+  [/^votes "(.*)"$/s, (m) => ({ kind: 'vote', option: m[1] })],
   [/^waits$/, () => ({ kind: 'wait' })],
 ];
 

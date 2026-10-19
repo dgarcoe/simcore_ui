@@ -31,6 +31,9 @@ const ICON: Partial<Record<EventType, string>> = {
   belief_shared: '❝',
   speech_ignored: '🙉',
   agent_search: '🔎',
+  faction_change: '⚑',
+  vote_called: '🗳',
+  vote_result: '🗳',
 };
 
 const ITEM_ACTIONS = new Set(['give', 'take', 'drop', 'use', 'offer', 'accept', 'decline']);
@@ -38,6 +41,7 @@ const ITEM_ACTIONS = new Set(['give', 'take', 'drop', 'use', 'offer', 'accept', 
 const FILTERS: Array<[string, EventType[] | 'items' | null]> = [
   ['Todo', null],
   ['Diálogo', ['agent_speak', 'interaction', 'agent_post', 'belief_shared', 'speech_ignored', 'agent_search']],
+  ['Sociedad', ['faction_change', 'vote_called', 'vote_result']],
   ['Movimiento', ['agent_move']],
   ['Mundo', ['scheduled_event', 'injected_event', 'environment_change', 'agent_spawn', 'agent_death', 'agent_depart', 'condition_change', 'place_change', 'rule_fired', 'simulation_start', 'simulation_end']],
   ['Reflexión', ['reflection', 'agent_plan']],

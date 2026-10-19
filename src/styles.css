@@ -1345,3 +1345,22 @@ details summary {
 .story > * {
   flex-shrink: 0;
 }
+.social p {
+  margin: 2px 0;
+}
+.faction-flag {
+  display: inline-block;
+  width: 8px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: middle;
+  clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%);
+}
+/* The editor has many tabs: let them wrap instead of running under the preview. */
+.editor-form .tabs {
+  flex-wrap: wrap;
+}
+.editor-form .tab {
+  flex: 1 0 auto;
+  min-width: 25%;
+}

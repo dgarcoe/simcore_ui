@@ -44,7 +44,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote';
   text: string;
   location: string;
 }
@@ -348,6 +348,23 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     }
     case 'story_moment':
       return next; // already a moment (computed above) and its event has its own feed line
+    case 'faction_change': {
+      const text = factionText(e.data as unknown as FactionData);
+      return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) };
+    }
+    case 'vote_called':
+      return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, `convoca una votación en ${String(e.data.place ?? '')}: «${String(e.data.question ?? '')}» (${((e.data.options ?? []) as string[]).join(' / ')})`)) };
+    case 'vote_result': {
+      const counts = (e.data.counts ?? {}) as Record<string, number>;
+      const tally = Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · ');
+      const verdict = e.data.winner ? `gana «${String(e.data.winner)}»` : 'sin decisión';
+      const text = `Votación «${String(e.data.question ?? '')}»: ${verdict} (${tally})`;
+      return {
+        ...next,
+        feed: pushFeed(next.feed, feedItem(seq, e, `🗳 ${text}`)),
+        banner: { id: seq, tick: e.tick, kind: 'vote', text, location: String(e.data.place ?? '') },
+      };
+    }
     case 'agent_search': {
       const text = searchText(e.data as SearchData);
       return text ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) } : next;
@@ -603,5 +620,35 @@ export function searchText(d: SearchData): string | null {
       return `ya no puede encontrar a ${d.target}`;
     default:
       return null;
+  }
+}
+
+interface FactionData {
+  faction: string;
+  change: 'founded' | 'joined' | 'left' | 'expelled' | 'leader' | 'dissolved' | 'rival';
+  agent: string;
+  other?: string;
+  goal?: string;
+}
+
+/** Feed line for a change in a group. */
+export function factionText(d: FactionData): string {
+  switch (d.change) {
+    case 'founded':
+      return `funda el grupo «${d.faction}»${d.goal ? ` (${d.goal})` : ''}${d.other ? ` e invita a ${d.other}` : ''}`;
+    case 'joined':
+      return `se une a «${d.faction}»`;
+    case 'left':
+      return `deja «${d.faction}»`;
+    case 'expelled':
+      return `es expulsado de «${d.faction}»`;
+    case 'leader':
+      return `pasa a liderar «${d.faction}»`;
+    case 'dissolved':
+      return `el grupo «${d.faction}» se disuelve`;
+    case 'rival':
+      return `«${d.faction}» y «${d.other}» pasan a ser rivales`;
+    default:
+      return `${d.faction}: ${d.change}`;
   }
 }

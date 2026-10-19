@@ -85,7 +85,18 @@ export function scoreEvent(e: SimEvent): Moment | null {
       return d.cause ? m(0.5, str(d.cause), [], str(d.location)) : null;
     case 'speech_ignored':
       return m(0.3, `${e.source} ignora a ${str(d.agent)}`, [e.source, str(d.agent)]);
+    case 'vote_result':
+      return m(0.7, `Votación «${str(d.question)}»: ${d.winner ? `gana ${str(d.winner)}` : 'sin decisión'}`, [], str(d.place));
+    case 'faction_change':
+      if (d.change === 'founded') return m(0.6, `${str(d.agent)} funda el grupo «${str(d.faction)}»`, [str(d.agent)]);
+      if (d.change === 'leader') return m(0.6, `${str(d.agent)} pasa a liderar «${str(d.faction)}»`, [str(d.agent)]);
+      if (d.change === 'dissolved') return m(0.5, `El grupo «${str(d.faction)}» se disuelve`, []);
+      if (d.change === 'rival') return m(0.5, `«${str(d.faction)}» y «${str(d.other)}» se enfrentan`, [str(d.agent)]);
+      if (d.change === 'expelled') return m(0.5, `${str(d.agent)} es expulsado de «${str(d.faction)}»`, [str(d.agent)]);
+      return null;
     case 'agent_action':
+      if (d.action_type === 'attack' && d.hit && !d.killed) return m(0.5, `${e.source} ataca a ${str(d.target)}`, [e.source, str(d.target)]);
+      if (d.action_type === 'heal' && d.target) return m(0.4, `${e.source} cura a ${str(d.target)}`, [e.source, str(d.target)]);
       if (d.action_type === 'custom' && d.name && d.success !== false)
         return m(d.target ? 0.5 : 0.35, `${e.source} ${str(d.action)}`, [e.source, str(d.target)]);
       return null;

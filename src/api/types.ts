@@ -35,7 +35,10 @@ export type EventType =
   | 'speech_ignored'
   | 'agent_search'
   | 'story_moment'
-  | 'story_chapter';
+  | 'story_chapter'
+  | 'faction_change'
+  | 'vote_called'
+  | 'vote_result';
 
 export interface Belief {
   text: string;
@@ -133,6 +136,12 @@ export interface Agent {
   memory_summary: string;
   /** A condition changed who this agent is (it still thinks with the LLM). */
   mind?: { condition: string; identity: string; goals: string[]; speech: boolean; memories: boolean };
+  /** Group it belongs to, public reputation -1..1, how it feels and the favors it owes. */
+  faction?: string;
+  reputation?: number;
+  emotion?: string;
+  emotion_toward?: string;
+  owes?: Array<{ to: string; what: string }>;
   /** Who it is looking for, the clues it has and where it already looked. */
   search?: { target: string; why: string; found: boolean; checked: string[]; clues: SearchClue[] };
 }
@@ -182,6 +191,8 @@ export interface SimState {
   actions?: Record<string, { description?: string; target?: 'agent' | 'none' }>;
   needs?: Record<string, { label?: string }>;
   pending_arrivals?: string[];
+  /** Groups and open votes (Simcore with a society). */
+  society?: SocietyState;
 }
 
 export interface ScenarioMeta {
@@ -208,4 +219,9 @@ export interface SearchClue {
   by: string;
   place: string;
   ago: number;
+}
+
+export interface SocietyState {
+  factions: Record<string, { goal: string; leader: string; members: string[]; rivals: string[]; color: string }>;
+  votes: Array<{ question: string; options: string[]; place: string; until: number; votes: number }>;
 }

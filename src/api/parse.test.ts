@@ -28,6 +28,13 @@ describe('parseAction', () => {
     expect(parseAction('invites Bob to somewhere quiet')).toEqual({ kind: 'invite', target: 'Bob', place: 'somewhere quiet', content: '' });
     expect(parseAction('follows Bob')).toEqual({ kind: 'follow', target: 'Bob' });
     expect(parseAction('looks for Padre Julián')).toEqual({ kind: 'find', target: 'Padre Julián' });
+    expect(parseAction('attacks Bob')).toEqual({ kind: 'attack', target: 'Bob' });
+    expect(parseAction('heals themself')).toEqual({ kind: 'heal', target: '' });
+    expect(parseAction('founds the group "Los del molino"')).toEqual({ kind: 'found_group', group: 'Los del molino' });
+    expect(parseAction('leaves 2 food here')).toMatchObject({ kind: 'drop' });
+    expect(parseAction('leaves Guardia')).toEqual({ kind: 'leave', group: 'Guardia' });
+    expect(parseAction('calls a vote: "¿Cerramos?"')).toEqual({ kind: 'call_vote', question: '¿Cerramos?' });
+    expect(parseAction('votes "sí"')).toEqual({ kind: 'vote', option: 'sí' });
   });
 
   it('handles null', () => {

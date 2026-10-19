@@ -150,6 +150,13 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                       {places.map((p) => <option key={p}>{p}</option>)}
                     </select>
                   </label>
+                  <label title="Grupo en el que empieza (los grupos se definen en la pestaña Sociedad; si no existe, se crea)">
+                    Grupo
+                    <input className="input" list="faction-names" value={a.faction ?? ''} placeholder="(ninguno)" onChange={(e) => set((x) => void (e.target.value.trim() ? (x.faction = e.target.value) : delete x.faction))} />
+                    <datalist id="faction-names">
+                      {Object.keys(draft.factions ?? {}).map((f) => <option key={f} value={f} />)}
+                    </datalist>
+                  </label>
                 </div>
                 <fieldset className="traits">
                   <legend>Personalidad (OCEAN)</legend>

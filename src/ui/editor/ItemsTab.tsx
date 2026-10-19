@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { itemsUsed, type ItemConfig } from '../../api/scenario';
 import { ChipPicker } from './ChipPicker';
+import { prune } from './RulesWidgets';
 import { useDraft } from './draft';
 
 const EFFECTS: Array<['health' | 'energy' | 'mood', string]> = [
@@ -76,6 +77,36 @@ export function ItemsTab() {
               />
             </span>
           )}
+          <div className="fx-row">
+            <span className="fx-label">Arma</span>
+            <div className="fx-items">
+              <label className="toggle">
+                <input type="checkbox" checked={!!it.weapon} onChange={(e) => setItem(key, (x) => void (e.target.checked ? (x.weapon = { damage: 0.4, chance: 0.7 }) : delete x.weapon))} />
+                Sirve para atacar
+              </label>
+              {it.weapon && (
+                <>
+                  <span className="row">
+                    <span className="trait-label">Daño</span>
+                    <input type="range" min={0.05} max={1} step={0.05} value={it.weapon.damage ?? 0.4} onChange={(e) => setItem(key, (x) => void (x.weapon = { ...x.weapon, damage: Number(e.target.value) }))} />
+                    <span className="dim">{(it.weapon.damage ?? 0.4).toFixed(2)}</span>
+                  </span>
+                  <span className="row">
+                    <span className="trait-label">Acierto</span>
+                    <input type="range" min={0.05} max={1} step={0.05} value={it.weapon.chance ?? 0.7} onChange={(e) => setItem(key, (x) => void (x.weapon = { ...x.weapon, chance: Number(e.target.value) }))} />
+                    <span className="dim">{Math.round((it.weapon.chance ?? 0.7) * 100)}%</span>
+                  </span>
+                  <label className="row">
+                    <span className="trait-label">Munición</span>
+                    <select className="select" value={it.weapon.ammo ?? ''} onChange={(e) => setItem(key, (x) => void (x.weapon = prune({ ...x.weapon, ammo: e.target.value })))}>
+                      <option value="">(no gasta nada)</option>
+                      {Object.keys(catalog).filter((k) => k !== key).map((k) => <option key={k}>{k}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          </div>
           <div className="fx-row">
             <span className="fx-label">Al usarlo</span>
             <div className="fx-items">

@@ -1,4 +1,4 @@
-import type { Agent } from '../api/types';
+import type { Agent, SocietyState } from '../api/types';
 import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
@@ -96,6 +96,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               {agent.mind.goals.length > 0 && <p className="small dim">Metas: {agent.mind.goals.join(' · ')}</p>}
             </div>
           )}
+          {isAlive(agent) && <Social agent={agent} society={sim?.society} />}
           {agent.search && isAlive(agent) && (
             <div className="mind-shift">
               <p>
@@ -176,5 +177,54 @@ function FragmentRow({ label, value }: { label: string; value: number }) {
       <dt>{label}</dt>
       <dd><Meter value={value} color="#41a6f6" /></dd>
     </>
+  );
+}
+
+const FEELING: Record<string, string> = {
+  angry: '😠 furioso',
+  afraid: '😨 asustado',
+  sad: '😢 apenado',
+  desperate: '😩 desesperado',
+  happy: '😊 contento',
+  relieved: '😌 aliviado',
+  frustrated: '😤 frustrado',
+  hopeful: '🙂 esperanzado',
+  calm: '😐 tranquilo',
+};
+
+export function reputationLabel(value: number): string {
+  if (value >= 0.5) return 'respetado';
+  if (value >= 0.15) return 'bien considerado';
+  if (value <= -0.5) return 'temido y odiado';
+  if (value <= -0.15) return 'despierta desconfianza';
+  return '';
+}
+
+/** Group, public reputation, how the agent feels and the favors it owes. */
+function Social({ agent, society }: { agent: Agent; society?: SocietyState }) {
+  const group = agent.faction ? society?.factions?.[agent.faction] : undefined;
+  const fame = reputationLabel(agent.reputation ?? 0);
+  const feeling = agent.emotion && agent.emotion !== 'calm' ? FEELING[agent.emotion] ?? agent.emotion : '';
+  if (!agent.faction && !fame && !feeling && !agent.owes?.length) return null;
+  return (
+    <div className="social small">
+      {agent.faction && (
+        <p>
+          <span className="faction-flag" style={{ background: group?.color || 'var(--accent)' }} />
+          <strong>{agent.faction}</strong>
+          {group?.leader === agent.name ? ' · líder' : group?.leader ? ` · líder: ${group.leader}` : ''}
+          {group?.goal && <span className="dim"> · {group.goal}</span>}
+          {group?.rivals?.length ? <span className="bad-text"> · rivales: {group.rivals.join(', ')}</span> : null}
+        </p>
+      )}
+      {(fame || feeling) && (
+        <p>
+          {feeling && <span>{feeling}{agent.emotion_toward ? ` con ${agent.emotion_toward}` : ''}</span>}
+          {feeling && fame && ' · '}
+          {fame && <span className="dim">En el pueblo: {fame}</span>}
+        </p>
+      )}
+      {agent.owes?.length ? <p className="dim">Debe favores a: {agent.owes.map((o) => `${o.to} (${o.what})`).join(' · ')}</p> : null}
+    </div>
   );
 }

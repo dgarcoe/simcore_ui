@@ -14,11 +14,12 @@ import { ActionsTab } from './ActionsTab';
 import { ConditionsTab } from './ConditionsTab';
 import { ItemsTab } from './ItemsTab';
 import { WorldTab } from './WorldTab';
+import { SocietyTab } from './SocietyTab';
 import { LocationsTab } from './LocationsTab';
 import { MapPreview } from './MapPreview';
 import { useDemoPref } from '../demoPref';
 
-type Tab = 'general' | 'places' | 'agents' | 'items' | 'conditions' | 'actions' | 'world' | 'events';
+type Tab = 'general' | 'places' | 'agents' | 'items' | 'conditions' | 'actions' | 'world' | 'society' | 'events';
 
 export function ScenarioEditor() {
   const [draft, update] = useDraft();
@@ -111,6 +112,7 @@ export function ScenarioEditor() {
     ['conditions', `Estados ${Object.keys(draft.conditions ?? {}).length}`],
     ['actions', `Acciones ${Object.keys(draft.actions ?? {}).length}`],
     ['world', `Mundo ${Object.keys(draft.needs ?? {}).length + (draft.rules?.length ?? 0)}`],
+    ['society', `Sociedad ${Object.keys(draft.factions ?? {}).length + Object.keys(draft.votes ?? {}).length}`],
     ['events', `Sucesos ${draft.events?.scheduled?.length ?? 0}`],
   ];
 
@@ -176,6 +178,7 @@ export function ScenarioEditor() {
             {tab === 'conditions' && <ConditionsTab />}
             {tab === 'actions' && <ActionsTab />}
             {tab === 'world' && <WorldTab />}
+            {tab === 'society' && <SocietyTab />}
             {tab === 'events' && <EventsTab />}
           </div>
         </section>

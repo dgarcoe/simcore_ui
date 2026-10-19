@@ -35,6 +35,8 @@ export interface AgentConfig {
   beliefs?: Array<string | { text: string; true?: boolean | null }>;
   /** True things it keeps to itself. */
   secrets?: string[];
+  /** Group it starts in (created if it isn't in `factions`). */
+  faction?: string;
 }
 
 export interface LocationConfig {
@@ -105,7 +107,43 @@ export interface ItemConfig {
   on_use?: Partial<Record<'health' | 'energy' | 'mood', number>>;
   /** Conditions removed from whoever it's used on. */
   cures?: string[];
+  /** Makes "attack" stronger. */
+  weapon?: { damage?: number; chance?: number; ammo?: string };
 }
+
+/** A group agents start in; others can be founded during the run. */
+export interface FactionConfig {
+  goal?: string;
+  leader?: string;
+  members?: string[];
+  rivals?: string[];
+  color?: string;
+}
+
+/** A matter that can be put to the vote, with the effects of each outcome. */
+export interface VoteConfig {
+  question: string;
+  options?: Record<string, Record<string, unknown>>;
+  duration?: number;
+  from?: number;
+  once?: boolean;
+}
+
+export interface SocietyConfig {
+  spontaneous_groups?: boolean;
+  healers?: string[];
+  heal_removes?: string[];
+}
+
+export type DayPhase = 'night' | 'morning' | 'day' | 'evening';
+export const DAY_PHASES: Array<[DayPhase, string]> = [
+  ['night', 'Noche'],
+  ['morning', 'Mañana'],
+  ['day', 'Día'],
+  ['evening', 'Tarde'],
+];
+/** By agent name, profession (part of the word) or "*": time of day → action → places. */
+export type Routines = Record<string, Partial<Record<DayPhase, Record<string, string[]>>>>;
 
 export type Stat = 'health' | 'energy' | 'mood';
 export const STATS: Array<[Stat, string]> = [
@@ -175,7 +213,7 @@ export interface ActionConfig {
   fail_message?: string;
 }
 
-export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline', 'whisper', 'invite', 'follow'];
+export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline', 'whisper', 'invite', 'follow', 'find', 'attack', 'heal', 'found_group', 'join', 'leave', 'expel', 'call_vote', 'vote'];
 
 export interface ScheduledEventConfig {
   tick: number;
@@ -215,6 +253,10 @@ export interface ScenarioConfig {
   actions?: Record<string, ActionConfig>;
   needs?: Record<string, NeedConfig>;
   rules?: RuleConfig[];
+  factions?: Record<string, FactionConfig>;
+  votes?: Record<string, VoteConfig>;
+  society?: SocietyConfig;
+  routines?: Routines;
 }
 
 export const LOCATION_TYPES = [
@@ -580,6 +622,15 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
   };
   cfg.agents.forEach((a, i) => need(a.conditions, a.name || `El agente #${i + 1}`, `agents.${i}`));
   Object.entries(cfg.items ?? {}).forEach(([k, it]) => need(it.cures, `El objeto ${k}`, `items.${k}`));
+  const names = new Set(cfg.agents.map((a) => a.name));
+  for (const [k, f] of Object.entries(cfg.factions ?? {})) {
+    for (const m of f.members ?? []) if (!names.has(m)) issues.push({ path: `factions.${k}`, message: `El grupo ${k} tiene un miembro que no existe: «${m}».` });
+    if (f.leader && !names.has(f.leader)) issues.push({ path: `factions.${k}`, message: `El líder de ${k} («${f.leader}») no existe.` });
+  }
+  for (const [who, phases] of Object.entries(cfg.routines ?? {}))
+    for (const todo of Object.values(phases ?? {}))
+      for (const places of Object.values(todo ?? {}))
+        for (const p of places) if (!cfg.environment.locations.some((l) => l.name === p)) issues.push({ path: `routines.${who}`, message: `La rutina de ${who} va a «${p}», que no existe.` });
   for (const [k, c] of Object.entries(conds)) {
     const t = c.rules?.targets;
     for (const list of [t?.conditions, t?.any_conditions, t?.not_conditions]) need(list, `El estado ${k}`, `conditions.${k}`);
@@ -611,6 +662,10 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     );
   };
   (cfg.events?.scheduled ?? []).forEach((e, i) => effectIssues(e.effects, `El suceso #${i + 1}`, `events.${i}`));
+  for (const [k, v] of Object.entries(cfg.votes ?? {})) {
+    if (!v.question?.trim()) issues.push({ path: `votes.${k}`, message: `La votación ${k} no tiene pregunta.` });
+    for (const [opt, fx] of Object.entries(v.options ?? {})) effectIssues(fx, `La opción «${opt}» de ${k}`, `votes.${k}`);
+  }
   (cfg.rules ?? []).forEach((r, i) => {
     const where = `La regla #${i + 1}`;
     effectIssues(r.then, where, `rules.${i}`);

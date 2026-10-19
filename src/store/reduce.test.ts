@@ -82,6 +82,16 @@ describe('reduce', () => {
     ]);
   });
 
+  it('tells group changes and vote results', () => {
+    const s = run([
+      ev('faction_change', 1, { faction: 'Molino', change: 'founded', agent: 'Ann', other: 'Bob', goal: 'salir' }, 'Ann'),
+      ev('vote_result', 1, { question: '¿Cerramos?', winner: 'sí', counts: { sí: 2, no: 1 }, place: 'Plaza' }),
+    ]);
+    expect(s.feed.map((f) => f.text)).toEqual(['funda el grupo «Molino» (salir) e invita a Bob', '🗳 Votación «¿Cerramos?»: gana «sí» (sí 2 · no 1)']);
+    expect(s.banner).toMatchObject({ kind: 'vote', location: 'Plaza' });
+    expect(s.moments.map((m) => m.text)).toEqual(['Ann funda el grupo «Molino»', 'Votación «¿Cerramos?»: gana sí']);
+  });
+
   it('notes in the feed when someone ignores a speaker', () => {
     const s = run([ev('speech_ignored', 3, { agent: 'Ann', by: 'Bob', text: 'help?', turns: 2 }, 'Bob')]);
     expect(s.feed.at(-1)?.text).toBe('no le contesta a Ann (2 turnos): «help?»');
