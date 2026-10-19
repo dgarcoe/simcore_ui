@@ -188,6 +188,8 @@ export interface ScenarioMeta {
 export interface ScenarioRecord {
   id: string;
   builtin: boolean;
+  /** A built-in scenario with saved edits (they can be dropped to restore the original). */
+  modified?: boolean;
   meta: ScenarioMeta;
   data: Record<string, any>;
 }

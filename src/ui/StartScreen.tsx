@@ -84,13 +84,27 @@ export function StartScreen() {
                   <li key={s.id}>
                     <div>
                       <strong>{s.meta.name}</strong>
+                      {s.modified && <span className="dim" title="Escenario incluido con cambios guardados"> (modificado)</span>}
                       <span className="dim"> · {s.meta.agents} agentes · {s.meta.duration} · </span>
                       <ModelTag model={s.meta.llm_model} demo={demo} />
                       <p className="dim">{s.meta.description}</p>
                     </div>
                     <span className="row nowrap">
                       <button className="btn" disabled={busy} onClick={() => run(s.id)}>Ejecutar</button>
-                      <button className="btn" title={s.builtin ? 'Editar una copia' : 'Editar'} onClick={() => openEditor(s)}>✎</button>
+                      <button className="btn" title="Editar" onClick={() => openEditor(s)}>✎</button>
+                      {s.builtin && s.modified && (
+                        <button
+                          className="btn"
+                          title="Restaurar el original (descarta los cambios guardados)"
+                          onClick={async () => {
+                            if (!confirm(`¿Descartar los cambios de «${s.meta.name}» y volver al original?`)) return;
+                            await api.deleteScenario(s.id);
+                            setScenarios(await api.listScenarios());
+                          }}
+                        >
+                          ↺
+                        </button>
+                      )}
                       {!s.builtin && (
                         <button
                           className="btn"

@@ -42,18 +42,18 @@ export function ScenarioEditor() {
     [draft],
   );
 
-  // Built-in scenarios are read-only in Simcore: saving one creates a copy.
-  const willCopy = editing.builtin;
-
-  const save = async (): Promise<string | null> => {
+  // Saving overwrites the scenario being edited (built-in ones too: Simcore keeps the edits
+  // apart and can restore the original). "Guardar copia" creates a new one.
+  const save = async (asCopy = false): Promise<string | null> => {
     setBusy(true);
     setStatus(null);
     try {
       const payload = cleanScenario(draft);
-      if (willCopy && !/\(copia\)$/.test(payload.simulation.name)) payload.simulation.name += ' (copia)';
-      const rec = await api.saveScenario(payload, willCopy ? null : editing.id);
-      useSim.getState().set({ editing: { id: rec.id, builtin: false, draft: normalize(rec.data ?? payload) } });
-      setStatus({ kind: 'ok', text: `Guardado como «${payload.simulation.name}».` });
+      if (asCopy && !/\(copia\)$/.test(payload.simulation.name)) payload.simulation.name += ' (copia)';
+      const id = asCopy ? null : editing.id;
+      const rec = await api.saveScenario(payload, id);
+      useSim.getState().set({ editing: { id: rec.id, builtin: rec.builtin, draft: normalize(rec.data ?? payload) } });
+      setStatus({ kind: 'ok', text: asCopy || !id ? `Guardado como «${payload.simulation.name}».` : `Cambios guardados en «${payload.simulation.name}».` });
       return rec.id;
     } catch (e) {
       setStatus({ kind: 'error', text: `No se pudo guardar: ${(e as Error).message}. ¿Está Simcore en marcha?` });
@@ -113,16 +113,21 @@ export function ScenarioEditor() {
         <div className="scenario">
           <div className="scenario-name">{draft.simulation.name || 'Nuevo escenario'}</div>
           <div className="clock">
-            {editing.id ? (editing.builtin ? 'Escenario incluido · se guardará una copia' : `Escenario ${editing.id}`) : 'Sin guardar'}
+            {editing.id ? (editing.builtin ? 'Escenario incluido · los cambios se guardan sobre él' : `Escenario ${editing.id}`) : 'Sin guardar'}
           </div>
         </div>
         <div className="controls">
           <input ref={fileRef} type="file" accept=".yaml,.yml" hidden onChange={(e) => e.target.files?.[0] && importYaml(e.target.files[0])} />
           <button className="btn" onClick={() => fileRef.current?.click()}>Importar YAML</button>
           <button className="btn" onClick={exportYaml}>Exportar YAML</button>
-          <button className="btn" disabled={busy || issues.length > 0} onClick={save}>
-            {willCopy ? 'Guardar copia' : 'Guardar'}
+          <button className="btn" disabled={busy || issues.length > 0} onClick={() => save()}>
+            Guardar
           </button>
+          {editing.id && (
+            <button className="btn" disabled={busy || issues.length > 0} title="Guardar como un escenario nuevo" onClick={() => save(true)}>
+              Guardar copia
+            </button>
+          )}
           <label className="toggle">
             <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo (sin LLM)
           </label>
