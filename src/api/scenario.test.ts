@@ -299,4 +299,13 @@ describe('advanced example', () => {
     expect(cfg.simulation.planning).toBe(true);
     expect(cfg.agents.some((a) => a.arrives_at) && cfg.agents.some((a) => a.secrets?.length) && cfg.agents.some((a) => a.relationships)).toBe(true);
   });
+
+  it('El asedio de San Lorenzo validates cleanly and lasts five days', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/zombie-siege/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
+    expect(scenarioWarnings(cfg)).toEqual([]);
+    expect(cfg.simulation.duration).toBe('120 hours');
+    expect(cfg.rules?.filter((r) => (r.then as { end?: string })?.end)).toHaveLength(3);
+  });
 });

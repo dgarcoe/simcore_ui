@@ -1,0 +1,451 @@
+# Long advanced example for simcore_ui's 'town' theme (5 days, 120 ticks). Uses every feature
+# of dgarcoe/simcore (main):
+#   life cycle (arrivals, deaths, hordes spawned by rules), items (stock, production, a supply
+#   drop), conditions (infected → zombie, wounded, panic, exhausted) with rule-controlled zombies,
+#   scenario actions (bite, shoot, barricade, treat, repair the radio, research a cure, burn the
+#   bodies), needs (hunger, sleep), world rules (day/night cycle, hordes every night, a fire,
+#   the radio, the cure, four endings), places with state (a barricaded church, a restricted
+#   barracks, a cemetery that is deadly at night), daily plans, beliefs, secrets, rumors and
+#   typed relationships, plus situational awareness and private talk.
+simulation:
+  name: El asedio de San Lorenzo
+  description: San Lorenzo lleva tres días aislado por la nieve cuando los muertos empiezan a levantarse del
+    cementerio. Cada noche llegan más. La radio de la torre está rota, la médica cree que puede fabricar una
+    cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
+  time_step: 1 hour
+  duration: 120 hours
+  seed: 5
+  language: es
+  planning: true
+  plan_every: 12
+  awareness: local
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.8
+
+needs:
+  hambre:
+    label: hambre
+    grows: 0.025
+    relief: 0.6
+    satisfied_by: {items: [comida]}
+    at_max: {health: -0.03, mood: -0.05}
+    who: {not_conditions: [zombi]}
+  sueno:
+    label: sueño
+    grows: 0.025
+    relief: 0.5
+    satisfied_by: {places: [Pensión, Iglesia]}
+    at_max: {energy: -0.1, mood: -0.05}
+    who: {not_conditions: [zombi]}
+
+conditions:
+  infectado:
+    description: tienes fiebre, frío por dentro y una mordedura que se pone negra
+    appearance: pálido, con una mordedura vendada
+    per_tick: {energy: -0.04, health: -0.02}
+    duration: 12
+    becomes: zombi
+    contagion: {chance: 0.05, via: interaction}
+    color: "#d9a066"
+  zombi:
+    description: ya no eres tú
+    appearance: un cuerpo que camina y gruñe
+    controller: rules
+    rules: {action: morder, seek: false, wander: 0.5}
+    color: "#7bc950"
+  herido:
+    description: tienes una herida abierta que no deja de sangrar
+    appearance: sangra
+    per_tick: {health: -0.02}
+    color: "#b13e53"
+  en_panico:
+    description: el miedo te impide pensar con claridad
+    appearance: aterrado
+    per_tick: {mood: -0.1}
+    duration: 3
+    color: "#ef7d57"
+  de_dia:
+    description: es de día; los muertos están aletargados y apenas se mueven, es el momento de salir
+    color: "#ffcd75"
+  agotado:
+    description: llevas demasiadas horas sin parar; te cuesta mantenerte en pie
+    appearance: ojeroso, arrastra los pies
+    per_tick: {energy: -0.05}
+    duration: 6
+    color: "#94a3b8"
+
+actions:
+  morder:
+    description: morder
+    who: {conditions: [zombi], not_conditions: [de_dia]}
+    target_requires: {not_conditions: [zombi]}
+    chance: 0.2
+    on_target: {health: -0.15, add_conditions: [infectado, herido, en_panico]}
+    message: muerde a {target}
+    fail_message: intenta morder a {target}, que se escapa
+  golpear:
+    description: golpear a un zombi con lo que tengas a mano (una pala, una barra, una silla)
+    who: {not_conditions: [zombi]}
+    target_requires: {conditions: [zombi]}
+    chance: 0.5
+    on_target: {health: -0.4}
+    on_self: {energy: -0.15}
+    message: golpea a {target} con todas sus fuerzas
+    fail_message: intenta golpear a {target}, pero falla el golpe
+  disparar:
+    description: disparar a un zombi que esté aquí
+    who: {items: {escopeta: 1}, not_conditions: [zombi]}
+    target_requires: {conditions: [zombi]}
+    cost: {cartuchos: 1}
+    chance: 0.65
+    on_target: {health: -1.0}
+    message: dispara a {target}
+    fail_message: dispara a {target} y falla
+  atrancar:
+    description: atrancar las puertas de la iglesia para pasar la noche (cierra la iglesia hasta el amanecer)
+    target: none
+    who: {not_conditions: [zombi]}
+    cost: {tablones: 2}
+    on_self: {energy: -0.2, mood: 0.1}
+    world: {barricadas: true}
+    message: atranca las puertas de la iglesia
+  curar:
+    description: limpiar y coser una herida
+    who: {professions: [médic, enfermer, veterinari], not_conditions: [zombi]}
+    target_requires: {conditions: [herido]}
+    on_target: {health: 0.25, remove_conditions: [herido, en_panico]}
+    message: cose la herida de {target}
+  reparar_radio:
+    description: reparar la radio de la torre con piezas (hace falta saber de electricidad)
+    target: none
+    who: {professions: [electricist, guardia, radioaficionad], items: {piezas_radio: 1}, not_conditions: [zombi]}
+    cost: {piezas_radio: 1}
+    chance: 0.4
+    on_self: {energy: -0.2}
+    world: {radio: reparada}
+    message: consigue que la radio de la torre vuelva a sonar
+    fail_message: trastea con la radio, pero solo sale ruido
+  investigar_cura:
+    description: analizar una muestra de sangre infectada para fabricar un antídoto (en el hospital)
+    target: none
+    who: {professions: [médic], items: {muestra: 1}, not_conditions: [zombi]}
+    cost: {muestra: 1}
+    chance: 0.5
+    on_self: {energy: -0.25}
+    world: {cura: lista}
+    message: da con la fórmula de un antídoto
+    fail_message: pasa horas con el microscopio sin sacar nada en claro
+  tomar_muestra:
+    description: sacar sangre a alguien infectado para estudiarla
+    who: {professions: [médic, enfermer, veterinari], not_conditions: [zombi]}
+    target_requires: {conditions: [infectado]}
+    on_self: {items: {muestra: 1}}
+    message: saca una muestra de sangre a {target}
+  quemar_cuerpos:
+    description: quemar los restos en el cementerio para que no vuelvan a levantarse
+    target: none
+    who: {items: {gasolina: 1}, not_conditions: [zombi]}
+    cost: {gasolina: 1}
+    on_self: {mood: -0.1}
+    world: {cuerpos_quemados: true}
+    message: rocía de gasolina las fosas y les prende fuego
+
+items:
+  comida: {description: comida en conserva, on_use: {energy: 0.3, mood: 0.05}}
+  medicina: {description: botiquín, on_use: {health: 0.35}, cures: [herido]}
+  calmante: {description: calmantes, on_use: {mood: 0.2}, cures: [en_panico]}
+  antidoto: {description: antídoto experimental, cures: [infectado]}
+  cartuchos: {description: cartuchos de escopeta}
+  escopeta: {description: escopeta, consumable: false}
+  tablones: {description: tablones y clavos}
+  piezas_radio: {description: válvulas y cables para la radio}
+  gasolina: {description: bidón de gasolina}
+  muestra: {description: muestra de sangre infectada}
+  cafe: {description: café fuerte, on_use: {energy: 0.25}, cures: [agotado]}
+
+rules:
+  # ── Día y noche ──────────────────────────────────────────────────
+  - description: Anochece sobre San Lorenzo. Del cementerio llegan gemidos.
+    when: {at: 20}
+    then:
+      hora: noche
+      remove_condition: {all: [de_dia]}
+      locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
+      spawn: [{name: Muerto del cementerio, profession: difunto, starting_location: Cementerio, count: 2, conditions: [zombi]}]
+    once: true
+  - description: Anochece por segunda vez. Algo se mueve en la granja.
+    when: {at: 44}
+    then:
+      hora: noche
+      remove_condition: {all: [de_dia]}
+      locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
+      spawn: [{name: Jornalero, profession: difunto, starting_location: Granja, count: 3, conditions: [zombi]}]
+    once: true
+  - description: Tercera noche. La niebla baja y con ella más muertos.
+    when: {at: 68}
+    then:
+      hora: noche
+      remove_condition: {all: [de_dia]}
+      locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
+      spawn: [{name: Caminante, profession: difunto, starting_location: Cementerio, count: 3, conditions: [zombi]}]
+    once: true
+  - description: Cuarta noche. Una horda baja por la carretera hacia la plaza.
+    when: {at: 92}
+    then:
+      hora: noche
+      remove_condition: {all: [de_dia]}
+      locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
+      spawn: [{name: Forastero muerto, profession: difunto, starting_location: Plaza, count: 4, conditions: [zombi]}]
+    once: true
+  - description: Quinta y última noche.
+    when: {at: 116}
+    then: {hora: noche, remove_condition: {all: [de_dia]}}
+    once: true
+  - description: Amanece. Los muertos del cementerio vuelven a sus fosas y la iglesia abre sus puertas.
+    when: {at: 30}
+    then:
+      hora: día
+      add_condition: {all: de_dia}
+      locations: {Cementerio: {hazard: null}, Iglesia: {closed: false}}
+      depart: [Muerto del cementerio 1, Muerto del cementerio 2]
+    once: true
+  - description: Amanece el segundo día. Los jornaleros muertos se pierden en el monte.
+    when: {at: 54}
+    then:
+      hora: día
+      add_condition: {all: de_dia}
+      locations: {Cementerio: {hazard: null}, Iglesia: {closed: false}}
+      depart: [Jornalero 1, Jornalero 2, Jornalero 3]
+    once: true
+  - description: Amanece el tercer día. La niebla se levanta y los caminantes se van con ella.
+    when: {at: 78}
+    then:
+      hora: día
+      add_condition: {all: de_dia}
+      locations: {Cementerio: {hazard: null}, Iglesia: {closed: false}}
+      depart: [Caminante 1, Caminante 2, Caminante 3]
+    once: true
+  - description: Amanece el cuarto día. La horda sigue carretera abajo.
+    when: {at: 102}
+    then:
+      hora: día
+      add_condition: {all: de_dia}
+      locations: {Cementerio: {hazard: null}, Iglesia: {closed: false}}
+      depart: [Forastero muerto 1, Forastero muerto 2, Forastero muerto 3, Forastero muerto 4]
+    once: true
+
+  - description: Amanece el primer día sobre un pueblo aislado por la nieve.
+    when: {at: 1}
+    then: {add_condition: {all: de_dia}}
+    once: true
+
+  # ── Lo que hacen los supervivientes ──────────────────────────────
+  - description: Las puertas de la iglesia quedan atrancadas hasta el amanecer.
+    when: {global: {barricadas: {eq: true}}}
+    then: {barricadas: false, locations: {Iglesia: {closed: true}}}
+  - description: Con los cuerpos quemados, el cementerio deja de escupir muertos.
+    when: {global: {cuerpos_quemados: {eq: true}}}
+    then: {locations: {Cementerio: {hazard: null}}, rumor: {all: {text: Han quemado las fosas del cementerio, true: true}}}
+    once: true
+  - description: "La radio de la torre suena: el ejército mandará un helicóptero al amanecer del quinto día."
+    when: {global: {radio: {eq: reparada}}}
+    then:
+      rescate: confirmado
+      rumor: {all: {text: Un helicóptero vendrá a por nosotros al amanecer del quinto día, true: true}}
+    once: true
+  - description: La médica prepara tres dosis de antídoto en el hospital.
+    when: {global: {cura: {eq: lista}}}
+    then: {items: {"location:Hospital": {antidoto: 3}}}
+    once: true
+
+  # ── Sucesos ──────────────────────────────────────────────────────
+  - description: Un candil cae en el pajar y la granja arde.
+    when: {at: 60}
+    then: {locations: {Granja: {hazard: {label: en llamas, per_tick: {health: -0.2}, condition: en_panico}}}}
+    once: true
+  - description: La nieve apaga el fuego de la granja.
+    when: {at: 66}
+    then: {locations: {Granja: {hazard: null}}}
+    once: true
+  - description: Se va la luz en todo el pueblo.
+    when: {at: 22}
+    then: {luz: false}
+    once: true
+  - description: Hace días que nadie duerme bien.
+    when: {at: 50}
+    then: {add_condition: {all: agotado}}
+    once: true
+
+  # ── Finales ──────────────────────────────────────────────────────
+  - description: No queda nadie vivo. San Lorenzo ha caído.
+    when: {from: 1, count: {not_condition: zombi, lt: 1}}
+    then: {end: San Lorenzo ha caído. Los muertos recorren la plaza y ya nadie toca las campanas.}
+    once: true
+  - description: El helicóptero del ejército aterriza en la plaza.
+    when: {at: 104, global: {rescate: {eq: confirmado}}}
+    then: {end: Al amanecer del quinto día un helicóptero aterriza en la plaza y se lleva a los supervivientes.}
+    once: true
+  - description: La nieve se derrite y la columna del ejército entra en el pueblo.
+    when: {at: 119}
+    then: {end: Cinco días después, la columna del ejército entra en San Lorenzo. Quien siga en pie lo ha conseguido.}
+    once: true
+
+environment:
+  type: grid
+  size: [14, 14]
+  global_state:
+    ui_theme: town
+    hora: día
+    luz: true
+    barricadas: false
+    radio: rota
+    cura: sin investigar
+    rescate: ninguno
+    cuerpos_quemados: false
+  locations:
+    - {name: Plaza, type: public, position: [7, 7], capacity: 25}
+    - {name: Iglesia, type: religious, position: [7, 2], capacity: 15, stock: {comida: 4, tablones: 6, calmante: 2}}
+    - {name: Mercado, type: commercial, position: [11, 6], capacity: 12, stock: {comida: 20, cafe: 6, gasolina: 1}}
+    - {name: Hospital, type: healthcare, position: [11, 10], capacity: 8, stock: {medicina: 4, calmante: 3, antidoto: 1}}
+    - {name: Cuartel de la Guardia, type: military, position: [3, 6], capacity: 8, stock: {cartuchos: 10, piezas_radio: 1},
+       access: {professions: [guardia, alcald]}}
+    - {name: Torre de radio, type: engineering, position: [2, 2], capacity: 4, stock: {piezas_radio: 1}}
+    - {name: Pensión, type: residential, position: [11, 2], capacity: 12, stock: {comida: 3, cafe: 2}}
+    - {name: Granja, type: farm, position: [3, 11], capacity: 8, produces: {comida: 2}, stock: {gasolina: 1, tablones: 2}}
+    - {name: Cementerio, type: outdoor, position: [7, 12], capacity: 20}
+
+agents:
+  - name: Alcaldesa Pilar
+    age: 57
+    profession: alcaldesa
+    personality: {openness: 0.5, conscientiousness: 0.8, extraversion: 0.65, agreeableness: 0.45, neuroticism: 0.45}
+    goals: [Que el pueblo aguante unido hasta el rescate, Que nadie sepa lo del cementerio]
+    starting_location: Plaza
+    resources: {comida: 1}
+    relationships:
+      Sargento Ortega: {type: amigo, sentiment: 0.5}
+      Nico: {type: nieto, sentiment: 0.9}
+      Don Aurelio: {type: rival, sentiment: -0.4}
+    secrets: [Autoricé enterrar en el cementerio los cuerpos del accidente de la mina sin avisar a nadie]
+    backstory: Lleva veinte años de alcaldesa. Su nieto Nico vive con ella desde el invierno.
+  - name: Sargento Ortega
+    age: 49
+    profession: guardia civil
+    personality: {openness: 0.3, conscientiousness: 0.85, extraversion: 0.4, agreeableness: 0.45, neuroticism: 0.3}
+    goals: [Proteger a los civiles, Reparar la radio para pedir ayuda]
+    starting_location: Cuartel de la Guardia
+    resources: {escopeta: 1, cartuchos: 6, piezas_radio: 1}
+    relationships:
+      Alcaldesa Pilar: {type: amiga, sentiment: 0.5}
+      Lola: {type: pareja, sentiment: 0.8}
+    beliefs:
+      - {text: Los muertos solo se mueven de noche, true: false}
+  - name: Dra. Inés
+    age: 38
+    profession: médica
+    personality: {openness: 0.8, conscientiousness: 0.8, extraversion: 0.4, agreeableness: 0.75, neuroticism: 0.4}
+    goals: [Mantener viva a la gente, Fabricar un antídoto con sangre de un infectado]
+    starting_location: Hospital
+    resources: {medicina: 1}
+    relationships:
+      Marcos: {type: hermano, sentiment: 0.7}
+    beliefs:
+      - {text: La infección se contagia solo con la mordedura, true: false}
+  - name: Marcos
+    age: 42
+    profession: veterinario
+    personality: {openness: 0.6, conscientiousness: 0.6, extraversion: 0.5, agreeableness: 0.65, neuroticism: 0.5}
+    goals: [Ayudar a su hermana en el hospital, Proteger la granja]
+    starting_location: Granja
+    conditions: [infectado]
+    relationships:
+      Dra. Inés: {type: hermana, sentiment: 0.7}
+    secrets: [Una vaca muerta me mordió anoche en el establo y no se lo he dicho a nadie]
+    backstory: Atiende a los animales de toda la comarca.
+  - name: Lola
+    age: 45
+    profession: dueña de la pensión
+    personality: {openness: 0.6, conscientiousness: 0.55, extraversion: 0.8, agreeableness: 0.7, neuroticism: 0.4}
+    goals: [Dar cama y comida a quien lo necesite, Que Ortega no haga ninguna locura]
+    starting_location: Pensión
+    resources: {comida: 2, cafe: 1}
+    relationships:
+      Sargento Ortega: {type: pareja, sentiment: 0.8}
+  - name: Don Aurelio
+    age: 71
+    profession: tendero
+    personality: {openness: 0.25, conscientiousness: 0.7, extraversion: 0.35, agreeableness: 0.25, neuroticism: 0.55}
+    goals: [Que nadie le robe la comida del mercado, Sobrevivir a toda costa]
+    starting_location: Mercado
+    resources: {comida: 3, escopeta: 1, cartuchos: 2}
+    relationships:
+      Alcaldesa Pilar: {type: rival, sentiment: -0.4}
+    beliefs:
+      - {text: La alcaldesa sabe algo del cementerio y lo está ocultando, true: true}
+  - name: Padre Tomás
+    age: 64
+    profession: sacerdote
+    personality: {openness: 0.45, conscientiousness: 0.75, extraversion: 0.45, agreeableness: 0.85, neuroticism: 0.45}
+    goals: [Dar refugio en la iglesia por las noches, Que nadie pierda la fe]
+    starting_location: Iglesia
+    relationships:
+      Alcaldesa Pilar: {type: amiga, sentiment: 0.4}
+  - name: Nico
+    age: 16
+    profession: estudiante y radioaficionado
+    personality: {openness: 0.85, conscientiousness: 0.35, extraversion: 0.6, agreeableness: 0.6, neuroticism: 0.6}
+    goals: [Arreglar la radio de la torre, Que su abuela le cuente la verdad]
+    starting_location: Pensión
+    needs: {sueno: 0.4}
+    relationships:
+      Alcaldesa Pilar: {type: abuela, sentiment: 0.8}
+  - name: Sara
+    age: 29
+    profession: electricista
+    personality: {openness: 0.6, conscientiousness: 0.65, extraversion: 0.5, agreeableness: 0.55, neuroticism: 0.35}
+    goals: [Llegar al pueblo y encontrar a su hermano, Arreglar la luz y la radio]
+    starting_location: Plaza
+    arrives_at: 26
+    resources: {piezas_radio: 1, comida: 1}
+    relationships:
+      Marcos: {type: hermano, sentiment: 0.6}
+    backstory: Venía por la carretera de la sierra cuando la nieve la dejó tirada.
+  - name: Cabo Ruiz
+    age: 24
+    profession: soldado
+    personality: {openness: 0.4, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.4, neuroticism: 0.65}
+    goals: [Que nadie descubra que le han mordido, Llegar al helicóptero]
+    starting_location: Plaza
+    arrives_at: 50
+    conditions: [infectado]
+    resources: {escopeta: 1, cartuchos: 8}
+    secrets: [Mi patrulla entera cayó en la carretera y a mí me mordieron en el brazo]
+    beliefs:
+      - {text: El ejército ha cerrado la comarca y no deja salir a nadie, true: false}
+
+events:
+  scheduled:
+    - tick: 3
+      type: rumor
+      description: En el mercado se habla del cementerio.
+      effects:
+        rumor: {"location:Mercado": {text: Las tumbas del accidente de la mina están removidas, true: true}}
+    - tick: 26
+      type: arrival
+      description: Una electricista llega a pie por la carretera nevada.
+    - tick: 36
+      type: rumor
+      description: Corre un rumor por la pensión.
+      effects:
+        rumor: {"location:Pensión": {text: Don Aurelio esconde comida para él solo en el mercado, true: false}}
+    - tick: 50
+      type: arrival
+      description: Un soldado aparece solo en la plaza, sin su patrulla.
+    - tick: 72
+      type: supplies
+      description: Una avioneta deja caer un paquete de suministros en la plaza.
+      effects:
+        items: {"location:Plaza": {comida: 8, medicina: 3, cartuchos: 10, tablones: 4}}
