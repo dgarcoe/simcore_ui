@@ -107,6 +107,11 @@ export interface TickProgress {
 
 export interface SimSnapshot {
   sim: SimState | null;
+  /**
+   * False from a simulation_start until the new run's first state arrives: `sim` still holds the
+   * previous run (kept so the map doesn't flash empty), so its clock and agents must not be shown.
+   */
+  simFresh: boolean;
   scenarioName: string;
   status: RunStatus;
   feed: FeedItem[];
@@ -142,6 +147,7 @@ export const CONVERSATION_GAP = 3;
 export function initialSnapshot(): SimSnapshot {
   return {
     sim: null,
+    simFresh: true,
     scenarioName: '',
     status: 'idle',
     feed: [],
@@ -235,6 +241,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       return {
         ...initialSnapshot(),
         sim: s.sim,
+        simFresh: !s.sim,
         scenarioName: String(e.data.config ?? ''),
         status: 'running',
         lastTick: 0,
@@ -370,6 +377,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       return {
         ...next,
         sim: e.data as SimState,
+        simFresh: true,
         status: s.status === 'idle' ? 'running' : s.status,
         llm: llmAfterTick(s.llm, (e.data as SimState).llm_stats),
         lastTick: Math.max(s.lastTick, e.tick),

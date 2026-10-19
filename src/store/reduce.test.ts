@@ -309,3 +309,20 @@ describe('world variables', () => {
     expect(s.feed.map((f) => f.text)).toEqual(['El mundo cambia: oxigeno = 0.94', 'El mundo cambia: luz = false', 'El mundo cambia: oxigeno = 0.91']);
   });
 });
+
+describe('relaunch', () => {
+  it("marks the previous run's state as stale until the new one arrives", () => {
+    let s = run([
+      ev('simulation_start', 0, { config: 'A' }),
+      ev('tick_start', 1, {}),
+      ev('tick_end', 1, { clock: { tick: 24, time: 'Day 2, 00:00', max_ticks: 48 }, agents: {} }),
+    ]);
+    expect(s.simFresh).toBe(true);
+    s = run([ev('simulation_start', 0, { config: 'A' })], s);
+    expect(s.sim?.clock.time).toBe('Day 2, 00:00'); // kept for the map…
+    expect(s.simFresh).toBe(false); // …but not shown as the new run's clock
+    s = run([ev('tick_end', 0, { clock: { tick: 0, time: 'Day 1, 00:00', max_ticks: 48 }, agents: {} })], s);
+    expect(s.simFresh).toBe(true);
+    expect(s.sim?.clock.time).toBe('Day 1, 00:00');
+  });
+});

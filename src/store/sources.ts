@@ -91,10 +91,17 @@ async function refreshScenarioDescription(): Promise<void> {
 
 export async function runScenario(id: string, demo: boolean, speed: number): Promise<void> {
   if (useSim.getState().mode !== 'live') await startLive();
+  // Until the new run's simulation_start / first state arrives, the old run's clock must not show.
+  useSim.getState().set({ simFresh: false });
   const scenarios = await api.listScenarios().catch(() => []);
   const match = scenarios.find((s) => s.id === id);
   if (match) useSim.getState().setScenarioConfig(match.data as ScenarioConfig);
-  await api.runScenario(id, { demo, speed });
+  try {
+    await api.runScenario(id, { demo, speed });
+  } catch (err) {
+    useSim.getState().set({ simFresh: true });
+    throw err;
+  }
 }
 
 export interface ReplayFile {

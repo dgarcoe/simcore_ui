@@ -23,7 +23,8 @@ const SOURCE_LABEL: Record<ThemeSource, string> = {
 
 export function TopBar({ theme, detected }: { theme: ThemePack; detected: { theme: ThemePack; source: ThemeSource } }) {
   const s = useSim();
-  const clock = s.sim?.clock;
+  // Right after a (re)launch, s.sim is still the previous run: don't show its clock.
+  const clock = s.simFresh ? s.sim?.clock : undefined;
   const progress = Math.round((clock?.progress ?? 0) * 100);
   const live = s.mode === 'live';
 
@@ -35,7 +36,7 @@ export function TopBar({ theme, detected }: { theme: ThemePack; detected: { them
       <div className="scenario">
         <div className="scenario-name">{s.scenarioName || 'Simulación'}</div>
         <div className="clock">
-          {clock ? `${clock.time} · tick ${clock.tick}/${clock.max_ticks}` : 'esperando datos…'}
+          {clock ? `${clock.time} · tick ${clock.tick}/${clock.max_ticks}` : s.simFresh ? 'esperando datos…' : 'empezando…'}
         </div>
         <TickProgress />
         <div className="progress" aria-label={`Progreso ${progress}%`}>

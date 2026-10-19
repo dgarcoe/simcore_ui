@@ -29,7 +29,8 @@ function Meter({ value, min = 0, max = 1, color }: { value: number; min?: number
 }
 
 export function AgentsPanel({ theme }: { theme: ThemePack }) {
-  const sim = useSim((s) => s.sim);
+  // Right after a (re)launch s.sim is still the previous run: list nobody until the new one arrives.
+  const sim = useSim((s) => (s.simFresh ? s.sim : null));
   const selected = useSim((s) => s.selectedAgent);
   const follow = useSim((s) => s.follow);
   const reflections = useSim((s) => s.reflections);
