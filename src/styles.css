@@ -345,6 +345,14 @@ code {
   color: var(--good);
 }
 
+.banner-level {
+  outline-color: var(--accent);
+}
+
+.banner-level .banner-title {
+  color: var(--accent);
+}
+
 @keyframes drop {
   from {
     transform: translate(-50%, -24px);
@@ -1363,4 +1371,57 @@ details summary {
 .editor-form .tab {
   flex: 1 0 auto;
   min-width: 25%;
+}
+
+/* Character sheet (role-playing rules). */
+.rpg-sheet {
+  border: 1px solid var(--line);
+  padding: 6px;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rpg-attrs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.rpg-attr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 0;
+}
+
+.rpg-attr b {
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: var(--accent);
+}
+
+.rpg-attr em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.rpg-rolls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rpg-rolls li.ok {
+  color: var(--good);
+}
+
+.rpg-rolls li.ko {
+  color: var(--bad);
+}
+
+.rpg-rolls li.crit {
+  color: var(--accent);
 }

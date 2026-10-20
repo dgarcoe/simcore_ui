@@ -1,6 +1,8 @@
 // Mirrors the payloads produced by Simcore's FastAPI server
 // (simcore/server/api.py) and event bus (simcore/engine/events.py).
 
+import type { RpgSheet } from '../store/rpg';
+
 export type EventType =
   | 'tick_start'
   | 'tick_end'
@@ -38,7 +40,10 @@ export type EventType =
   | 'story_chapter'
   | 'faction_change'
   | 'vote_called'
-  | 'vote_result';
+  | 'vote_result'
+  // Role-playing rules: d20 checks and level ups.
+  | 'dice_roll'
+  | 'level_up';
 
 export interface Belief {
   text: string;
@@ -144,6 +149,8 @@ export interface Agent {
   owes?: Array<{ to: string; what: string }>;
   /** Who it is looking for, the clues it has and where it already looked. */
   search?: { target: string; why: string; found: boolean; checked: string[]; clues: SearchClue[] };
+  /** Character sheet (scenarios with role-playing rules). */
+  rpg?: RpgSheet;
 }
 
 export interface Location {

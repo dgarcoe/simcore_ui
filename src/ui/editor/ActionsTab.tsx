@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BUILTIN_ACTIONS, type ActionConfig } from '../../api/scenario';
+import { BUILTIN_ACTIONS, type ActionConfig, type CheckConfig } from '../../api/scenario';
+import { ATTRIBUTES, SKILLS } from '../../store/rpg';
 import { AmountsField } from './AmountsField';
 import { useDraft } from './draft';
 import { OutcomeEditor, prune, RequirementEditor } from './RulesWidgets';
@@ -67,10 +68,19 @@ export function ActionsTab() {
               Texto si falla
               <input className="input" placeholder="intenta morder a {target}…" value={a.fail_message ?? ''} onChange={(e) => set(key, (x) => void (x.fail_message = e.target.value))} />
             </label>
-            <label>
-              Probabilidad de éxito: {Math.round((a.chance ?? 1) * 100)}%
-              <input type="range" min={0} max={1} step={0.05} value={a.chance ?? 1} onChange={(e) => set(key, (x) => void (x.chance = Number(e.target.value) === 1 ? undefined : Number(e.target.value)))} />
-            </label>
+            {draft.simulation.rpg && a.check ? (
+              <CheckEditor value={a.check} onChange={(c) => set(key, (x) => void (c ? (x.check = c) : delete x.check))} />
+            ) : (
+              <label>
+                Probabilidad de éxito: {Math.round((a.chance ?? 1) * 100)}%
+                <input type="range" min={0} max={1} step={0.05} value={a.chance ?? 1} onChange={(e) => set(key, (x) => void (x.chance = Number(e.target.value) === 1 ? undefined : Number(e.target.value)))} />
+                {draft.simulation.rpg && (
+                  <button type="button" className="btn" onClick={() => set(key, (x) => void (x.check = { attribute: 'dexterity', dc: 12 }))}>
+                    🎲 Usar una tirada
+                  </button>
+                )}
+              </label>
+            )}
             <AmountsField label="Gasta (aunque falle)" value={a.cost} placeholder="ammo: 1" onChange={(cost) => set(key, (x) => void (x.cost = cost))} />
           </div>
           <details>
@@ -96,5 +106,53 @@ export function ActionsTab() {
         </article>
       ))}
     </div>
+  );
+}
+
+/** Role-playing rules: d20 + attribute (+ skill) against a difficulty or the target's roll. */
+function CheckEditor({ value, onChange }: { value: CheckConfig; onChange: (c: CheckConfig | undefined) => void }) {
+  const opposed = !!value.against;
+  const put = (patch: Partial<CheckConfig>) => onChange(prune({ ...value, ...patch }) as CheckConfig);
+  return (
+    <fieldset className="traits check-editor">
+      <legend>🎲 Tirada</legend>
+      <label className="row">
+        <span className="trait-label">Atributo</span>
+        <select className="select" value={value.attribute ?? 'dexterity'} onChange={(e) => put({ attribute: e.target.value })}>
+          {ATTRIBUTES.map(([k, , long]) => <option key={k} value={k}>{long}</option>)}
+        </select>
+      </label>
+      <label className="row">
+        <span className="trait-label">Habilidad</span>
+        <select className="select" value={value.skill ?? ''} onChange={(e) => put({ skill: e.target.value || undefined })}>
+          <option value="">(ninguna)</option>
+          {Object.entries(SKILLS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </label>
+      <label className="row">
+        <span className="trait-label">Contra</span>
+        <select className="select" value={value.against ?? ''} onChange={(e) => put({ against: e.target.value || undefined, ...(e.target.value ? {} : { against_skill: undefined }) })}>
+          <option value="">una dificultad fija</option>
+          {ATTRIBUTES.map(([k, , long]) => <option key={k} value={k}>{long} del objetivo</option>)}
+        </select>
+      </label>
+      {opposed ? (
+        <label className="row">
+          <span className="trait-label">Habilidad del objetivo</span>
+          <select className="select" value={value.against_skill ?? ''} onChange={(e) => put({ against_skill: e.target.value || undefined })}>
+            <option value="">(ninguna)</option>
+            {Object.entries(SKILLS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+      ) : (
+        <label className="row" title="10 fácil · 12 normal · 15 difícil · 20 casi imposible">
+          <span className="trait-label">Dificultad (CD)</span>
+          <input className="input" type="number" min={1} max={30} value={value.dc ?? 12} onChange={(e) => put({ dc: Math.max(1, Math.min(30, Number(e.target.value) || 12)) })} />
+        </label>
+      )}
+      <button type="button" className="btn" onClick={() => onChange(undefined)}>
+        Usar probabilidad fija
+      </button>
+    </fieldset>
   );
 }

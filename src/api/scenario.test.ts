@@ -321,6 +321,10 @@ describe('advanced example', () => {
     expect(cfg.factions?.Guardia.leader).toBe('Sargento Ortega');
     expect(Object.keys(cfg.votes?.soldado.options ?? {})).toEqual(['sí', 'no']);
     expect(cfg.items?.escopeta.weapon?.ammo).toBe('cartuchos');
+    expect(cfg.simulation.rpg).toBe(true);
+    expect(cfg.items?.escopeta.weapon?.ranged).toBe(true);
+    expect(cfg.actions?.golpear.check).toMatchObject({ attribute: 'strength', skill: 'athletics' });
+    expect(cfg.agents.find((a) => a.name === 'Sargento Ortega')?.attributes?.strength).toBe(15);
   });
 });
 
@@ -350,5 +354,33 @@ describe('society', () => {
     expect(messages).toContain('La rutina de * va a «Luna», que no existe.');
     expect(messages).toContain('La votación cerrar no tiene pregunta.');
     expect(messages.some((m) => m.includes('Iglesia'))).toBe(true);
+  });
+});
+
+describe('role-playing rules', () => {
+  it('checks attributes, skills and the checks of actions', () => {
+    const cfg = emptyScenario();
+    cfg.agents = [{ name: 'Ana', attributes: { strength: 25, luck: 3 }, skills: ['medicine', 'flying'] }];
+    cfg.actions = { saltar: { check: { attribute: 'agility', skill: 'acrobatics', dc: 12 } } };
+    const messages = referenceIssues(cfg).map((i) => i.message);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        'Ana: strength debe estar entre 1 y 20.',
+        'Ana: atributo desconocido «luck».',
+        'Ana: habilidad desconocida «flying».',
+        'La tirada de saltar usa un atributo desconocido: «agility».',
+        'La tirada de saltar usa una habilidad desconocida: «acrobatics».',
+      ]),
+    );
+    expect(messages.some((m) => m.includes('medicine'))).toBe(false);
+  });
+
+  it('derives a plausible sheet from personality and profession', async () => {
+    const { deriveAttributes, modifier } = await import('../store/rpg');
+    const guard = deriveAttributes({ extraversion: 0.4 }, 'guardia civil');
+    expect(guard.strength).toBeGreaterThan(10);
+    expect(deriveAttributes({ openness: 0.9 }, 'estudiante').intelligence).toBeGreaterThan(13);
+    expect(modifier(15)).toBe(2);
+    expect(modifier(9)).toBe(-1);
   });
 });

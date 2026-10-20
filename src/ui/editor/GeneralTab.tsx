@@ -59,6 +59,10 @@ export function GeneralTab() {
           <input type="checkbox" checked={!!sim.story} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.story = true) : delete d.simulation.story))} />
           Crónica por capítulos
         </label>
+        <label className="toggle" title="Atributos (fuerza, destreza…), habilidades y tiradas de d20: atacar, curar, convencer o engañar, y las acciones con «Tirada» dependen del personaje y del dado. Los agentes ganan experiencia y suben de nivel. Sin coste extra de LLM.">
+          <input type="checkbox" checked={!!sim.rpg} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.rpg = true) : delete d.simulation.rpg))} />
+          Modo rol (tiradas de dado)
+        </label>
         {sim.story && (
           <label>
             Un capítulo cada (ticks)

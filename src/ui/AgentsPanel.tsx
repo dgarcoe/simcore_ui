@@ -1,6 +1,7 @@
 import type { Agent, SocietyState } from '../api/types';
 import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
+import { ATTRIBUTES, SKILLS, diceText, modifier, signed, xpProgress, type DiceRoll, type RpgSheet } from '../store/rpg';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
 import { AgentActions, Conditions, Inventory, Mind, Needs, SpawnForm } from './AgentControls';
@@ -35,6 +36,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
   const follow = useSim((s) => s.follow);
   const reflections = useSim((s) => s.reflections);
   const lastWhy = useSim((s) => s.reasoning);
+  const rolls = useSim((s) => s.rolls);
   const { selectAgent, set } = useSim.getState();
   const agents = sim ? Object.values(sim.agents).sort((a, b) => a.name.localeCompare(b.name)) : [];
   const agent = agents.find((a) => a.name === selected);
@@ -96,6 +98,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
               {agent.mind.goals.length > 0 && <p className="small dim">Metas: {agent.mind.goals.join(' · ')}</p>}
             </div>
           )}
+          {agent.rpg && <Sheet sheet={agent.rpg} rolls={rolls[agent.name] ?? []} />}
           {isAlive(agent) && <Social agent={agent} society={sim?.society} />}
           {agent.search && isAlive(agent) && (
             <div className="mind-shift">
@@ -225,6 +228,52 @@ function Social({ agent, society }: { agent: Agent; society?: SocietyState }) {
         </p>
       )}
       {agent.owes?.length ? <p className="dim">Debe favores a: {agent.owes.map((o) => `${o.to} (${o.what})`).join(' · ')}</p> : null}
+    </div>
+  );
+}
+
+/** Character sheet: level, experience, the six attributes, skills and the latest rolls. */
+function Sheet({ sheet, rolls }: { sheet: RpgSheet; rolls: DiceRoll[] }) {
+  return (
+    <div className="rpg-sheet small">
+      <p className="row">
+        <strong>⚔ Nivel {sheet.level}</strong>
+        <span className="dim">
+          {sheet.xp}
+          {sheet.next ? ` / ${sheet.next}` : ''} PX
+        </span>
+      </p>
+      <Meter value={xpProgress(sheet)} color="var(--accent)" />
+      <div className="rpg-attrs">
+        {ATTRIBUTES.map(([key, short, long]) => {
+          const v = sheet.attributes[key] ?? 10;
+          return (
+            <span key={key} className="rpg-attr" title={long}>
+              <b>{short}</b>
+              <span>{v}</span>
+              <em>{signed(modifier(v))}</em>
+            </span>
+          );
+        })}
+      </div>
+      {sheet.skills.length > 0 && (
+        <p>
+          <span className="dim">Competente ({signed(sheet.proficiency)}): </span>
+          {sheet.skills.map((k) => SKILLS[k] ?? k).join(', ')}
+        </p>
+      )}
+      {rolls.length > 0 && (
+        <ul className="rpg-rolls">
+          {rolls
+            .slice(-4)
+            .reverse()
+            .map((r, i) => (
+              <li key={i} className={r.critical ? 'crit' : r.success ? 'ok' : 'ko'}>
+                <span className="dim">t{r.tick}</span> {diceText(r)}
+              </li>
+            ))}
+        </ul>
+      )}
     </div>
   );
 }

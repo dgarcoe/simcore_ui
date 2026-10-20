@@ -175,6 +175,22 @@ En la UI:
 
 `scenarios/last-night` («La noche más larga») usa todo esto.
 
+### Personajes de rol: atributos, tiradas y niveles
+
+Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
+- **Atributos** (fuerza, destreza, constitución, inteligencia, sabiduría y carisma, de 1 a 20) y **habilidades** (atletismo, medicina, persuasión, engaño…). Si el YAML no los da, Simcore los deriva de la personalidad y la profesión.
+- **Tiradas de d20:** atacar (contra la defensa del objetivo: destreza más armadura), curar, convencer, engañar o intimidar al hablar, buscar rastros y las acciones del escenario con «Tirada» (`check: {attribute, skill, dc}` o `against`, enfrentada al objetivo). Un 20 natural es crítico; un 1, pifia.
+- **Experiencia y niveles:** se gana PX al superar tiradas, curar, encontrar a alguien o sobrevivir a la noche. Al subir de nivel mejora el atributo que más usa y, en los niveles 3 y 5, aprende una habilidad.
+
+**En la UI:**
+- **Sucesos:** filtro «Tiradas» («ataca a Bob: 14 + 4 = 18 contra 13 — ¡acierta!», 💥 crítico, 💀 pifia) y aviso «¡NIVEL 3!».
+- **Mapa:** el total de cada tirada flota sobre el agente (verde si sale bien, rojo si sale mal, dorado si es crítico).
+- **Panel de agentes:** la ficha con nivel, barra de PX, atributos con su modificador, habilidades y últimas tiradas.
+- **Historia:** críticos, pifias y subidas de nivel son momentos clave.
+- **Editor:** «Modo rol» en General; atributos (con «Derivar de la personalidad»), habilidades y nivel en cada agente; «Tirada» en las acciones; «Armadura» y «A distancia» en los objetos.
+
+«El asedio de San Lorenzo» lo usa: Ortega fuerte, la doctora sabia, Don Aurelio carismático, Nico listo, la escopeta a distancia y los chalecos de la Guardia.
+
 ### Ejemplo avanzado: Estación Kepler-7
 
 `scenarios/kepler-station` reúne todas las funciones en un mismo escenario (tema nave espacial). También está como repetición, la primera de la lista.

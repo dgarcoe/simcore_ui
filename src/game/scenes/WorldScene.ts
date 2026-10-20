@@ -585,6 +585,8 @@ export class WorldScene extends Phaser.Scene {
       case 'belief_shared':
       case 'speech_ignored':
       case 'agent_search':
+      case 'dice_roll':
+      case 'level_up':
       case 'reflection':
       case 'tick_end':
         this.cues.push(e);
@@ -624,6 +626,14 @@ export class WorldScene extends Phaser.Scene {
         target.faceToward(view);
         target.showEmote('alert');
       }
+      return;
+    }
+    if (e.type === 'dice_roll') {
+      if (view.status === 'alive') this.diceFloat(view, e.data as { total?: number; success?: boolean; critical?: boolean; fumble?: boolean });
+      return;
+    }
+    if (e.type === 'level_up') {
+      if (view.status === 'alive') this.levelFlash(view, Number(e.data.level ?? 0));
       return;
     }
     if (e.type === 'speech_ignored') {
@@ -820,6 +830,25 @@ export class WorldScene extends Phaser.Scene {
       g.fillRect(Math.round(a.x + (b.x - a.x) * t) - 1, Math.round(a.y - 10 + (b.y - a.y) * t) - 1, 2, 2);
     }
     this.tweens.add({ targets: g, alpha: 0, delay: 900, duration: 500, onComplete: () => g.destroy() });
+  }
+
+  /** A d20 with the roll's total rising over the agent: green success, red failure, gold critical. */
+  private diceFloat(view: AgentView, d: { total?: number; success?: boolean; critical?: boolean; fumble?: boolean }): void {
+    const color = d.critical ? '#ffcd75' : d.success ? '#38b764' : '#b13e53';
+    const label = `${d.critical ? '★' : d.fumble ? '✗' : '◆'}${d.total ?? ''}`;
+    const t = this.add
+      .text(view.x + 8, view.y - 22, label, { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#1a1c2c', backgroundColor: color, padding: { x: 2, y: 1 } })
+      .setOrigin(0.5)
+      .setResolution(4)
+      .setDepth(200003);
+    this.tweens.add({ targets: t, y: t.y - 12, alpha: 0, delay: 700, duration: 900, ease: 'Sine.easeIn', onComplete: () => t.destroy() });
+  }
+
+  private levelFlash(view: AgentView, level: number): void {
+    const ring = this.add.circle(view.x, view.y - 6, 4).setStrokeStyle(2, 0xffcd75).setDepth(150003);
+    this.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 700, repeat: 1, onComplete: () => ring.destroy() });
+    view.showEmote('sparkle');
+    view.say(`¡Nivel ${level}!`, 'action', 2200);
   }
 
   private flashZone(z: Zone, color: number, times: number): void {

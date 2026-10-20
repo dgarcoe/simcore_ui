@@ -18,9 +18,10 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 10
+  seed: 12
   language: es
   story: true
+  rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
   chapter_every: 24
   planning: true
   plan_every: 12
@@ -99,6 +100,7 @@ actions:
     who: {conditions: [zombi], not_conditions: [de_dia]}
     target_requires: {not_conditions: [zombi]}
     chance: 0.2
+    check: {attribute: strength, dc: 16}
     on_target: {health: -0.15, add_conditions: [infectado, herido, en_panico]}
     message: muerde a {target}
     fail_message: intenta morder a {target}, que se escapa
@@ -107,6 +109,7 @@ actions:
     who: {not_conditions: [zombi]}
     target_requires: {conditions: [zombi]}
     chance: 0.5
+    check: {attribute: strength, skill: athletics, dc: 11}
     on_target: {health: -0.4}
     on_self: {energy: -0.15}
     message: golpea a {target} con todas sus fuerzas
@@ -117,6 +120,7 @@ actions:
     target_requires: {conditions: [zombi]}
     cost: {cartuchos: 1}
     chance: 0.65
+    check: {attribute: dexterity, dc: 12}
     on_target: {health: -1.0}
     message: dispara a {target}
     fail_message: dispara a {target} y falla
@@ -175,7 +179,8 @@ items:
   calmante: {description: calmantes, on_use: {mood: 0.2}, cures: [en_panico]}
   antidoto: {description: antídoto experimental, cures: [infectado]}
   cartuchos: {description: cartuchos de escopeta}
-  escopeta: {description: escopeta, consumable: false, weapon: {damage: 0.6, chance: 0.65, ammo: cartuchos}}
+  escopeta: {description: escopeta, consumable: false, weapon: {damage: 0.6, chance: 0.65, ammo: cartuchos, ranged: true}}
+  chaleco: {description: chaleco antibalas de la Guardia, consumable: false, armor: 2}
   tablones: {description: tablones y clavos}
   piezas_radio: {description: válvulas y cables para la radio}
   gasolina: {description: bidón de gasolina}
@@ -349,7 +354,7 @@ environment:
     - {name: Iglesia, type: religious, position: [7, 2], capacity: 15, stock: {comida: 4, tablones: 6, calmante: 2}}
     - {name: Mercado, type: commercial, position: [11, 6], capacity: 12, stock: {comida: 20, cafe: 6, gasolina: 1}}
     - {name: Hospital, type: healthcare, position: [11, 10], capacity: 8, stock: {medicina: 4, calmante: 3, antidoto: 1}}
-    - {name: Cuartel de la Guardia, type: military, position: [3, 6], capacity: 8, stock: {cartuchos: 10, piezas_radio: 1},
+    - {name: Cuartel de la Guardia, type: military, position: [3, 6], capacity: 8, stock: {cartuchos: 10, piezas_radio: 1, chaleco: 2},
        access: {professions: [guardia, alcald]}}
     - {name: Torre de radio, type: engineering, position: [2, 2], capacity: 4, stock: {piezas_radio: 1}}
     - {name: Pensión, type: residential, position: [11, 2], capacity: 12, stock: {comida: 3, cafe: 2}}
@@ -376,7 +381,10 @@ agents:
     personality: {openness: 0.3, conscientiousness: 0.85, extraversion: 0.4, agreeableness: 0.45, neuroticism: 0.3}
     goals: [Proteger a los civiles, Reparar la radio para pedir ayuda]
     starting_location: Cuartel de la Guardia
-    resources: {escopeta: 1, cartuchos: 6, piezas_radio: 1}
+    resources: {escopeta: 1, cartuchos: 6, piezas_radio: 1, chaleco: 1}
+    attributes: {strength: 15, dexterity: 13, constitution: 14, intelligence: 10, wisdom: 12, charisma: 11}
+    skills: [athletics, intimidation, perception]
+    level: 2
     relationships:
       Alcaldesa Pilar: {type: amiga, sentiment: 0.5}
       Lola: {type: pareja, sentiment: 0.8}
@@ -389,6 +397,9 @@ agents:
     goals: [Mantener viva a la gente, Fabricar un antídoto con sangre de un infectado]
     starting_location: Hospital
     resources: {medicina: 1}
+    attributes: {strength: 9, dexterity: 12, constitution: 11, intelligence: 15, wisdom: 15, charisma: 12}
+    skills: [medicine, insight, investigation]
+    level: 2
     relationships:
       Marcos: {type: hermano, sentiment: 0.7}
     beliefs:
@@ -420,6 +431,8 @@ agents:
     goals: [Que nadie le robe la comida del mercado, Sobrevivir a toda costa]
     starting_location: Mercado
     resources: {comida: 3, escopeta: 1, cartuchos: 2}
+    attributes: {strength: 8, dexterity: 9, constitution: 10, intelligence: 12, wisdom: 13, charisma: 15}
+    skills: [persuasion, deception, insight]
     relationships:
       Alcaldesa Pilar: {type: rival, sentiment: -0.4}
     beliefs:
@@ -439,6 +452,8 @@ agents:
     goals: [Arreglar la radio de la torre, Que su abuela le cuente la verdad]
     starting_location: Pensión
     needs: {sueno: 0.4}
+    attributes: {strength: 10, dexterity: 14, constitution: 11, intelligence: 16, wisdom: 10, charisma: 11}
+    skills: [investigation, stealth]
     relationships:
       Alcaldesa Pilar: {type: abuela, sentiment: 0.8}
   - name: Sara

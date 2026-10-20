@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DEFAULT_PERSONALITY, uniqueName, type AgentConfig, type PersonalityConfig } from '../../api/scenario';
 import { archetypeFor } from '../../game/art/archetypes';
+import { ATTRIBUTES, SKILLS, deriveAttributes, modifier, signed } from '../../store/rpg';
 import type { ThemePack } from '../../themes/types';
 import { Portrait } from '../Portrait';
 import { AmountsField } from './AmountsField';
@@ -175,6 +176,50 @@ export function AgentsTab({ theme }: { theme: ThemePack }) {
                     </label>
                   ))}
                 </fieldset>
+                {draft.simulation.rpg && (
+                  <fieldset className="traits">
+                    <legend>Personaje (modo rol)</legend>
+                    {a.attributes ? (
+                      ATTRIBUTES.map(([k, short, long]) => {
+                        const v = a.attributes?.[k] ?? 10;
+                        return (
+                          <label key={k} className="trait" title={long}>
+                            <span>{long}</span>
+                            <input type="range" min={1} max={20} step={1} value={v} onChange={(e) => set((x) => void ((x.attributes ??= {})[k] = Number(e.target.value)))} />
+                            <span className="dim">
+                              {short} {v} ({signed(modifier(v))})
+                            </span>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <p className="dim small">Atributos derivados de la personalidad y la profesión.</p>
+                    )}
+                    <div className="row">
+                      <button type="button" className="btn" onClick={() => set((x) => void (x.attributes = deriveAttributes(x.personality, x.profession)))}>
+                        Derivar de la personalidad
+                      </button>
+                      {a.attributes && (
+                        <button type="button" className="btn" onClick={() => set((x) => void delete x.attributes)}>
+                          Que los calcule Simcore
+                        </button>
+                      )}
+                    </div>
+                    <span className="row wrap">
+                      <span className="trait-label">Habilidades</span>
+                      <ChipPicker
+                        options={Object.keys(SKILLS)}
+                        value={a.skills}
+                        label={(k) => SKILLS[k] ?? k}
+                        onChange={(v) => set((x) => void (v.length ? (x.skills = v) : delete x.skills))}
+                      />
+                    </span>
+                    <label className="row">
+                      <span className="trait-label">Nivel inicial</span>
+                      <input className="input" type="number" min={1} max={10} value={a.level ?? 1} onChange={(e) => set((x) => void (Number(e.target.value) > 1 ? (x.level = Math.min(10, Number(e.target.value))) : delete x.level))} />
+                    </label>
+                  </fieldset>
+                )}
                 <label>
                   Objetivos (uno por línea)
                   <textarea className="input" rows={3} value={(a.goals ?? []).join('\n')} onChange={(e) => set((x) => void (x.goals = e.target.value.split('\n')))} />

@@ -92,6 +92,24 @@ describe('reduce', () => {
     expect(s.moments.map((m) => m.text)).toEqual(['Ann funda el grupo «Molino»', 'Votación «¿Cerramos?»: gana sí']);
   });
 
+  it('logs dice rolls and level ups, keeps the latest rolls per agent and banners the level', () => {
+    const s = run([
+      ev('dice_roll', 1, { agent: 'Ortega', check: 'attack', attribute: 'strength', roll: 14, modifier: 4, total: 18, dc: 13, success: true, critical: false, fumble: false, target: 'Bob' }, 'Ortega'),
+      ev('dice_roll', 1, { agent: 'Ana', check: 'deceive', attribute: 'charisma', roll: 1, modifier: 2, total: 3, against: { agent: 'Tom', attribute: 'wisdom', roll: 9, total: 10 }, success: false, critical: false, fumble: true, target: 'Tom' }, 'Ana'),
+      ev('dice_roll', 1, { agent: 'Ortega', check: 'golpear', attribute: 'strength', roll: 20, modifier: 0, total: 20, dc: 11, success: true, critical: true, fumble: false, target: 'Muerto' }, 'Ortega'),
+      ev('level_up', 1, { agent: 'Ortega', level: 3, improved: { attribute: 'strength', skill: 'perception' } }, 'Ortega'),
+    ]);
+    expect(s.feed.map((f) => f.text)).toEqual([
+      'ataca a Bob: 14 + 4 = 18 contra 13 — ¡acierta!',
+      'engaña a Tom: 1 + 2 = 3 contra 10 (Tom) — 💀 ¡pifia! lo pilla mintiendo',
+      'golpear a Muerto: 20 contra 11 — 💥 ¡crítico! lo consigue',
+      'sube a nivel 3 (FUE +1, aprende Percepción)',
+    ]);
+    expect(s.rolls.Ortega.map((r) => r.total)).toEqual([18, 20]);
+    expect(s.banner).toMatchObject({ kind: 'level', text: 'Ortega: ¡NIVEL 3!' });
+    expect(s.moments.map((m) => m.text)).toEqual(['¡Pifia! Ana: deceive contra Tom', '¡Crítico! Ortega: golpear contra Muerto', 'Ortega sube a nivel 3']);
+  });
+
   it('notes in the feed when someone ignores a speaker', () => {
     const s = run([ev('speech_ignored', 3, { agent: 'Ann', by: 'Bob', text: 'help?', turns: 2 }, 'Bob')]);
     expect(s.feed.at(-1)?.text).toBe('no le contesta a Ann (2 turnos): «help?»');

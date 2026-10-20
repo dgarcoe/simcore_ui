@@ -96,6 +96,10 @@ export function ItemsTab() {
                     <input type="range" min={0.05} max={1} step={0.05} value={it.weapon.chance ?? 0.7} onChange={(e) => setItem(key, (x) => void (x.weapon = { ...x.weapon, chance: Number(e.target.value) }))} />
                     <span className="dim">{Math.round((it.weapon.chance ?? 0.7) * 100)}%</span>
                   </span>
+                  <label className="toggle" title="Modo rol: se apunta con destreza en vez de fuerza">
+                    <input type="checkbox" checked={!!it.weapon.ranged} onChange={(e) => setItem(key, (x) => void (x.weapon = prune({ ...x.weapon, ranged: e.target.checked || undefined })))} />
+                    A distancia
+                  </label>
                   <label className="row">
                     <span className="trait-label">Munición</span>
                     <select className="select" value={it.weapon.ammo ?? ''} onChange={(e) => setItem(key, (x) => void (x.weapon = prune({ ...x.weapon, ammo: e.target.value })))}>
@@ -107,6 +111,10 @@ export function ItemsTab() {
               )}
             </div>
           </div>
+          <label className="fx-row" title="Modo rol: suma a la defensa de quien lo lleva (10 + DES + armadura)">
+            <span className="fx-label">Armadura</span>
+            <input className="input" type="number" min={0} max={10} value={it.armor ?? 0} onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.armor = Math.min(10, Number(e.target.value))) : delete x.armor))} />
+          </label>
           <div className="fx-row">
             <span className="fx-label">Al usarlo</span>
             <div className="fx-items">

@@ -3,6 +3,7 @@
 
 import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../api/parse';
 import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
+import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
 import type { Agent, EventType, SimEvent, SimState } from '../api/types';
 
 export interface FeedItem {
@@ -44,7 +45,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote' | 'level';
   text: string;
   location: string;
 }
@@ -146,9 +147,12 @@ export interface SimSnapshot {
   relFrames: RelFrame[];
   /** The narrator's closing text, once asked for (end card). */
   epilogue: string;
+  /** Latest d20 rolls of each agent (role-playing rules). */
+  rolls: Record<string, DiceRoll[]>;
 }
 
 export const FEED_LIMIT = 400;
+export const ROLL_LIMIT = 8;
 export const CONVERSATION_LIMIT = 150;
 /** A new conversation starts when a pair has been silent for this many ticks. */
 export const CONVERSATION_GAP = 3;
@@ -179,6 +183,7 @@ export function initialSnapshot(): SimSnapshot {
     chapters: [],
     relFrames: [],
     epilogue: '',
+    rolls: {},
   };
 }
 
@@ -363,6 +368,21 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         ...next,
         feed: pushFeed(next.feed, feedItem(seq, e, `🗳 ${text}`)),
         banner: { id: seq, tick: e.tick, kind: 'vote', text, location: String(e.data.place ?? '') },
+      };
+    }
+    case 'dice_roll': {
+      const d = { ...(e.data as unknown as DiceRoll), tick: e.tick };
+      const who = d.agent || e.source;
+      const mine = [...(next.rolls[who] ?? []).slice(-(ROLL_LIMIT - 1)), d];
+      return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who }) };
+    }
+    case 'level_up': {
+      const d = e.data as unknown as LevelUp;
+      const who = d.agent || e.source;
+      return {
+        ...next,
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, levelText(d)), source: who }),
+        banner: { id: seq, tick: e.tick, kind: 'level', text: `${who}: ¡NIVEL ${d.level}!`, location: '' },
       };
     }
     case 'agent_search': {

@@ -3,6 +3,7 @@
 // it as a map before it runs.
 
 import type { Environment, Location } from './types';
+import { ATTRIBUTES, SKILLS } from '../store/rpg';
 
 export interface PersonalityConfig {
   openness: number;
@@ -37,6 +38,12 @@ export interface AgentConfig {
   secrets?: string[];
   /** Group it starts in (created if it isn't in `factions`). */
   faction?: string;
+  /** Role-playing rules: attributes 1..20 (derived from personality and profession if missing). */
+  attributes?: Partial<Record<string, number>>;
+  /** Skills it is proficient in (athletics, medicine, persuasion…). */
+  skills?: string[];
+  /** Starting level (1..10). */
+  level?: number;
 }
 
 export interface LocationConfig {
@@ -108,7 +115,9 @@ export interface ItemConfig {
   /** Conditions removed from whoever it's used on. */
   cures?: string[];
   /** Makes "attack" stronger. */
-  weapon?: { damage?: number; chance?: number; ammo?: string };
+  weapon?: { damage?: number; chance?: number; ammo?: string; ranged?: boolean };
+  /** Role-playing rules: bonus to the defense of whoever carries it. */
+  armor?: number;
 }
 
 /** A group agents start in; others can be founded during the run. */
@@ -198,6 +207,15 @@ export interface MindConfig {
   actions?: string[];
 }
 
+/** A d20 + attribute (+ skill) against a difficulty, or against the target's own roll. */
+export interface CheckConfig {
+  attribute?: string;
+  skill?: string;
+  dc?: number;
+  against?: string;
+  against_skill?: string;
+}
+
 /** Scenario action (bite, shoot, treat…). */
 export interface ActionConfig {
   description?: string;
@@ -205,6 +223,8 @@ export interface ActionConfig {
   who?: Requirement;
   target_requires?: Requirement;
   chance?: number;
+  /** Role-playing rules: a d20 roll decides instead of the chance. */
+  check?: CheckConfig;
   cost?: Record<string, number>;
   on_target?: Outcome;
   on_self?: Outcome;
@@ -238,6 +258,8 @@ export interface ScenarioConfig {
     chapter_every?: number;
     /** What agents know of where the others are. */
     awareness?: 'local' | 'full';
+    /** Role-playing rules: attributes, d20 checks, experience and levels. */
+    rpg?: boolean;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {
@@ -623,6 +645,19 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
   cfg.agents.forEach((a, i) => need(a.conditions, a.name || `El agente #${i + 1}`, `agents.${i}`));
   Object.entries(cfg.items ?? {}).forEach(([k, it]) => need(it.cures, `El objeto ${k}`, `items.${k}`));
   const names = new Set(cfg.agents.map((a) => a.name));
+  const attrs = new Set(ATTRIBUTES.map(([k]) => k));
+  cfg.agents.forEach((a, i) => {
+    for (const [k, v] of Object.entries(a.attributes ?? {}))
+      if (!attrs.has(k)) issues.push({ path: `agents.${i}`, message: `${a.name}: atributo desconocido «${k}».` });
+      else if (typeof v !== 'number' || v < 1 || v > 20) issues.push({ path: `agents.${i}`, message: `${a.name}: ${k} debe estar entre 1 y 20.` });
+    for (const sk of a.skills ?? []) if (!(sk in SKILLS)) issues.push({ path: `agents.${i}`, message: `${a.name}: habilidad desconocida «${sk}».` });
+  });
+  for (const [k, act] of Object.entries(acts)) {
+    const c = act.check;
+    if (!c) continue;
+    for (const at of [c.attribute, c.against]) if (at && !attrs.has(at)) issues.push({ path: `actions.${k}`, message: `La tirada de ${k} usa un atributo desconocido: «${at}».` });
+    for (const sk of [c.skill, c.against_skill]) if (sk && !(sk in SKILLS)) issues.push({ path: `actions.${k}`, message: `La tirada de ${k} usa una habilidad desconocida: «${sk}».` });
+  }
   for (const [k, f] of Object.entries(cfg.factions ?? {})) {
     for (const m of f.members ?? []) if (!names.has(m)) issues.push({ path: `factions.${k}`, message: `El grupo ${k} tiene un miembro que no existe: «${m}».` });
     if (f.leader && !names.has(f.leader)) issues.push({ path: `factions.${k}`, message: `El líder de ${k} («${f.leader}») no existe.` });
