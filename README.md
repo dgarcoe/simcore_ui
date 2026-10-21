@@ -235,7 +235,7 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 
 ### Ejemplos avanzados
 
-- **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un antídoto por descubrir, una mordedura escondida, la Guardia, una votación sobre dejar entrar a un soldado, rutinas, reglas de rol y tres finales. Es la primera repetición de la lista.
+- **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un generador que se queda sin gasolina, un antídoto por descubrir, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
 - **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`): zombis con mente propia (sin habla ni recuerdos), hambre y sueño, el monte en llamas y un final por regla.
 - **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.
 

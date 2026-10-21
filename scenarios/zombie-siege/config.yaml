@@ -1,16 +1,20 @@
-# Long advanced example for simcore_ui's 'town' theme (5 days, 120 ticks). Uses every feature
-# of dgarcoe/simcore (main):
-#   life cycle (arrivals, deaths, hordes spawned by rules), items (stock, production, a supply
-#   drop), conditions (infected → zombie, wounded, panic, exhausted): turned villagers keep thinking
-#   with the LLM as zombies (a changed mind: no speech, no memories, new goals) and the nightly
-#   hordes are rule-driven (no LLM calls),
-#   scenario actions (bite, shoot, barricade, treat, repair the radio, research a cure, burn the
-#   bodies), needs (hunger, sleep), world rules (day/night cycle, hordes every night, a fire,
-#   the radio, the cure, three endings), places with state (a barricaded church, a restricted
-#   barracks, a cemetery that is deadly at night), daily plans, beliefs, secrets, rumors and
-#   typed relationships, situational awareness and private talk, a society (the Guard, groups the
-#   villagers may found, an assembly about the bitten soldier, routines, reputation, favors,
-#   emotions) and a chronicle written chapter by chapter.
+# Long advanced example for simcore_ui's 'town' theme (5 days, 120 ticks) for dgarcoe/simcore (main).
+# Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
+#   - Life cycle: arrivals, deaths, nightly hordes spawned and sent away by rules.
+#   - Conditions: infected → zombie (the LLM keeps deciding, as a zombie: no speech, no memories),
+#     rule-driven hordes (no LLM calls), wounds, panic, exhaustion, daylight.
+#   - Items and weapons: stock, production, a supply drop, shotguns (ranged), shovels, Guard vests.
+#   - Scenario actions only for what is specific to the story (bite, hit or shoot a zombie,
+#     barricade, repair the radio, research a cure, burn the bodies, start the generator); healing,
+#     attacking, searching, whispering, groups and votes are the engine's built-in actions.
+#   - Needs (hunger, sleep), world rules (day/night, the generator burning fuel, the radio, the
+#     cure, a countdown to the helicopter, a crowded church, the Guard falling, three endings),
+#     places with state (barricaded church, restricted barracks, deadly cemetery, a farm on fire).
+#   - Daily plans, beliefs, secrets, rumors, typed relationships, situational awareness.
+#   - Society: two rival groups (the Guard and the market), votes with consequences (letting the
+#     bitten soldier stay, a patrol that joins the Guard), routines, healers, reputation, favors.
+#   - Role-playing rules: character sheets for everyone, d20 checks, experience and levels.
+#   - A chronicle written chapter by chapter.
 simulation:
   name: El asedio de San Lorenzo
   description: San Lorenzo lleva tres días aislado por la nieve cuando los muertos empiezan a levantarse del
@@ -18,7 +22,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 12
+  seed: 36
   language: es
   story: true
   rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
@@ -132,12 +136,6 @@ actions:
     on_self: {energy: -0.2, mood: 0.1}
     world: {barricadas: true}
     message: atranca las puertas de la iglesia
-  curar:
-    description: limpiar y coser una herida
-    who: {professions: [médic, enfermer, veterinari], not_conditions: [zombi]}
-    target_requires: {conditions: [herido]}
-    on_target: {health: 0.25, remove_conditions: [herido, en_panico]}
-    message: cose la herida de {target}
   reparar_radio:
     description: reparar la radio de la torre con piezas (hace falta saber de electricidad)
     target: none
@@ -164,6 +162,17 @@ actions:
     target_requires: {conditions: [infectado]}
     on_self: {items: {muestra: 1}}
     message: saca una muestra de sangre a {target}
+  arrancar_generador:
+    description: echar gasolina al generador del mercado y arrancarlo para que vuelva la luz
+    target: none
+    who: {professions: [electricist, radioaficionad, guardia], items: {gasolina: 1}, not_conditions: [zombi]}
+    cost: {gasolina: 1}
+    chance: 0.6
+    check: {attribute: intelligence, skill: investigation, dc: 12}
+    on_self: {energy: -0.15}
+    world: {repostado: true}
+    message: arranca el generador y la luz vuelve al pueblo
+    fail_message: tira del arranque del generador, pero no hay manera
   quemar_cuerpos:
     description: quemar los restos en el cementerio para que no vuelvan a levantarse
     target: none
@@ -185,6 +194,7 @@ items:
   piezas_radio: {description: válvulas y cables para la radio}
   gasolina: {description: bidón de gasolina}
   muestra: {description: muestra de sangre infectada}
+  pala: {description: pala o barra de hierro, consumable: false, weapon: {damage: 0.4, chance: 0.6}}
   cafe: {description: café fuerte, on_use: {energy: 0.25}, cures: [agotado]}
 
 rules:
@@ -282,6 +292,34 @@ rules:
     then: {items: {"location:Hospital": {antidoto: 3}}}
     once: true
 
+  # ── El generador (bandera + adjust; recurso que se agota) ────────
+  - description: El generador del mercado ruge y vuelve la luz.
+    when: {global: {repostado: {eq: true}}}
+    then: {adjust: {combustible: 0.4}, generador: true, luz: true, repostado: false}
+  - when: {every: 4, global: {generador: {eq: true}}}
+    then: {adjust: {combustible: -0.1}}
+  - description: El generador tose y se para. El pueblo vuelve a quedarse a oscuras.
+    when: {global: {generador: {eq: true}, combustible: {lte: 0}}}
+    then: {generador: false, luz: false, combustible: 0, rumor: {all: {text: Queda gasolina en la granja para el generador, true: true}}}
+
+  # ── La cuenta atrás del helicóptero (temporizador) ───────────────
+  - when: {global: {rescate: {eq: confirmado}}}
+    then: {adjust: {horas_desde_la_radio: 1}}
+  - description: Por la radio repiten el mensaje del ejército. El helicóptero está en camino.
+    when: {global: {horas_desde_la_radio: {eq: 6}}}
+    then: {rumor: {all: {text: El ejército ha vuelto a confirmar el helicóptero, true: true}}}
+    once: true
+
+  # ── La iglesia llena y la Guardia ────────────────────────────────
+  - description: Con la iglesia llena y las puertas atrancadas, alguien empieza a cantar y el miedo afloja.
+    when: {global: {hora: {eq: noche}}, place: {Iglesia: {closed: true, occupants: {gte: 6}}}}
+    then: {remove_condition: {"location:Iglesia": en_panico}, adjust: {noches_juntos: 1}}
+    once: true
+  - description: Ya no queda nadie de la Guardia. El pueblo está solo.
+    when: {from: 2, count: {faction: Guardia, lt: 1}}
+    then: {add_condition: {all: en_panico}, rumor: {all: {text: La Guardia ha caído, true: true}}}
+    once: true
+
   # ── Sucesos ──────────────────────────────────────────────────────
   - description: Un candil cae en el pajar y la granja arde.
     when: {at: 60}
@@ -317,7 +355,8 @@ rules:
 # ── Sociedad ───────────────────────────────────────────────────────
 # La Guardia existe desde el principio; los demás grupos los fundan los vecinos si quieren.
 factions:
-  Guardia: {goal: "Defender a los civiles hasta que llegue ayuda", leader: Sargento Ortega, members: [Sargento Ortega, Lola], color: "#41a6f6"}
+  Guardia: {goal: "Defender a los civiles hasta que llegue ayuda", leader: Sargento Ortega, members: [Sargento Ortega, Lola], rivals: [Los del mercado], color: "#41a6f6"}
+  Los del mercado: {goal: "Que la comida del mercado no se reparta a lo loco", leader: Don Aurelio, members: [Don Aurelio], rivals: [Guardia], color: "#d9a066"}
 votes:
   soldado:
     question: "¿Dejamos que el soldado mordido se quede en el pueblo?"
@@ -325,6 +364,12 @@ votes:
     options:
       "sí": {}
       "no": {depart: "Cabo Ruiz"}
+  patrulla:
+    question: "¿Formamos una patrulla con la Guardia para vigilar la plaza de noche?"
+    from: 24
+    options:
+      "sí": {join: {"location:Plaza": Guardia}}
+      "no": {}
   iglesia:
     question: "¿Pasamos todos la noche en la iglesia?"
     options:
@@ -336,6 +381,11 @@ routines:
   médica: {day: {work: [Hospital]}}
   tendero: {day: {work: [Mercado]}}
   sacerdote: {evening: {work: [Iglesia]}, night: {rest: [Iglesia]}}
+
+# Curar es la acción integrada «heal»: con medicina cualquiera; sin objeto, solo estas profesiones.
+society:
+  healers: [médic, enfermer, veterinari]
+  heal_removes: [herido, en_panico]
 
 environment:
   type: grid
@@ -349,16 +399,21 @@ environment:
     cura: sin investigar
     rescate: ninguno
     cuerpos_quemados: false
+    combustible: 0
+    generador: false
+    repostado: false
+    horas_desde_la_radio: 0
+    noches_juntos: 0
   locations:
     - {name: Plaza, type: public, position: [7, 7], capacity: 25}
-    - {name: Iglesia, type: religious, position: [7, 2], capacity: 15, stock: {comida: 4, tablones: 6, calmante: 2}}
+    - {name: Iglesia, type: religious, position: [7, 2], capacity: 15, stock: {comida: 4, tablones: 6, calmante: 2, pala: 1}}
     - {name: Mercado, type: commercial, position: [11, 6], capacity: 12, stock: {comida: 20, cafe: 6, gasolina: 1}}
     - {name: Hospital, type: healthcare, position: [11, 10], capacity: 8, stock: {medicina: 4, calmante: 3, antidoto: 1}}
     - {name: Cuartel de la Guardia, type: military, position: [3, 6], capacity: 8, stock: {cartuchos: 10, piezas_radio: 1, chaleco: 2},
        access: {professions: [guardia, alcald]}}
     - {name: Torre de radio, type: engineering, position: [2, 2], capacity: 4, stock: {piezas_radio: 1}}
     - {name: Pensión, type: residential, position: [11, 2], capacity: 12, stock: {comida: 3, cafe: 2}}
-    - {name: Granja, type: farm, position: [3, 11], capacity: 8, produces: {comida: 2}, stock: {gasolina: 1, tablones: 2}}
+    - {name: Granja, type: farm, position: [3, 11], capacity: 8, produces: {comida: 2}, stock: {gasolina: 2, tablones: 2, pala: 2}}
     - {name: Cementerio, type: outdoor, position: [7, 12], capacity: 20}
 
 agents:
@@ -367,6 +422,8 @@ agents:
     profession: alcaldesa
     personality: {openness: 0.5, conscientiousness: 0.8, extraversion: 0.65, agreeableness: 0.45, neuroticism: 0.45}
     goals: [Que el pueblo aguante unido hasta el rescate, Que nadie sepa lo del cementerio]
+    attributes: {strength: 9, dexterity: 10, constitution: 11, intelligence: 13, wisdom: 13, charisma: 16}
+    skills: [persuasion, insight, deception]
     starting_location: Plaza
     resources: {comida: 1}
     relationships:
@@ -409,6 +466,8 @@ agents:
     profession: veterinario
     personality: {openness: 0.6, conscientiousness: 0.6, extraversion: 0.5, agreeableness: 0.65, neuroticism: 0.5}
     goals: [Ayudar a su hermana en el hospital, Proteger la granja]
+    attributes: {strength: 14, dexterity: 11, constitution: 15, intelligence: 12, wisdom: 13, charisma: 10}
+    skills: [medicine, athletics]
     starting_location: Granja
     conditions: [infectado]
     relationships:
@@ -420,6 +479,8 @@ agents:
     profession: dueña de la pensión
     personality: {openness: 0.6, conscientiousness: 0.55, extraversion: 0.8, agreeableness: 0.7, neuroticism: 0.4}
     goals: [Dar cama y comida a quien lo necesite, Que Ortega no haga ninguna locura]
+    attributes: {strength: 10, dexterity: 11, constitution: 12, intelligence: 11, wisdom: 13, charisma: 15}
+    skills: [insight, persuasion]
     starting_location: Pensión
     resources: {comida: 2, cafe: 1}
     relationships:
@@ -442,6 +503,8 @@ agents:
     profession: sacerdote
     personality: {openness: 0.45, conscientiousness: 0.75, extraversion: 0.45, agreeableness: 0.85, neuroticism: 0.45}
     goals: [Dar refugio en la iglesia por las noches, Que nadie pierda la fe]
+    attributes: {strength: 9, dexterity: 9, constitution: 11, intelligence: 13, wisdom: 16, charisma: 13}
+    skills: [insight, medicine, persuasion]
     starting_location: Iglesia
     relationships:
       Alcaldesa Pilar: {type: amiga, sentiment: 0.4}
@@ -461,9 +524,11 @@ agents:
     profession: electricista
     personality: {openness: 0.6, conscientiousness: 0.65, extraversion: 0.5, agreeableness: 0.55, neuroticism: 0.35}
     goals: [Llegar al pueblo y encontrar a su hermano, Arreglar la luz y la radio]
+    attributes: {strength: 11, dexterity: 15, constitution: 12, intelligence: 14, wisdom: 11, charisma: 10}
+    skills: [investigation, stealth, athletics]
     starting_location: Plaza
     arrives_at: 26
-    resources: {piezas_radio: 1, comida: 1}
+    resources: {piezas_radio: 1, comida: 1, gasolina: 1}
     relationships:
       Marcos: {type: hermano, sentiment: 0.6}
     backstory: Venía por la carretera de la sierra cuando la nieve la dejó tirada.
@@ -472,6 +537,9 @@ agents:
     profession: soldado
     personality: {openness: 0.4, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.4, neuroticism: 0.65}
     goals: [Que nadie descubra que le han mordido, Llegar al helicóptero]
+    attributes: {strength: 14, dexterity: 14, constitution: 13, intelligence: 10, wisdom: 9, charisma: 11}
+    skills: [athletics, deception]
+    level: 2
     starting_location: Plaza
     arrives_at: 50
     conditions: [infectado]

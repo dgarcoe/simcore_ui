@@ -325,6 +325,12 @@ describe('advanced example', () => {
     expect(cfg.items?.escopeta.weapon?.ranged).toBe(true);
     expect(cfg.actions?.golpear.check).toMatchObject({ attribute: 'strength', skill: 'athletics' });
     expect(cfg.agents.find((a) => a.name === 'Sargento Ortega')?.attributes?.strength).toBe(15);
+    expect(cfg.actions?.curar).toBeUndefined(); // healing is the built-in heal
+    expect(cfg.society?.healers).toContain('médic');
+    expect(cfg.factions?.['Los del mercado'].rivals).toEqual(['Guardia']);
+    expect(cfg.actions?.arrancar_generador.world).toEqual({ repostado: true });
+    expect(cfg.votes?.patrulla.options?.['sí']).toEqual({ join: { 'location:Plaza': 'Guardia' } });
+    expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
   });
 });
 

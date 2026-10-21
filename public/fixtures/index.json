@@ -1,5 +1,5 @@
 [
-  {"file": "zombie-siege.json", "name": "El asedio de San Lorenzo", "theme": "Pueblo", "description": "Ejemplo largo (5 días): cada noche llega una horda, de día los muertos se aletargan; radio por reparar, un antídoto por descubrir, una mordedura escondida, la alcaldesa y su secreto, y tres finales posibles."},
+  {"file": "zombie-siege.json", "name": "El asedio de San Lorenzo", "theme": "Pueblo", "description": "Ejemplo largo (5 días): cada noche llega una horda y de día los muertos se aletargan; radio por reparar, generador sin gasolina, un antídoto por descubrir, una mordedura escondida, la Guardia frente a los del mercado, votaciones, fichas de rol y tres finales posibles."},
   {"file": "kepler-station.json", "name": "Estación Kepler-7", "theme": "Nave espacial", "description": "Ejemplo avanzado con todo: esporas que convierten a la tripulación, oxígeno que se agota, reparaciones, un laboratorio sellado, una fuga, secretos, rumores, una madre y su hijo, y la nave de rescate."},
   {"file": "epidemic.json", "name": "Outbreak", "theme": "Pueblo", "description": "Una enfermedad misteriosa se propaga por un pueblo (escenario incluido en Simcore)."},
   {"file": "spaceship.json", "name": "Derelict Signal", "theme": "Nave espacial", "description": "La tripulación de una nave recibe una señal de socorro de un pecio."},
