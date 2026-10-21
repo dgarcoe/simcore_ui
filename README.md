@@ -2,7 +2,7 @@
 
 UI pixel art para [Simcore](https://github.com/elisonfrank/simcore): muestra los agentes, sus conversaciones e interacciones sobre un mapa generado a partir del escenario.
 
-Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`), sin cambios en el backend.
+Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`). Está pensado para el fork [dgarcoe/simcore](https://github.com/dgarcoe/simcore), fijado en `SIMCORE_REF` (`docker/simcore.Dockerfile`), que añade ciclo de vida, objetos, estados, reglas del mundo, conversaciones, sociedad, crónica y reglas de rol. Con el Simcore original también funciona, pero sin esas funciones.
 
 - **Mapa generado desde el escenario**: cada localización se convierte en una zona y se conectan por caminos, pasillos o rutas espaciales.
 - **Temas intercambiables**: el mismo escenario se puede pintar como un pueblo, una nave espacial, un almacén, una fábrica o una batalla espacial.
@@ -10,7 +10,10 @@ Es un frontend independiente: solo consume la API de Simcore (`/api` y `/ws`), s
 - **Paneles**: conversaciones agrupadas, sucesos filtrables, ficha de cada agente (OCEAN, ánimo, energía, recursos, relaciones, memoria), red social virtual.
 - **Editor de escenarios**: crea o edita escenarios (lugares, agentes, sucesos, tema) con una vista previa del mapa que se regenera mientras escribes. Puedes arrastrar los lugares en una cuadrícula, guardarlos en Simcore y lanzarlos, o importarlos y exportarlos en YAML.
 - **Mapas que usan a los agentes**: la profesión decide el aspecto de cada agente (bata, casco, uniforme, sombrero de paja…). Los lugares donde empieza mucha gente son más grandes, cada residente tiene su cama (interiores) o su casa (exteriores), y sus recursos aparecen en el mapa (botiquín, caja fuerte, cajas, barriles).
+- **Historia**: crónica por capítulos, momentos clave y grafo de relaciones a lo largo del tiempo, descargable.
+- **Sociedad y rol**: grupos, votaciones, reputación, ataques y curas, fichas de personaje con tiradas de dado y niveles.
 - **Control**: pausa/reanudar/detener, inyectar sucesos (opcionalmente en una zona), lanzar escenarios, crónica final.
+- **Escenarios generados por un LLM**: [docs/escenarios-con-llm.md](docs/escenarios-con-llm.md) explica cómo pedirle a un LLM un escenario completo en YAML.
 - **Repeticiones**: simulaciones grabadas en `public/fixtures/` para usar la UI sin servidor.
 
 | Pueblo | Nave espacial |
@@ -175,6 +178,45 @@ En la UI:
 
 `scenarios/last-night` («La noche más larga») usa todo esto.
 
+### Conversaciones, susurros y conciencia situacional
+
+- **Varios a la vez:** un agente puede hablar a varios en el mismo turno («Ana, Bob» o «todos»). Todos los presentes oyen lo que se dice en voz alta, así que no repiten las mismas preguntas.
+- **En privado:** `whisper` (susurrar, solo lo oye el destinatario, aunque los demás ven que susurran), `invite` (pedir a alguien que vaya a un sitio) y `follow` (seguir a alguien).
+- **Conciencia:** cada agente sabe quién está, qué hace cada uno y dónde vio por última vez a los demás. Con `simulation.awareness: full` sabe dónde está todo el mundo.
+- **Ignorados:** si alguien no contesta en 2 turnos, Simcore lo detecta y quien habló cambia de rumbo. Los bucles de preguntas repetidas se cortan.
+
+**En la UI:** charlas agrupadas con susurros e invitaciones; en el mapa, quien susurra se acerca y quien sigue a otro va tras él; en sucesos, «no le contesta a Ana (2 turnos)».
+
+### Buscar a alguien
+
+Para hablar con alguien que no está, el agente usa `find`: pregunta a los presentes, va al sitio donde lo vieron por última vez, después a su origen y luego a lugares que no ha mirado. Con reglas de rol, si nadie sabe nada, una tirada de percepción puede darle una pista.
+
+**En la UI:** sucesos («pregunta si alguien ha visto a Tom · Bob: Iglesia (hace 2)»), el mapa y un bloque «🔎 Buscando a…» con pistas y sitios ya mirados en el panel de agentes.
+
+### Mentes que cambian
+
+Un estado puede cambiar quién es el agente sin quitarle el LLM (`mind` en el estado): otra identidad, otras metas, sin habla o sin recuerdos, y solo ciertas acciones. Un zombi sigue decidiendo con el LLM, pero como zombi. Si además el estado usa `controller: rules`, mandan las reglas y no gasta llamadas (las hordas).
+
+**En la UI:** bloque «🧠 Mente de zombi» en el panel de agentes y editor de mente en la pestaña «Estados».
+
+### Sociedad: atacar y curar, grupos, votaciones, reputación
+
+- **Atacar y curar:** cualquiera puede atacar con su mejor arma (objetos con `weapon`) o a puñetazos; cura quien tiene un objeto curativo o una profesión sanitaria (`society.healers`).
+- **Grupos:** algunos configurados (`factions`) y otros fundados por los agentes durante la simulación; tienen líder (con sucesión), meta y rivales; se puede unir, dejar o expulsar.
+- **Votaciones:** asuntos configurados (`votes`) con consecuencias por resultado; votan los presentes.
+- **Reputación, favores y emociones:** lo que hace cada uno ante testigos cambia su reputación; quien recibe ayuda debe un favor; los agentes sienten miedo, ira, gratitud…
+- **Rutinas:** qué suele hacer cada uno según la hora (`routines`).
+
+**En la UI:** filtro «Sociedad» en sucesos y aviso «VOTACIÓN»; en el panel de agentes, grupo con su color, reputación, emoción y favores; pestaña «Sociedad» en el editor (grupos, votaciones, rutinas, quién cura); «Arma» en la pestaña «Objetos».
+
+### Historia de la simulación
+
+Con `simulation.story: true` un narrador escribe un capítulo cada `chapter_every` ticks. La pestaña «Historia» muestra los capítulos, una línea de tiempo de momentos clave (muertes, transformaciones, secretos, votaciones, críticos…) y un grafo de relaciones que se puede recorrer en el tiempo. Se descarga como HTML. La tarjeta de fin incluye un epílogo.
+
+### Guardar escenarios
+
+Guardar en el editor modifica el escenario, también los incluidos en Simcore (se guarda una versión editada y se puede «Restaurar» el original). «Guardar copia» crea uno nuevo.
+
 ### Personajes de rol: atributos, tiradas y niveles
 
 Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
@@ -191,9 +233,15 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 
 «El asedio de San Lorenzo» lo usa: Ortega fuerte, la doctora sabia, Don Aurelio carismático, Nico listo, la escopeta a distancia y los chalecos de la Guardia.
 
+### Ejemplos avanzados
+
+- **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un antídoto por descubrir, una mordedura escondida, la Guardia, una votación sobre dejar entrar a un soldado, rutinas, reglas de rol y tres finales. Es la primera repetición de la lista.
+- **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`): zombis con mente propia (sin habla ni recuerdos), hambre y sueño, el monte en llamas y un final por regla.
+- **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.
+
 ### Ejemplo avanzado: Estación Kepler-7
 
-`scenarios/kepler-station` reúne todas las funciones en un mismo escenario (tema nave espacial). También está como repetición, la primera de la lista.
+`scenarios/kepler-station` reúne casi todas las funciones de estados, mundo y personajes en un mismo escenario (tema nave espacial). También está como repetición.
 - **Estados y reglas:** unas esporas convierten a la tripulación en «poseídos», que controlan reglas y no gastan llamadas al LLM.
 - **Mundo:** el oxígeno baja cada tick y los ingenieros reparan los recicladores con piezas. La comandante puede sellar el laboratorio con su tarjeta, una fuga inunda la sala de máquinas y al puente solo entran los mandos.
 - **Necesidades:** hambre y sueño.
@@ -242,6 +290,10 @@ environment:
 ```
 
 Para añadir un tema, crea un `ThemePack` en `src/themes/` (paleta, suelos y decoración por rol, ropa de los agentes, ambiente) y regístralo en `src/themes/registry.ts`.
+
+### Generar un escenario con un LLM
+
+[docs/escenarios-con-llm.md](docs/escenarios-con-llm.md): qué pasarle al LLM (la [referencia del YAML](https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md) de Simcore), un prompt listo para copiar, pistas para que el mapa quede bien y cómo probar el resultado.
 
 ## Arquitectura
 
