@@ -213,6 +213,17 @@ export interface MindConfig {
   actions?: string[];
 }
 
+/** Simcore features a scenario relies on that older Simcore versions silently ignore. */
+export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; label: string }> {
+  const out: Array<{ feature: string; label: string }> = [];
+  const rules = cfg.rules ?? [];
+  if (rules.some((r) => r.when?.holds || r.when?.count?.item) || Object.values(cfg.items ?? {}).some((i) => i.visible || i.drops))
+    out.push({ feature: 'artifacts', label: 'objetos codiciados (quién lleva un objeto y durante cuánto)' });
+  if (Object.values(cfg.conditions ?? {}).some((c) => c.contagion?.via === 'contact'))
+    out.push({ feature: 'contact_contagion', label: 'contagio por sangre o heridas' });
+  return out;
+}
+
 /** A d20 + attribute (+ skill) against a difficulty, or against the target's own roll. */
 export interface CheckConfig {
   attribute?: string;

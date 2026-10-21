@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, referenceIssues, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
+import { requiredFeatures, cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, referenceIssues, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -410,5 +410,8 @@ describe('coveted items', () => {
     const win = cfg.rules?.find((r) => r.when?.holds?.ticks === 12);
     expect(String((win?.then as { end?: string })?.end)).toContain('{holder}');
     expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
+    // an older Simcore would ignore `holds` and end the run at once: the UI must refuse it
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts']);
+    expect(requiredFeatures(emptyScenario())).toEqual([]);
   });
 });

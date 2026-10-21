@@ -48,6 +48,23 @@ export async function runScenario(id: string, opts: { demo: boolean; speed: numb
   if (res.error) throw new Error(res.error);
 }
 
+export interface SimcoreVersion {
+  ref: string;
+  features: string[];
+}
+
+/** What the running Simcore supports; null for Simcore versions older than GET /api/version. */
+export async function fetchVersion(): Promise<SimcoreVersion | null> {
+  try {
+    const res = await fetch('/api/version');
+    if (!res.ok) return null;
+    const data = (await res.json()) as Partial<SimcoreVersion>;
+    return Array.isArray(data.features) ? { ref: String(data.ref ?? ''), features: data.features } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function postmortem(): Promise<string> {
   const res = await json<{ narrative?: string; error?: string }>(await post('/api/postmortem/narrative'));
   if (res.error) throw new Error(res.error);

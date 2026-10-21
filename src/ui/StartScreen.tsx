@@ -20,6 +20,8 @@ export function StartScreen() {
   const [demo, setDemo] = useDemoPref();
   const [speed, setSpeed] = useState(2);
   const [busy, setBusy] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [outdated, setOutdated] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -30,6 +32,14 @@ export function StartScreen() {
       .fetchState()
       .then((s) => setRunning(s ? `tick ${s.clock.tick}/${s.clock.max_ticks}` : null))
       .catch(() => {});
+    api
+      .fetchVersion()
+      .then((v) => {
+        if (v && v.ref && __SIMCORE_REF__ && !(v.ref.startsWith(__SIMCORE_REF__) || __SIMCORE_REF__.startsWith(v.ref)))
+          setOutdated(`Simcore ${v.ref.slice(0, 7)} no es la versión que espera esta UI (${__SIMCORE_REF__.slice(0, 7)}).`);
+        else if (!v) setOutdated('Tu Simcore es antiguo (no dice su versión): a algunos escenarios les faltarán funciones.');
+      })
+      .catch(() => {});
     fetch('fixtures/index.json')
       .then((r) => r.json())
       .then(setFixtures)
@@ -38,10 +48,11 @@ export function StartScreen() {
 
   const run = async (id: string) => {
     setBusy(true);
+    setRunError(null);
     try {
       await runScenario(id, demo, speed);
     } catch (e) {
-      setApiError(String((e as Error).message));
+      setRunError(String((e as Error).message));
     } finally {
       setBusy(false);
     }
@@ -60,6 +71,12 @@ export function StartScreen() {
       <div className="cards">
         <section className="card">
           <h2>En vivo</h2>
+          {!apiError && outdated && (
+            <p className="warn">
+              {outdated} Actualízalo volviendo a lanzar <code>./scripts/simcore-up.sh</code>.
+            </p>
+          )}
+          {runError && <p className="warn">{runError}</p>}
           {apiError ? (
             <p className="warn">
               No hay servidor Simcore en <code>/api</code> ({apiError}). Levántalo todo con <code>docker compose up</code> o

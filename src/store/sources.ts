@@ -1,7 +1,7 @@
 // Data sources feeding the store: a live Simcore server or a recorded replay.
 
 import * as api from '../api/client';
-import type { ScenarioConfig } from '../api/scenario';
+import { requiredFeatures, type ScenarioConfig } from '../api/scenario';
 import { connectSocket } from '../api/socket';
 import type { SimEvent, SimState } from '../api/types';
 import { useSim } from './simStore';
@@ -89,12 +89,27 @@ async function refreshScenarioDescription(): Promise<void> {
   }
 }
 
+/** The running Simcore is older than what a scenario needs. */
+export function outdatedMessage(missing: string[]): string {
+  return (
+    `Tu Simcore es anterior a lo que usa este escenario (${missing.join('; ')}) y lo ejecutaría mal. ` +
+    'Actualízalo volviendo a lanzar ./scripts/simcore-up.sh (si fijaste SIMCORE_REF en .env, borra esa línea).'
+  );
+}
+
 export async function runScenario(id: string, demo: boolean, speed: number): Promise<void> {
+  const scenarios = await api.listScenarios().catch(() => []);
+  const match = scenarios.find((s) => s.id === id);
+  // An older Simcore would silently ignore what it doesn't know (and e.g. end the run at once).
+  const needs = match ? requiredFeatures(match.data as ScenarioConfig) : [];
+  if (needs.length) {
+    const have = (await api.fetchVersion())?.features ?? [];
+    const missing = needs.filter((n) => !have.includes(n.feature));
+    if (missing.length) throw new Error(outdatedMessage(missing.map((m) => m.label)));
+  }
   if (useSim.getState().mode !== 'live') await startLive();
   // Until the new run's simulation_start / first state arrives, the old run's clock must not show.
   useSim.getState().set({ simFresh: false });
-  const scenarios = await api.listScenarios().catch(() => []);
-  const match = scenarios.find((s) => s.id === id);
   if (match) useSim.getState().setScenarioConfig(match.data as ScenarioConfig);
   try {
     await api.runScenario(id, { demo, speed });
