@@ -326,6 +326,7 @@ describe('advanced example', () => {
     expect(cfg.actions?.golpear.check).toMatchObject({ attribute: 'strength', skill: 'athletics' });
     expect(cfg.agents.find((a) => a.name === 'Sargento Ortega')?.attributes?.strength).toBe(15);
     expect(cfg.actions?.curar).toBeUndefined(); // healing is the built-in heal
+    expect(cfg.conditions?.infectado.contagion?.via).toBe('contact'); // talking to Marcos doesn't infect
     expect(cfg.society?.healers).toContain('médic');
     expect(cfg.factions?.['Los del mercado'].rivals).toEqual(['Guardia']);
     expect(cfg.actions?.arrancar_generador.world).toEqual({ repostado: true });

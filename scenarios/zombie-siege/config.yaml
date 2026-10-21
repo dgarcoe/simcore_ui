@@ -22,7 +22,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 36
+  seed: 13
   language: es
   story: true
   rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
@@ -59,7 +59,7 @@ conditions:
     per_tick: {energy: -0.04, health: -0.02}
     duration: 12
     becomes: zombi
-    contagion: {chance: 0.05, via: interaction}
+    contagion: {chance: 0.1, via: contact}  # sangre y heridas (coser, sacar sangre, pelear), no al hablar
     color: "#d9a066"
   zombi:
     description: ya no eres tú
@@ -201,9 +201,12 @@ rules:
   # ── Día y noche ──────────────────────────────────────────────────
   - description: Anochece sobre San Lorenzo. Del cementerio llegan gemidos.
     when: {at: 20}
+    then: {hora: noche, remove_condition: {all: [de_dia]}}
+    once: true
+  # Marcos, el primero en convertirse, tiene la noche para él unas horas antes de que se abran las fosas.
+  - description: De las fosas del cementerio empiezan a salir muertos.
+    when: {at: 23}
     then:
-      hora: noche
-      remove_condition: {all: [de_dia]}
       locations: {Cementerio: {hazard: {label: lleno de muertos, per_tick: {health: -0.15}, condition: en_panico}}}
       spawn: [{name: Muerto del cementerio, profession: difunto, starting_location: Cementerio, count: 2, conditions: [zombi, muerto_errante]}]
     once: true

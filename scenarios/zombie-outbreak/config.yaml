@@ -24,7 +24,7 @@ conditions:
     per_tick: {energy: -0.05, health: -0.03}
     duration: 5
     becomes: zombie
-    contagion: {chance: 0.15, via: interaction}
+    contagion: {chance: 0.15, via: contact}  # por la herida, no al hablar
     color: "#d9a066"
   zombie:
     description: ya no eres tú

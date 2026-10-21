@@ -193,7 +193,7 @@ export interface ConditionConfig {
   per_tick?: Partial<Record<Stat, number>>;
   duration?: number | null;
   becomes?: string;
-  contagion?: { chance?: number; via?: 'interaction' | 'place' } | null;
+  contagion?: { chance?: number; via?: 'interaction' | 'contact' | 'place' } | null;
   controller?: 'llm' | 'rules';
   rules?: { action?: string; targets?: Requirement; seek?: boolean; wander?: number };
   /** With the LLM controller: the agent becomes someone else (a zombie that still thinks). */

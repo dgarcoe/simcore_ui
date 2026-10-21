@@ -91,10 +91,11 @@ export function ConditionsTab() {
               <select
                 className="select"
                 value={c.contagion?.via ?? ''}
-                onChange={(e) => set(key, (x) => void (e.target.value ? (x.contagion = { chance: x.contagion?.chance ?? 0.2, via: e.target.value as 'interaction' | 'place' }) : delete x.contagion))}
+                onChange={(e) => set(key, (x) => void (e.target.value ? (x.contagion = { chance: x.contagion?.chance ?? 0.2, via: e.target.value as 'interaction' | 'contact' | 'place' }) : delete x.contagion))}
               >
                 <option value="">No se contagia</option>
-                <option value="interaction">Al tratar con alguien</option>
+                <option value="interaction">Al tratar con alguien (también hablando)</option>
+                <option value="contact">Por sangre o heridas (morder, curar, pelear; no al hablar)</option>
                 <option value="place">Por estar en el mismo sitio</option>
               </select>
             </label>
