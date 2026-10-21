@@ -570,6 +570,8 @@ export function transferText(d: Record<string, any>): string {
   const what = `${amount(d.amount)} ${d.item}`;
   const place = (s: string) => (s.startsWith('location:') ? s.slice('location:'.length) : s);
   if (d.kind === 'produce') return `${d.to} produce ${what} en ${d.location || place(String(d.from))}`;
+  if (d.kind === 'dropped') return `${d.item} cae de las manos de ${d.from} en ${d.location}`;
+  if (d.kind === 'holder') return d.to ? `👑 ${d.to} se hace con ${d.item}${d.from ? ` (se lo quita a ${d.from})` : ''}` : `👑 ${d.item} se queda sin dueño`;
   if (d.kind !== 'effect') return '';
   if (d.to) return `${place(String(d.to))} recibe ${what}`;
   return `${place(String(d.from))} pierde ${what}`;

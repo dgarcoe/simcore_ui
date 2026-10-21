@@ -56,7 +56,10 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
             >
               <Portrait theme={theme} name={a.name} scale={2} />
               <span className="agent-row-text">
-                <strong>{a.name}</strong>
+                <strong>
+                  {Object.values(sim?.holders ?? {}).some((h) => h.agent === a.name) ? '👑 ' : ''}
+                  {a.name}
+                </strong>
                 <span className="dim">
                   {statusLabel(a) ? `${statusLabel(a)} · ` : ''}
                   {isAlive(a) && Object.keys(a.state.conditions ?? {}).length ? `${Object.keys(a.state.conditions ?? {}).join(', ')} · ` : ''}
@@ -100,6 +103,14 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
           )}
           {agent.rpg && <Sheet sheet={agent.rpg} rolls={rolls[agent.name] ?? []} />}
           {isAlive(agent) && <Social agent={agent} society={sim?.society} />}
+          {isAlive(agent) &&
+            Object.entries(sim?.holders ?? {})
+              .filter(([, h]) => h.agent === agent.name)
+              .map(([item, h]) => (
+                <p key={item} className="prize-line">
+                  👑 <strong>Lleva {item}</strong> <span className="dim">· {h.ticks} {h.ticks === 1 ? 'tick' : 'ticks'} seguidos</span>
+                </p>
+              ))}
           {agent.search && isAlive(agent) && (
             <div className="mind-shift">
               <p>

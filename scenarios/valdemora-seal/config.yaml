@@ -1,0 +1,269 @@
+# Competitive example for simcore_ui's 'town' theme (3 days, 72 ticks): only one can win.
+# The count of Valdemora dies without a clear heir; whoever keeps his seal 12 hours in a row is
+# proclaimed lord. The seal is visible (everyone sees who carries it) and drops where its carrier
+# dies, so the heirs scheme, steal, poison, buy swords and kill for it.
+# Uses: coveted items (visible, drops) and a `holds` rule naming the winner ({holder}), role-playing
+# rules (steal and poison are opposed rolls), weapons and armor, rival groups, secrets, false beliefs,
+# rumors, a chronicle. Full YAML reference:
+# https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
+simulation:
+  name: El Sello de Valdemora
+  description: El conde Aldemar ha muerto sin heredero claro. Quien conserve su sello doce horas seguidas será
+    proclamado señor de Valdemora. Hijos, un bastardo, el obispo, el capitán y un mercenario lo quieren, y solo
+    puede ganar uno.
+  time_step: 1 hour
+  duration: 72 hours
+  seed: 13
+  language: es
+  rpg: true
+  story: true
+  chapter_every: 12
+  awareness: local
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.9
+
+environment:
+  type: grid
+  size: [12, 12]
+  global_state:
+    ui_theme: town
+    luto: true
+    heraldo: false
+  locations:
+    - {name: Salón del Trono, type: government, position: [6, 3], capacity: 20}
+    - {name: Capilla, type: religious, position: [9, 2], capacity: 12, stock: {triaca: 1}}
+    - {name: Cocinas, type: commercial, position: [3, 4], capacity: 8, stock: {comida: 12, veneno: 1}}
+    - {name: Cuartel, type: military, position: [2, 8], capacity: 10, stock: {espada: 1, virotes: 6, cota: 1},
+       access: {professions: [capitán, mercenari, soldad]}}
+    - {name: Torre del Homenaje, type: residential, position: [6, 7], capacity: 6}
+    - {name: Mazmorras, type: storage, position: [9, 9], capacity: 6}
+    - {name: Taberna del pueblo, type: commercial, position: [4, 11], capacity: 15, stock: {comida: 6, daga: 1}}
+    - {name: Bosque, type: outdoor, position: [10, 11], capacity: 20, stock: {veneno: 1}}
+
+items:
+  sello: {description: el sello de plata del conde; quien lo conserve doce horas será el señor, consumable: false, visible: true, drops: true}
+  oro: {description: monedas de oro}
+  espada: {description: espada, consumable: false, weapon: {damage: 0.5, chance: 0.6}}
+  daga: {description: daga, consumable: false, weapon: {damage: 0.35, chance: 0.75}}
+  ballesta: {description: ballesta, consumable: false, weapon: {damage: 0.6, chance: 0.55, ammo: virotes, ranged: true}}
+  virotes: {description: virotes de ballesta}
+  cota: {description: cota de malla, consumable: false, armor: 3}
+  veneno: {description: frasco de belladona}
+  triaca: {description: triaca, el antídoto de los boticarios, cures: [envenenado], on_use: {health: 0.1}}
+  comida: {description: pan y cecina, on_use: {energy: 0.3}}
+
+conditions:
+  envenenado:
+    description: te arde el estómago y se te nubla la vista; algo te han echado en la copa
+    appearance: pálido y sudoroso
+    per_tick: {health: -0.06}
+    duration: 10
+    color: "#7bc950"
+  herido:
+    description: tienes una herida que no deja de sangrar
+    appearance: sangra
+    per_tick: {health: -0.02}
+    color: "#b13e53"
+  encadenado:
+    description: estás encadenado en las mazmorras
+    appearance: encadenado
+    duration: 6
+    color: "#94a3b8"
+    mind:
+      goals: [Salir de las mazmorras, Vengarte de quien te encadenó]
+      actions: [wait, speak, whisper, observe, rest]
+
+actions:
+  robar:
+    description: quitarle el sello a alguien de aquí sin que se dé cuenta
+    who: {not_conditions: [encadenado]}
+    target_requires: {items: {sello: 1}}
+    chance: 0.3
+    check: {attribute: dexterity, skill: sleight_of_hand, against: wisdom, against_skill: perception}
+    on_target: {items: {sello: -1}, mood: -0.3}
+    on_self: {items: {sello: 1}}
+    message: le quita el sello a {target} sin que se dé cuenta
+    fail_message: intenta quitarle el sello a {target}, que le sujeta la muñeca
+  envenenar:
+    description: echar belladona en la copa de alguien de aquí
+    who: {items: {veneno: 1}, not_conditions: [encadenado]}
+    target_requires: {not_conditions: [envenenado]}
+    cost: {veneno: 1}
+    chance: 0.5
+    check: {attribute: dexterity, skill: stealth, against: wisdom, against_skill: perception}
+    on_target: {add_conditions: [envenenado]}
+    message: vierte algo en la copa de {target}
+    fail_message: intenta envenenar a {target}, pero le pillan con el frasco en la mano
+  encadenar:
+    description: llevar a alguien a las mazmorras y encadenarlo seis horas (solo la guardia)
+    who: {professions: [capitán, soldad], not_conditions: [encadenado]}
+    target_requires: {not_conditions: [encadenado]}
+    chance: 0.4
+    check: {attribute: strength, skill: athletics, against: strength, against_skill: athletics}
+    on_target: {add_conditions: [encadenado], mood: -0.3}
+    message: reduce a {target} y lo encadena
+    fail_message: intenta reducir a {target}, que se le escapa
+
+society:
+  healers: [boticari, herbolari, obisp, médic]
+  heal_removes: [herido]
+
+factions:
+  Partido de Elvira: {goal: "Que Elvira herede el condado", leader: Doña Elvira, members: [Doña Elvira, Inés], rivals: [Partido de Rodrigo], color: "#41a6f6"}
+  Partido de Rodrigo: {goal: "Que Rodrigo herede el condado", leader: Don Rodrigo, members: [Don Rodrigo], rivals: [Partido de Elvira], color: "#b13e53"}
+
+rules:
+  - description: Las campanas doblan por el conde Aldemar. Nadie sabe dónde está su sello.
+    when: {at: 1}
+    once: true
+    then: {rumor: {all: {text: El conde guardaba el sello en la capilla, true: false}}}
+  - description: "{holder} lleva seis horas con el sello del conde. Medio castillo le mira ya como a su señor."
+    when: {holds: {item: sello, ticks: 6}}
+    once: true
+    then: {rumor: {all: "{holder} tiene el sello y no lo suelta"}}
+  - description: "{holder} conserva el sello doce horas seguidas. Las campanas tocan a gloria."
+    when: {holds: {item: sello, ticks: 12}}
+    once: true
+    then: {end: "{holder} conserva el sello del conde doce horas seguidas y es proclamado señor de Valdemora."}
+  - description: Solo queda uno en pie en todo el castillo.
+    when: {from: 2, alive: {lte: 1}}
+    once: true
+    then: {end: "En Valdemora ya no queda nadie a quien gobernar."}
+  - description: Llega el senescal del rey.
+    when: {at: 71}
+    once: true
+    then: {end: "Nadie logró conservar el sello. El senescal del rey toma Valdemora en nombre de la Corona."}
+
+events:
+  scheduled:
+    - tick: 6
+      type: rumor
+      description: En las cocinas se cuchichea sobre el mayordomo.
+      effects:
+        rumor: {"location:Cocinas": {text: Tobías estuvo con el conde en su última hora, true: true}}
+    - tick: 18
+      type: arrival
+      description: Un mercenario extranjero llega a la taberna ofreciendo su espada al mejor postor.
+    - tick: 24
+      type: herald
+      description: "Un heraldo del rey anuncia: quien conserve el sello doce horas será reconocido como señor; si nadie lo logra en tres días, Valdemora será de la Corona."
+      effects: {heraldo: true}
+    - tick: 40
+      type: weather
+      description: Una tormenta corta los caminos; nadie entra ni sale del castillo.
+      effects: {luto: false}
+
+agents:
+  - name: Mayordomo Tobías
+    age: 63
+    profession: mayordomo
+    personality: {openness: 0.4, conscientiousness: 0.9, extraversion: 0.25, agreeableness: 0.6, neuroticism: 0.6}
+    goals: [Entregar el sello a quien el conde quería, Sobrevivir a los hijos del conde]
+    starting_location: Salón del Trono
+    resources: {sello: 1, oro: 2}
+    attributes: {strength: 8, dexterity: 11, constitution: 10, intelligence: 14, wisdom: 15, charisma: 11}
+    skills: [insight, perception, deception]
+    secrets: [El conde me dio el sello antes de morir y me dijo que se lo entregara a Martín, su hijo bastardo]
+    relationships:
+      Martín: {type: protegido, sentiment: 0.6}
+      Don Rodrigo: {type: amo, sentiment: -0.3}
+  - name: Doña Elvira
+    age: 34
+    profession: hija mayor del conde
+    personality: {openness: 0.6, conscientiousness: 0.8, extraversion: 0.6, agreeableness: 0.3, neuroticism: 0.4}
+    goals: [Conseguir el sello y conservarlo doce horas, Que Rodrigo no llegue a ser conde]
+    starting_location: Salón del Trono
+    resources: {oro: 6}
+    attributes: {strength: 9, dexterity: 12, constitution: 11, intelligence: 15, wisdom: 13, charisma: 16}
+    skills: [persuasion, deception, insight]
+    faction: Partido de Elvira
+    relationships:
+      Don Rodrigo: {type: hermano, sentiment: -0.5}
+      Inés: {type: dama de compañía, sentiment: 0.5}
+    beliefs:
+      - {text: Rodrigo tiene escondido el sello, true: false}
+  - name: Don Rodrigo
+    age: 29
+    profession: hijo del conde
+    personality: {openness: 0.3, conscientiousness: 0.4, extraversion: 0.7, agreeableness: 0.2, neuroticism: 0.7}
+    goals: [Ser conde de Valdemora como sea, Hacerse con la espada del cuartel]
+    starting_location: Salón del Trono
+    resources: {daga: 1, oro: 3}
+    attributes: {strength: 16, dexterity: 13, constitution: 14, intelligence: 9, wisdom: 8, charisma: 12}
+    skills: [athletics, intimidation]
+    faction: Partido de Rodrigo
+    relationships:
+      Doña Elvira: {type: hermana, sentiment: -0.5}
+      Martín: {type: medio hermano, sentiment: -0.7}
+    secrets: [Le debo cien monedas al capitán Gonzalo y no tengo con qué pagarlas]
+  - name: Martín
+    age: 24
+    profession: mozo de cuadras
+    personality: {openness: 0.7, conscientiousness: 0.5, extraversion: 0.4, agreeableness: 0.6, neuroticism: 0.5}
+    goals: [Que se sepa que es hijo del conde, Conseguir el sello aunque tenga que robarlo]
+    starting_location: Cocinas
+    attributes: {strength: 12, dexterity: 16, constitution: 12, intelligence: 12, wisdom: 12, charisma: 10}
+    skills: [sleight_of_hand, stealth, athletics]
+    secrets: [Soy hijo del conde Aldemar y él lo sabía]
+    relationships:
+      Mayordomo Tobías: {type: mentor, sentiment: 0.6}
+      Brígida: {type: amiga, sentiment: 0.5}
+  - name: Capitán Gonzalo
+    age: 45
+    profession: capitán de la guardia
+    personality: {openness: 0.3, conscientiousness: 0.7, extraversion: 0.5, agreeableness: 0.35, neuroticism: 0.3}
+    goals: [Ponerse del lado del ganador, Cobrar lo que Rodrigo le debe]
+    starting_location: Cuartel
+    resources: {ballesta: 1, virotes: 6, cota: 1}
+    attributes: {strength: 15, dexterity: 15, constitution: 14, intelligence: 10, wisdom: 12, charisma: 10}
+    skills: [athletics, intimidation, perception]
+    level: 2
+    relationships:
+      Don Rodrigo: {type: deudor, sentiment: -0.2}
+  - name: Obispo Anselmo
+    age: 58
+    profession: obispo
+    personality: {openness: 0.4, conscientiousness: 0.7, extraversion: 0.5, agreeableness: 0.4, neuroticism: 0.4}
+    goals: [Que el sello quede en manos de la Iglesia, Que nadie descubra sus cartas al rey]
+    starting_location: Capilla
+    resources: {oro: 8}
+    attributes: {strength: 8, dexterity: 9, constitution: 10, intelligence: 14, wisdom: 16, charisma: 15}
+    skills: [insight, persuasion, medicine]
+    secrets: [Escribí al rey para que la Corona se quede con Valdemora si los hijos se matan entre ellos]
+  - name: Brígida
+    age: 51
+    profession: herbolaria
+    personality: {openness: 0.7, conscientiousness: 0.6, extraversion: 0.3, agreeableness: 0.45, neuroticism: 0.4}
+    goals: [Que Martín sea reconocido, Vengarse de Rodrigo, que mató a su hijo de una paliza]
+    starting_location: Bosque
+    resources: {veneno: 1, triaca: 1}
+    attributes: {strength: 9, dexterity: 14, constitution: 11, intelligence: 14, wisdom: 15, charisma: 9}
+    skills: [medicine, stealth, perception]
+    relationships:
+      Don Rodrigo: {type: enemigo, sentiment: -0.9}
+      Martín: {type: protegido, sentiment: 0.6}
+  - name: Inés
+    age: 22
+    profession: dama de compañía
+    personality: {openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, neuroticism: 0.5}
+    goals: [Espiar para Elvira, Casarse con quien herede]
+    starting_location: Salón del Trono
+    attributes: {strength: 8, dexterity: 13, constitution: 10, intelligence: 12, wisdom: 13, charisma: 14}
+    skills: [stealth, insight, deception]
+    faction: Partido de Elvira
+    relationships:
+      Doña Elvira: {type: señora, sentiment: 0.5}
+  - name: Ulrich
+    age: 38
+    profession: mercenario
+    personality: {openness: 0.3, conscientiousness: 0.5, extraversion: 0.4, agreeableness: 0.2, neuroticism: 0.2}
+    goals: [Servir a quien más pague, Quedarse el sello si ve la ocasión]
+    starting_location: Taberna del pueblo
+    arrives_at: 18
+    resources: {espada: 1, cota: 1}
+    attributes: {strength: 16, dexterity: 13, constitution: 15, intelligence: 9, wisdom: 11, charisma: 8}
+    skills: [athletics, intimidation]
+    level: 3

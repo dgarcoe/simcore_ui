@@ -1425,3 +1425,8 @@ details summary {
 .rpg-rolls li.crit {
   color: var(--accent);
 }
+
+.prize-line {
+  color: var(--accent);
+  margin: 4px 0;
+}

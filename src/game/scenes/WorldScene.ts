@@ -87,6 +87,8 @@ export class WorldScene extends Phaser.Scene {
   private zones = new Map<string, Zone>();
   private agents = new Map<string, AgentView>();
   private feelings = new Map<string, string>();
+  /** Coveted item → marker floating over whoever carries it (and its carrier's name). */
+  private prizes = new Map<string, { img: Phaser.GameObjects.Image; holder: string }>();
   private occupancy = new Occupancy();
   private cues: SimEvent[] = [];
   private cueTimer = 0;
@@ -175,6 +177,11 @@ export class WorldScene extends Phaser.Scene {
       if (b) bubbles.push(b);
     });
     stackBubbles(bubbles);
+    this.prizes.forEach((p) => {
+      const view = this.agents.get(p.holder);
+      p.img.setVisible(!!view);
+      if (view) p.img.setPosition(view.x, view.y - 30 + Math.sin(_time / 250) * 1.5);
+    });
     if (this.cues.length === 0) return;
     this.cueTimer -= delta;
     if (this.cueTimer > 0) return;
@@ -345,6 +352,8 @@ export class WorldScene extends Phaser.Scene {
     this.agents.forEach((a) => a.destroy());
     this.agents.clear();
     this.occupancy = new Occupancy();
+    this.prizes.forEach((p) => p.img.destroy());
+    this.prizes.clear();
   }
 
   private walkTo(view: AgentView, zoneName: string): void {
@@ -392,6 +401,28 @@ export class WorldScene extends Phaser.Scene {
     for (const [name, view] of this.agents) if (!seen.has(name)) this.removeAgent(name, view, !instant);
     this.updateStock(sim);
     this.updatePlaces(sim);
+    this.updatePrizes(sim);
+  }
+
+  /** A gold marker over whoever carries a coveted item; it sparkles when it changes hands. */
+  private updatePrizes(sim: SimState): void {
+    const holders = sim.holders ?? {};
+    for (const [item, p] of this.prizes)
+      if (!holders[item]) {
+        p.img.destroy();
+        this.prizes.delete(item);
+      }
+    for (const [item, h] of Object.entries(holders)) {
+      let p = this.prizes.get(item);
+      if (!p) {
+        p = { img: this.add.image(0, 0, 'emote:coin').setDepth(200002), holder: '' };
+        this.prizes.set(item, p);
+      }
+      if (p.holder !== h.agent) {
+        p.holder = h.agent;
+        this.agents.get(h.agent)?.showEmote('sparkle');
+      }
+    }
   }
 
   /** Closed places get a padlock and a dark veil; dangerous ones a fire badge and a pulsing red veil. */

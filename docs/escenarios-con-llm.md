@@ -1,7 +1,7 @@
 # Generar un escenario con un LLM
 
 Simcore tiene una referencia completa de su YAML pensada para pasársela a un LLM:
-[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/de71eafe3af812319ab77edd7ac54e51063a5a79/docs/scenario-reference.md).
+[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/9f42cd8e538ebb6a59a4f3f8c1e57a0ad755a164/docs/scenario-reference.md).
 
 El enlace apunta a la versión de Simcore que usa esta UI (`SIMCORE_REF`). La referencia incluye:
 - todas las claves, con su tipo, valor por defecto y rango;
@@ -66,5 +66,7 @@ El mapa se genera a partir del escenario, así que conviene que el LLM:
 - [ ] Hay presión desde el principio (una necesidad, un peligro, una variable que baja) y sucesos programados que escalan.
 - [ ] Hay pocas acciones de escenario, solo las propias de la historia: atacar, curar, buscar, susurrar, votar o fundar grupos ya vienen de serie.
 - [ ] Con `rpg: true`, los protagonistas tienen `attributes` y `skills`, y las acciones clave tienen `check`.
+
+Para un escenario en el que **solo puede ganar uno**, pide un objeto `visible` y `drops` y una regla `holds` con `{holder}` en el final (patrón «King of the hill» de la referencia); `valdemora-seal` es el ejemplo.
 
 Los escenarios de `scenarios/` sirven de modelo: `zombie-siege`, `kepler-station`, `zombie-outbreak` y `last-night`.

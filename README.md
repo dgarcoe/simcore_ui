@@ -209,6 +209,12 @@ Un estado puede cambiar quién es el agente sin quitarle el LLM (`mind` en el es
 
 **En la UI:** filtro «Sociedad» en sucesos y aviso «VOTACIÓN»; en el panel de agentes, grupo con su color, reputación, emoción y favores; pestaña «Sociedad» en el editor (grupos, votaciones, rutinas, quién cura); «Arma» en la pestaña «Objetos».
 
+### Objetos codiciados: solo puede ganar uno
+
+Un objeto puede ser **visible** (todos ven quién lo lleva) y **caer al morir** (queda en el suelo donde cae quien lo llevaba, y otro puede cogerlo). Una regla con `holds` termina la simulación cuando alguien lo conserva N ticks seguidos, y `{holder}` pone su nombre en el final. Los agentes saben quién va ganando y dónde está, y compiten por él atacando, robando, envenenando o buscándolo.
+
+**En la UI:** un marcador dorado flota sobre quien lo lleva; en sucesos, «👑 Elvira se hace con el sello» y «el sello cae de las manos de…»; 👑 en la lista de agentes y «Lleva el sello · 5 ticks seguidos» en su ficha. En el editor, «Se ve quién lo lleva» y «Cae al morir» en Objetos, y «Alguien lleva [objeto] durante N ticks seguidos» en las reglas.
+
 ### Historia de la simulación
 
 Con `simulation.story: true` un narrador escribe un capítulo cada `chapter_every` ticks. La pestaña «Historia» muestra los capítulos, una línea de tiempo de momentos clave (muertes, transformaciones, secretos, votaciones, críticos…) y un grafo de relaciones que se puede recorrer en el tiempo. Se descarga como HTML. La tarjeta de fin incluye un epílogo.
@@ -236,6 +242,7 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 ### Ejemplos avanzados
 
 - **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un generador que se queda sin gasolina, un antídoto por descubrir, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
+- **El Sello de Valdemora** (`scenarios/valdemora-seal`, 3 días): muere el conde sin heredero claro y quien conserve su sello doce horas seguidas será el señor. Solo puede ganar uno: hijos, un bastardo, el obispo, el capitán, una herbolaria y un mercenario lo roban, envenenan y matan por él. Con reglas de rol, grupos rivales, secretos y crónica.
 - **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`): zombis con mente propia (sin habla ni recuerdos), hambre y sueño, el monte en llamas y un final por regla.
 - **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.
 

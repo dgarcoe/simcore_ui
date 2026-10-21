@@ -96,8 +96,10 @@ export interface RuleWhen {
   until?: number;
   global?: Record<string, Compare>;
   alive?: Compare;
-  count?: Compare & { condition?: string; not_condition?: string; location?: string };
+  count?: Compare & { condition?: string; not_condition?: string; location?: string; item?: string };
   place?: Record<string, { closed?: boolean; hazard?: boolean; occupants?: Compare }>;
+  /** The same living agent has carried the item `ticks` ticks in a row; texts may say {holder}. */
+  holds?: { item: string; ticks?: number; location?: string };
 }
 
 export interface RuleConfig {
@@ -118,6 +120,10 @@ export interface ItemConfig {
   weapon?: { damage?: number; chance?: number; ammo?: string; ranged?: boolean };
   /** Role-playing rules: bonus to the defense of whoever carries it. */
   armor?: number;
+  /** Everyone sees who carries it. */
+  visible?: boolean;
+  /** Falls to the ground when its carrier dies or leaves. */
+  drops?: boolean;
 }
 
 /** A group agents start in; others can be founded during the run. */
@@ -708,6 +714,10 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     const c = r.when?.count;
     need([c?.condition ?? '', c?.not_condition ?? ''].filter(Boolean), where, `rules.${i}`);
     if (c?.location && !places.has(c.location)) issues.push({ path: `rules.${i}`, message: `${where} cuenta en «${c.location}», que no existe.` });
+    const h = r.when?.holds;
+    for (const item of [h?.item ?? '', c?.item ?? ''].filter(Boolean))
+      if (!cfg.items?.[item]) issues.push({ path: `rules.${i}`, message: `${where} mira quién lleva «${item}», que no está en el catálogo de objetos.` });
+    if (h?.location && !places.has(h.location)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${h.location}», que no existe.` });
     for (const p of Object.keys(r.when?.place ?? {})) if (!places.has(p)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${p}», que no existe.` });
   });
   const agentNames = new Set(cfg.agents.map((a) => a.name));

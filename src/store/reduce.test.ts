@@ -110,6 +110,20 @@ describe('reduce', () => {
     expect(s.moments.map((m) => m.text)).toEqual(['¡Pifia! Ana: deceive contra Tom', '¡Crítico! Ortega: golpear contra Muerto', 'Ortega sube a nivel 3']);
   });
 
+  it('tells who takes a coveted item and where it falls', () => {
+    const s = run([
+      ev('item_transfer', 1, { kind: 'holder', item: 'sello', amount: 1, from: 'Tobías', to: 'Elvira', location: '' }, 'Elvira'),
+      ev('item_transfer', 1, { kind: 'dropped', item: 'sello', amount: 1, from: 'Elvira', to: 'location:Capilla', location: 'Capilla' }, 'Elvira'),
+      ev('item_transfer', 1, { kind: 'holder', item: 'sello', amount: 1, from: 'Elvira', to: '', location: '' }, 'Elvira'),
+    ]);
+    expect(s.feed.map((f) => f.text)).toEqual([
+      '👑 Elvira se hace con sello (se lo quita a Tobías)',
+      'sello cae de las manos de Elvira en Capilla',
+      '👑 sello se queda sin dueño',
+    ]);
+    expect(s.moments.map((m) => m.text)).toEqual(['Elvira se hace con sello', 'sello cae de las manos de Elvira']);
+  });
+
   it('notes in the feed when someone ignores a speaker', () => {
     const s = run([ev('speech_ignored', 3, { agent: 'Ann', by: 'Bob', text: 'help?', turns: 2 }, 'Bob')]);
     expect(s.feed.at(-1)?.text).toBe('no le contesta a Ann (2 turnos): «help?»');

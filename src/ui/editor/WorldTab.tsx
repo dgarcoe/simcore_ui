@@ -107,7 +107,7 @@ export function WorldTab() {
             </label>
             <button className="btn" title="Eliminar regla" onClick={() => update((d) => void d.rules!.splice(i, 1))}>✕</button>
           </div>
-          <WhenEditor value={r.when ?? {}} places={places} conditions={conditions} onChange={(w) => setRule(i, (x) => void (x.when = w))} />
+          <WhenEditor value={r.when ?? {}} places={places} conditions={conditions} items={Object.keys(draft.items ?? {})} onChange={(w) => setRule(i, (x) => void (x.when = w))} />
           <EffectsEditor
             effects={r.then}
             agents={agents}
@@ -138,7 +138,7 @@ function CompareInput({ value, onChange }: { value: Compare | undefined; onChang
 }
 
 /** Builder for a rule's `when`. */
-function WhenEditor({ value, onChange, places, conditions }: { value: RuleWhen; onChange: (w: RuleWhen) => void; places: string[]; conditions: string[] }) {
+function WhenEditor({ value, onChange, places, conditions, items }: { value: RuleWhen; onChange: (w: RuleWhen) => void; places: string[]; conditions: string[]; items: string[] }) {
   const set = (patch: Partial<RuleWhen>) => onChange(prune({ ...value, ...patch }));
   const num = (s: string) => (s === '' ? undefined : Math.max(0, Number(s)));
   const globals = Object.entries(value.global ?? {});
@@ -187,6 +187,10 @@ function WhenEditor({ value, onChange, places, conditions }: { value: RuleWhen; 
             <option value="">(en cualquier sitio)</option>
             {places.map((p) => <option key={p} value={p}>en {p}</option>)}
           </select>
+          <select className="select" value={value.count?.item ?? ''} onChange={(e) => set({ count: prune({ ...value.count, item: e.target.value }) })}>
+            <option value="">(lleven lo que lleven)</option>
+            {items.map((it) => <option key={it} value={it}>con {it}</option>)}
+          </select>
           <CompareInput
             value={Object.fromEntries(Object.entries(value.count ?? {}).filter(([k]) => COMPARE_OPS.some(([op]) => op === k)))}
             onChange={(c) => {
@@ -194,6 +198,29 @@ function WhenEditor({ value, onChange, places, conditions }: { value: RuleWhen; 
               set({ count: c ? prune({ ...base, ...c }) : undefined });
             }}
           />
+        </span>
+      </div>
+      <div className="fx-row" title="Cierto mientras el mismo agente vivo lleva el objeto N ticks seguidos. En la descripción y las consecuencias, {holder} se cambia por su nombre (p. ej. un final «{holder} es el nuevo señor»).">
+        <span className="fx-label">Alguien lleva</span>
+        <span className="row wrap">
+          <select className="select" value={value.holds?.item ?? ''} onChange={(e) => set({ holds: e.target.value ? { ...value.holds, item: e.target.value } : undefined })}>
+            <option value="">(nadie en concreto)</option>
+            {items.map((it) => <option key={it} value={it}>{it}</option>)}
+          </select>
+          {value.holds && (
+            <>
+              <label className="row">
+                durante
+                <input className="input" type="number" min={1} value={value.holds.ticks ?? 1} onChange={(e) => set({ holds: { ...value.holds!, ticks: Math.max(1, Number(e.target.value) || 1) } })} />
+                ticks seguidos
+              </label>
+              <select className="select" value={value.holds.location ?? ''} onChange={(e) => set({ holds: prune({ ...value.holds!, location: e.target.value }) as RuleWhen['holds'] })}>
+                <option value="">(esté donde esté)</option>
+                {places.map((p) => <option key={p} value={p}>en {p}</option>)}
+              </select>
+              <span className="dim small">Usa {'{holder}'} en los textos para nombrarlo.</span>
+            </>
+          )}
         </span>
       </div>
       <div className="fx-row">

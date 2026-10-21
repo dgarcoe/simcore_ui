@@ -79,6 +79,10 @@ export function scoreEvent(e: SimEvent): Moment | null {
       return m(0.5, `Llega ${str(d.agent ?? e.source)}`, [str(d.agent ?? e.source)]);
     case 'agent_depart':
       return m(0.5, `${str(d.agent ?? e.source)} se marcha`, [str(d.agent ?? e.source)]);
+    case 'item_transfer':
+      if (d.kind === 'holder' && d.to) return m(0.6, `${str(d.to)} se hace con ${str(d.item)}`, [str(d.to), str(d.from)], '');
+      if (d.kind === 'dropped') return m(0.5, `${str(d.item)} cae de las manos de ${str(d.from)}`, [str(d.from)]);
+      return null;
     case 'agent_search':
       return d.step === 'found' ? m(0.5, `${str(d.agent)} encuentra a ${str(d.target)}`, [str(d.agent), str(d.target)]) : null;
     case 'place_change':

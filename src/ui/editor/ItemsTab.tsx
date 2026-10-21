@@ -111,6 +111,19 @@ export function ItemsTab() {
               )}
             </div>
           </div>
+          <div className="fx-row">
+            <span className="fx-label">Codiciado</span>
+            <div className="fx-items">
+              <label className="toggle" title="Todos ven quién lo lleva (una corona, un sello, la única llave)">
+                <input type="checkbox" checked={!!it.visible} onChange={(e) => setItem(key, (x) => void (e.target.checked ? (x.visible = true) : delete x.visible))} />
+                Se ve quién lo lleva
+              </label>
+              <label className="toggle" title="Cae al suelo donde muere o se va quien lo lleva, y otro puede cogerlo">
+                <input type="checkbox" checked={!!it.drops} onChange={(e) => setItem(key, (x) => void (e.target.checked ? (x.drops = true) : delete x.drops))} />
+                Cae al morir
+              </label>
+            </div>
+          </div>
           <label className="fx-row" title="Modo rol: suma a la defensa de quien lo lleva (10 + DES + armadura)">
             <span className="fx-label">Armadura</span>
             <input className="input" type="number" min={0} max={10} value={it.armor ?? 0} onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.armor = Math.min(10, Number(e.target.value))) : delete x.armor))} />

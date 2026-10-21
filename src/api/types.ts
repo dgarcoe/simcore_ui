@@ -77,6 +77,8 @@ export type TransferKind = 'give' | 'take' | 'drop' | 'use' | 'trade' | 'produce
 export interface ItemInfo {
   description?: string;
   consumable?: boolean;
+  visible?: boolean;
+  drops?: boolean;
   on_use?: Partial<Record<'health' | 'energy' | 'mood', number>>;
 }
 
@@ -200,6 +202,8 @@ export interface SimState {
   pending_arrivals?: string[];
   /** Groups and open votes (Simcore with a society). */
   society?: SocietyState;
+  /** Who carries each coveted item and for how many ticks in a row. */
+  holders?: Record<string, { agent: string; since: number; ticks: number }>;
 }
 
 export interface ScenarioMeta {
