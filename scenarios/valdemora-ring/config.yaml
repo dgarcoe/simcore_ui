@@ -1,14 +1,14 @@
 # Competitive example for simcore_ui's 'town' theme (3 days, 72 ticks): only one can win.
-# The count of Valdemora dies without a clear heir; whoever keeps his seal 12 hours in a row is
-# proclaimed lord. The seal is visible (everyone sees who carries it) and drops where its carrier
+# The count of Valdemora dies without a clear heir; whoever keeps his ring 12 hours in a row is
+# proclaimed lord. The ring is visible (everyone sees who carries it) and drops where its carrier
 # dies, so the heirs scheme, steal, poison, buy swords and kill for it.
 # Uses: coveted items (visible, drops) and a `holds` rule naming the winner ({holder}), role-playing
 # rules (steal and poison are opposed rolls), weapons and armor, rival groups, secrets, false beliefs,
 # rumors, a chronicle. Full YAML reference:
 # https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
 simulation:
-  name: El Sello de Valdemora
-  description: El conde Aldemar ha muerto sin heredero claro. Quien conserve su sello doce horas seguidas será
+  name: El Anillo de Valdemora
+  description: El conde Aldemar ha muerto sin heredero claro. Quien conserve su anillo doce horas seguidas será
     proclamado señor de Valdemora. Hijos, un bastardo, el obispo, el capitán y un mercenario lo quieren, y solo
     puede ganar uno.
   time_step: 1 hour
@@ -44,7 +44,7 @@ environment:
     - {name: Bosque, type: outdoor, position: [10, 11], capacity: 20, stock: {veneno: 1}}
 
 items:
-  sello: {description: el sello de plata del conde; quien lo conserve doce horas será el señor, consumable: false, visible: true, drops: true}
+  anillo: {description: el anillo de plata del conde; quien lo conserve doce horas será el señor, consumable: false, visible: true, drops: true}
   oro: {description: monedas de oro}
   espada: {description: espada, consumable: false, weapon: {damage: 0.5, chance: 0.6}}
   daga: {description: daga, consumable: false, weapon: {damage: 0.35, chance: 0.75}}
@@ -78,15 +78,15 @@ conditions:
 
 actions:
   robar:
-    description: quitarle el sello a alguien de aquí sin que se dé cuenta
+    description: quitarle el anillo a alguien de aquí sin que se dé cuenta
     who: {not_conditions: [encadenado]}
-    target_requires: {items: {sello: 1}}
+    target_requires: {items: {anillo: 1}}
     chance: 0.3
     check: {attribute: dexterity, skill: sleight_of_hand, against: wisdom, against_skill: perception}
-    on_target: {items: {sello: -1}, mood: -0.3}
-    on_self: {items: {sello: 1}}
-    message: le quita el sello a {target} sin que se dé cuenta
-    fail_message: intenta quitarle el sello a {target}, que le sujeta la muñeca
+    on_target: {items: {anillo: -1}, mood: -0.3}
+    on_self: {items: {anillo: 1}}
+    message: le quita el anillo a {target} sin que se dé cuenta
+    fail_message: intenta quitarle el anillo a {target}, que le sujeta la muñeca
   envenenar:
     description: echar belladona en la copa de alguien de aquí
     who: {items: {veneno: 1}, not_conditions: [encadenado]}
@@ -116,18 +116,18 @@ factions:
   Partido de Rodrigo: {goal: "Que Rodrigo herede el condado", leader: Don Rodrigo, members: [Don Rodrigo], rivals: [Partido de Elvira], color: "#b13e53"}
 
 rules:
-  - description: Las campanas doblan por el conde Aldemar. Nadie sabe dónde está su sello.
+  - description: Las campanas doblan por el conde Aldemar. Nadie sabe dónde está su anillo.
     when: {at: 1}
     once: true
-    then: {rumor: {all: {text: El conde guardaba el sello en la capilla, true: false}}}
-  - description: "{holder} lleva seis horas con el sello del conde. Medio castillo le mira ya como a su señor."
-    when: {holds: {item: sello, ticks: 6}}
+    then: {rumor: {all: {text: El conde guardaba el anillo en la capilla, true: false}}}
+  - description: "{holder} lleva seis horas con el anillo del conde. Medio castillo le mira ya como a su señor."
+    when: {holds: {item: anillo, ticks: 6}}
     once: true
-    then: {rumor: {all: "{holder} tiene el sello y no lo suelta"}}
-  - description: "{holder} conserva el sello doce horas seguidas. Las campanas tocan a gloria."
-    when: {holds: {item: sello, ticks: 12}}
+    then: {rumor: {all: "{holder} tiene el anillo y no lo suelta"}}
+  - description: "{holder} conserva el anillo doce horas seguidas. Las campanas tocan a gloria."
+    when: {holds: {item: anillo, ticks: 12}}
     once: true
-    then: {end: "{holder} conserva el sello del conde doce horas seguidas y es proclamado señor de Valdemora."}
+    then: {end: "{holder} conserva el anillo del conde doce horas seguidas y es proclamado señor de Valdemora."}
   - description: Solo queda uno en pie en todo el castillo.
     when: {from: 2, alive: {lte: 1}}
     once: true
@@ -135,7 +135,7 @@ rules:
   - description: Llega el senescal del rey.
     when: {at: 71}
     once: true
-    then: {end: "Nadie logró conservar el sello. El senescal del rey toma Valdemora en nombre de la Corona."}
+    then: {end: "Nadie logró conservar el anillo. El senescal del rey toma Valdemora en nombre de la Corona."}
 
 events:
   scheduled:
@@ -149,7 +149,7 @@ events:
       description: Un mercenario extranjero llega a la taberna ofreciendo su espada al mejor postor.
     - tick: 24
       type: herald
-      description: "Un heraldo del rey anuncia: quien conserve el sello doce horas será reconocido como señor; si nadie lo logra en tres días, Valdemora será de la Corona."
+      description: "Un heraldo del rey anuncia: quien conserve el anillo doce horas será reconocido como señor; si nadie lo logra en tres días, Valdemora será de la Corona."
       effects: {heraldo: true}
     - tick: 40
       type: weather
@@ -161,12 +161,12 @@ agents:
     age: 63
     profession: mayordomo
     personality: {openness: 0.4, conscientiousness: 0.9, extraversion: 0.25, agreeableness: 0.6, neuroticism: 0.6}
-    goals: [Entregar el sello a quien el conde quería, Sobrevivir a los hijos del conde]
+    goals: [Entregar el anillo a quien el conde quería, Sobrevivir a los hijos del conde]
     starting_location: Salón del Trono
-    resources: {sello: 1, oro: 2}
+    resources: {anillo: 1, oro: 2}
     attributes: {strength: 8, dexterity: 11, constitution: 10, intelligence: 14, wisdom: 15, charisma: 11}
     skills: [insight, perception, deception]
-    secrets: [El conde me dio el sello antes de morir y me dijo que se lo entregara a Martín, su hijo bastardo]
+    secrets: [El conde me dio el anillo antes de morir y me dijo que se lo entregara a Martín, su hijo bastardo]
     relationships:
       Martín: {type: protegido, sentiment: 0.6}
       Don Rodrigo: {type: amo, sentiment: -0.3}
@@ -174,7 +174,7 @@ agents:
     age: 34
     profession: hija mayor del conde
     personality: {openness: 0.6, conscientiousness: 0.8, extraversion: 0.6, agreeableness: 0.3, neuroticism: 0.4}
-    goals: [Conseguir el sello y conservarlo doce horas, Que Rodrigo no llegue a ser conde]
+    goals: [Conseguir el anillo y conservarlo doce horas, Que Rodrigo no llegue a ser conde]
     starting_location: Salón del Trono
     resources: {oro: 6}
     attributes: {strength: 9, dexterity: 12, constitution: 11, intelligence: 15, wisdom: 13, charisma: 16}
@@ -184,7 +184,7 @@ agents:
       Don Rodrigo: {type: hermano, sentiment: -0.5}
       Inés: {type: dama de compañía, sentiment: 0.5}
     beliefs:
-      - {text: Rodrigo tiene escondido el sello, true: false}
+      - {text: Rodrigo tiene escondido el anillo, true: false}
   - name: Don Rodrigo
     age: 29
     profession: hijo del conde
@@ -203,7 +203,7 @@ agents:
     age: 24
     profession: mozo de cuadras
     personality: {openness: 0.7, conscientiousness: 0.5, extraversion: 0.4, agreeableness: 0.6, neuroticism: 0.5}
-    goals: [Que se sepa que es hijo del conde, Conseguir el sello aunque tenga que robarlo]
+    goals: [Que se sepa que es hijo del conde, Conseguir el anillo aunque tenga que robarlo]
     starting_location: Cocinas
     attributes: {strength: 12, dexterity: 16, constitution: 12, intelligence: 12, wisdom: 12, charisma: 10}
     skills: [sleight_of_hand, stealth, athletics]
@@ -227,7 +227,7 @@ agents:
     age: 58
     profession: obispo
     personality: {openness: 0.4, conscientiousness: 0.7, extraversion: 0.5, agreeableness: 0.4, neuroticism: 0.4}
-    goals: [Que el sello quede en manos de la Iglesia, Que nadie descubra sus cartas al rey]
+    goals: [Que el anillo quede en manos de la Iglesia, Que nadie descubra sus cartas al rey]
     starting_location: Capilla
     resources: {oro: 8}
     attributes: {strength: 8, dexterity: 9, constitution: 10, intelligence: 14, wisdom: 16, charisma: 15}
@@ -260,7 +260,7 @@ agents:
     age: 38
     profession: mercenario
     personality: {openness: 0.3, conscientiousness: 0.5, extraversion: 0.4, agreeableness: 0.2, neuroticism: 0.2}
-    goals: [Servir a quien más pague, Quedarse el sello si ve la ocasión]
+    goals: [Servir a quien más pague, Quedarse el anillo si ve la ocasión]
     starting_location: Taberna del pueblo
     arrives_at: 18
     resources: {espada: 1, cota: 1}

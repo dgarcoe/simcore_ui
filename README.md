@@ -213,7 +213,7 @@ Un estado puede cambiar quién es el agente sin quitarle el LLM (`mind` en el es
 
 Un objeto puede ser **visible** (todos ven quién lo lleva) y **caer al morir** (queda en el suelo donde cae quien lo llevaba, y otro puede cogerlo). Una regla con `holds` termina la simulación cuando alguien lo conserva N ticks seguidos, y `{holder}` pone su nombre en el final. Los agentes saben quién va ganando y dónde está, y compiten por él atacando, robando, envenenando o buscándolo.
 
-**En la UI:** un marcador dorado flota sobre quien lo lleva; en sucesos, «👑 Elvira se hace con el sello» y «el sello cae de las manos de…»; 👑 en la lista de agentes y «Lleva el sello · 5 ticks seguidos» en su ficha. En el editor, «Se ve quién lo lleva» y «Cae al morir» en Objetos, y «Alguien lleva [objeto] durante N ticks seguidos» en las reglas.
+**En la UI:** un marcador dorado flota sobre quien lo lleva; en sucesos, «👑 Elvira se hace con el anillo» y «el anillo cae de las manos de…»; 👑 en la lista de agentes y «Lleva el anillo · 5 ticks seguidos» en su ficha. En el editor, «Se ve quién lo lleva» y «Cae al morir» en Objetos, y «Alguien lleva [objeto] durante N ticks seguidos» en las reglas.
 
 ### Partidas con jugadores (dungeon masters)
 
@@ -231,7 +231,7 @@ Para usarlo con un grupo (en el trabajo, un taller…): cada persona configura s
 Simcore guarda solo cada simulación que se lanza (en la Jetson o el PC, en el volumen `simcore-runs`, así que sobreviven a reconstruir; se conservan las 50 últimas, `SIMCORE_RUNS_KEEP`).
 - **Inicio → «Simulaciones guardadas»:** nombre, fecha, duración, modelo, cómo acabó y quién sobrevivió. **Ver**, **⤓ Descargar** (un JSON que también se abre como repetición) y **✕ Borrar**.
 - **Al terminar:** «▶ Ver la repetición» en la tarjeta de fin.
-- **Barra de tiempo** (en cualquier repetición): deslizador por ticks con la hora, marcas de colores en los momentos clave (muertes, transformaciones, el sello cambia de manos, votaciones, críticos…; al pasar el ratón se leen y al hacer clic se salta), ⏮ inicio, momento clave anterior/siguiente, tick anterior/siguiente, reproducir/pausa y velocidad. Saltar es instantáneo: el mapa y los paneles quedan como estaban en ese tick.
+- **Barra de tiempo** (en cualquier repetición): deslizador por ticks con la hora, marcas de colores en los momentos clave (muertes, transformaciones, el anillo cambia de manos, votaciones, críticos…; al pasar el ratón se leen y al hacer clic se salta), ⏮ inicio, momento clave anterior/siguiente, tick anterior/siguiente, reproducir/pausa y velocidad. Saltar es instantáneo: el mapa y los paneles quedan como estaban en ese tick.
 - **Historia:** en una repetición muestra todos los momentos de la partida (los que aún no han llegado, atenuados) y los capítulos; clic para ir a ese momento. En **Sucesos**, clic en «t34» para volver a ese tick.
 
 ### Historia de la simulación
@@ -261,7 +261,7 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 ### Ejemplos avanzados
 
 - **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un generador que se queda sin gasolina, un antídoto por descubrir, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
-- **El Sello de Valdemora** (`scenarios/valdemora-seal`, 3 días): muere el conde sin heredero claro y quien conserve su sello doce horas seguidas será el señor. Solo puede ganar uno: hijos, un bastardo, el obispo, el capitán, una herbolaria y un mercenario lo roban, envenenan y matan por él. Con reglas de rol, grupos rivales, secretos y crónica.
+- **El Anillo de Valdemora** (`scenarios/valdemora-ring`, 3 días): muere el conde sin heredero claro y quien conserve su anillo doce horas seguidas será el señor. Solo puede ganar uno: hijos, un bastardo, el obispo, el capitán, una herbolaria y un mercenario lo roban, envenenan y matan por él. Con reglas de rol, grupos rivales, secretos y crónica.
 - **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`): zombis con mente propia (sin habla ni recuerdos), hambre y sueño, el monte en llamas y un final por regla.
 - **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.
 

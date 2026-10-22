@@ -67,6 +67,6 @@ El mapa se genera a partir del escenario, así que conviene que el LLM:
 - [ ] Hay pocas acciones de escenario, solo las propias de la historia: atacar, curar, buscar, susurrar, votar o fundar grupos ya vienen de serie.
 - [ ] Con `rpg: true`, los protagonistas tienen `attributes` y `skills`, y las acciones clave tienen `check`.
 
-Para un escenario en el que **solo puede ganar uno**, pide un objeto `visible` y `drops` y una regla `holds` con `{holder}` en el final (patrón «King of the hill» de la referencia); `valdemora-seal` es el ejemplo.
+Para un escenario en el que **solo puede ganar uno**, pide un objeto `visible` y `drops` y una regla `holds` con `{holder}` en el final (patrón «King of the hill» de la referencia); `valdemora-ring` es el ejemplo.
 
 Los escenarios de `scenarios/` sirven de modelo: `zombie-siege`, `kepler-station`, `zombie-outbreak` y `last-night`.

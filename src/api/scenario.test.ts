@@ -401,12 +401,12 @@ describe('coveted items', () => {
     expect(messages).toContain('La regla #2 mira quién lleva «cetro», que no está en el catálogo de objetos.');
   });
 
-  it('El Sello de Valdemora validates cleanly and only one can win', async () => {
+  it('El Anillo de Valdemora validates cleanly and only one can win', async () => {
     const { parse } = await import('yaml');
-    const cfg = parse(readFileSync(new URL('../../scenarios/valdemora-seal/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    const cfg = parse(readFileSync(new URL('../../scenarios/valdemora-ring/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
     expect(validateScenario(cfg)).toEqual([]);
     expect(scenarioWarnings(cfg)).toEqual([]);
-    expect(cfg.items?.sello).toMatchObject({ visible: true, drops: true });
+    expect(cfg.items?.anillo).toMatchObject({ visible: true, drops: true });
     const win = cfg.rules?.find((r) => r.when?.holds?.ticks === 12);
     expect(String((win?.then as { end?: string })?.end)).toContain('{holder}');
     expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
