@@ -5,7 +5,7 @@ services:
       dockerfile: docker/simcore.Dockerfile
       args:
         SIMCORE_REPO: ${SIMCORE_REPO:-https://github.com/dgarcoe/simcore}
-        SIMCORE_REF: ${SIMCORE_REF:-a4e825e13523e06b49dacfb16d9e4d8cd12faeb9}
+        SIMCORE_REF: ${SIMCORE_REF:-b8abbbcb15d32786896437555d2427ec80559bd9}
 
     env_file:
       - path: .env
@@ -24,6 +24,8 @@ services:
 
     volumes:
       - simcore-user-scenarios:/app/scenarios_user
+      # every run started here is recorded (Simulaciones guardadas), kept across rebuilds
+      - simcore-runs:/app/runs
 
     ports:
       - "${SIMCORE_PORT:-8420}:8420"
@@ -67,5 +69,6 @@ services:
 
 volumes:
   simcore-user-scenarios:
+  simcore-runs:
   
 

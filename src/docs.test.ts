@@ -15,4 +15,13 @@ describe('docs', () => {
     expect(compose).toContain('- simcore-runs:/app/runs');
     expect(compose).toMatch(/^volumes:[\s\S]*^  simcore-runs:$/m);
   });
+
+  it('every compose file builds the Simcore this UI expects and keeps the runs', () => {
+    const ref = /ARG SIMCORE_REF=(\w+)/.exec(read('../docker/simcore.Dockerfile'))?.[1];
+    for (const file of ['../docker-compose.yml', '../docker-compose-nollama.yml']) {
+      const compose = read(file);
+      expect(compose, file).toContain(`SIMCORE_REF:-${ref}}`);
+      expect(compose, file).toContain('- simcore-runs:/app/runs');
+    }
+  });
 });
