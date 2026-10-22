@@ -14,7 +14,7 @@ services:
       dockerfile: docker/simcore.Dockerfile
       args:
         SIMCORE_REPO: ${SIMCORE_REPO:-https://github.com/dgarcoe/simcore}
-        SIMCORE_REF: ${SIMCORE_REF:-b8abbbcb15d32786896437555d2427ec80559bd9}
+        SIMCORE_REF: ${SIMCORE_REF:-f1ec4aa61ee12e37bd5c0e7ccced6c78c03f200f}
     env_file:
       - path: .env
         required: false
@@ -30,6 +30,8 @@ services:
       - simcore-user-scenarios:/app/scenarios_user
       # every run started here is recorded (Simulaciones guardadas), kept across rebuilds
       - simcore-runs:/app/runs
+      # games with players (their agents and tokens) and the DM session secret
+      - simcore-games:/app/games
     ports:
       - "${SIMCORE_PORT:-8420}:8420"
     healthcheck:
@@ -89,4 +91,5 @@ services:
 volumes:
   simcore-user-scenarios:
   simcore-runs:
+  simcore-games:
   ollama-models:

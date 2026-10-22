@@ -122,6 +122,19 @@ export async function runScenario(id: string, demo: boolean, speed: number): Pro
   }
 }
 
+/** Launch a game with players (the DM's scenario plus their agents) and watch it live. */
+export async function launchGameRun(id: string, demo: boolean, speed: number): Promise<void> {
+  const { launchGame } = await import('../api/games');
+  if (useSim.getState().mode !== 'live') await startLive();
+  useSim.getState().set({ simFresh: false });
+  try {
+    await launchGame(id, { demo, speed });
+  } catch (err) {
+    useSim.getState().set({ simFresh: true });
+    throw err;
+  }
+}
+
 export interface ReplayFile {
   scenario?: { name?: string; description?: string };
   /** The scenario YAML, so replays get professions and map hints too. */

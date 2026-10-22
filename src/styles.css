@@ -1515,3 +1515,140 @@ a.btn {
 .moments li.future {
   opacity: 0.45;
 }
+
+/* Games with players */
+.player-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.player-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.briefing {
+  white-space: pre-wrap;
+}
+
+.player-form {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player-form .trait {
+  flex-direction: row;
+  align-items: center;
+}
+
+.player-block h4 {
+  margin: 6px 0;
+}
+
+.player-attrs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+}
+
+.player-attr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 6px;
+}
+
+.player-attr b {
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--accent);
+}
+
+.diary {
+  list-style: none;
+  padding: 0;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.diary li {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.diary .tick {
+  color: var(--dim);
+  margin-right: 6px;
+}
+
+.personal-link summary {
+  cursor: pointer;
+  color: var(--dim);
+}
+
+.login-card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.games .game-row {
+  align-items: flex-start;
+}
+
+.game-link code {
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: var(--accent);
+}
+
+.game-detail {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+table.players {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.players th,
+table.players td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.agent-summary dt {
+  color: var(--dim);
+}
+
+.agent-summary dd {
+  margin: 0 0 4px;
+}
+
+.game-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

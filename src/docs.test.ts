@@ -22,6 +22,7 @@ describe('docs', () => {
       const compose = read(file);
       expect(compose, file).toContain(`SIMCORE_REF:-${ref}}`);
       expect(compose, file).toContain('- simcore-runs:/app/runs');
+      expect(compose, file).toContain('- simcore-games:/app/games');
     }
   });
 });

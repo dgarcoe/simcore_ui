@@ -3,6 +3,7 @@ import * as api from '../api/client';
 import type { ScenarioRecord } from '../api/types';
 import { runScenario, startLive, startReplay, startRun } from '../store/sources';
 import { useDemoPref } from './demoPref';
+import { GamesSection } from './GamesSection';
 import { openEditor } from './editor/draft';
 
 interface Fixture {
@@ -145,6 +146,8 @@ export function StartScreen() {
             </>
           )}
         </section>
+
+        {!apiError && scenarios && <GamesSection scenarios={scenarios} demo={demo} speed={speed} />}
 
         {runs && (
           <section className="card">

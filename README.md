@@ -215,6 +215,17 @@ Un objeto puede ser **visible** (todos ven quién lo lleva) y **caer al morir** 
 
 **En la UI:** un marcador dorado flota sobre quien lo lleva; en sucesos, «👑 Elvira se hace con el sello» y «el sello cae de las manos de…»; 👑 en la lista de agentes y «Lleva el sello · 5 ticks seguidos» en su ficha. En el editor, «Se ve quién lo lleva» y «Cae al morir» en Objetos, y «Alguien lleva [objeto] durante N ticks seguidos» en las reglas.
 
+### Partidas con jugadores (dungeon masters)
+
+Para usarlo con un grupo (en el trabajo, un taller…): cada persona configura su propio agente sin ver los de los demás ni la simulación, que solo ven los dungeon masters (DM).
+
+1. **Pon una contraseña de DM** en `.env`: `SIMCORE_DM_PASSWORD=…`, y vuelve a lanzar `./scripts/simcore-up.sh`. Desde entonces la UI pide esa contraseña y Simcore no deja ver nada (estado, simulación en vivo, escenarios, partidas guardadas) sin ella. Úsalo dentro de vuestra red o detrás de HTTPS.
+2. **El DM crea una partida** en el inicio («Partidas con jugadores» → «+ Nueva partida»): el escenario, un título, el **briefing** (lo único que sabrán los jugadores del mundo), las plazas, **qué puede decidir cada jugador** (nombre, profesión, edad, personalidad, metas, historia, secretos, atributos con presupuesto de puntos, habilidades, profesiones permitidas) y **lo que decide el DM** para todos (dónde empiezan, qué llevan, su grupo).
+3. **Comparte el enlace de la partida** (`…/#/jugar/K7QF-2M4P`), el mismo para todos. Cada jugador lo abre, se une con su nombre y su navegador recibe su **acceso personal** (también puede copiar un enlace personal para volver desde otro dispositivo). Rellena la ficha y la envía.
+4. **El jugador solo ve** el briefing, su ficha y los nombres de los demás jugadores. No ve sus agentes, ni el escenario, ni la simulación: la API no le da nada más.
+5. **El DM** ve las fichas en «Gestionar» (puede quitar a alguien), cierra las inscripciones y **lanza**: el escenario más los agentes de los jugadores. La sigue en vivo y queda en «Simulaciones guardadas».
+6. **Al terminar, el DM decide qué publicar**: el resultado (el final y si su agente sigue en pie), el **diario de su agente** (solo lo que vivió: lo que hizo, lo que le dijeron, lo que pasó donde estaba y las noticias que llegaron a todos; sin pensamientos ajenos ni susurros entre otros) o la repetición completa.
+
 ### Simulaciones guardadas y reproductor
 
 Simcore guarda solo cada simulación que se lanza (en la Jetson o el PC, en el volumen `simcore-runs`, así que sobreviven a reconstruir; se conservan las 50 últimas, `SIMCORE_RUNS_KEEP`).
