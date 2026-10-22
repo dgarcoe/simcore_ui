@@ -1,0 +1,71 @@
+services:
+  simcore:
+    build:
+      context: .
+      dockerfile: docker/simcore.Dockerfile
+      args:
+        SIMCORE_REPO: ${SIMCORE_REPO:-https://github.com/dgarcoe/simcore}
+        SIMCORE_REF: ${SIMCORE_REF:-a4e825e13523e06b49dacfb16d9e4d8cd12faeb9}
+
+    env_file:
+      - path: .env
+        required: false
+
+    environment:
+      # Ollama runs on the Docker host
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+
+      # Empty = fallback disabled
+      SIMCORE_FALLBACK_MODEL: ${SIMCORE_FALLBACK_MODEL:-}
+
+    extra_hosts:
+      # On Linux, map host.docker.internal to the Docker host
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - simcore-user-scenarios:/app/scenarios_user
+
+    ports:
+      - "${SIMCORE_PORT:-8420}:8420"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/scenarios')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    restart: unless-stopped
+
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui.Dockerfile
+
+    environment:
+      # UI also accesses Ollama running on the Docker host
+      OLLAMA_URL: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    ports:
+      - "${UI_PORT:-8080}:80"
+
+    depends_on:
+      simcore:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+
+volumes:
+  simcore-user-scenarios:
+  
+
