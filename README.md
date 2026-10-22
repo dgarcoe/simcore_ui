@@ -260,7 +260,7 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 
 ### Ejemplos avanzados
 
-- **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un generador que se queda sin gasolina, un antídoto por descubrir, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
+- **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay radio por reparar, un generador que se queda sin gasolina, un antídoto por descubrir que todos ven quién lleva, armas que caen al suelo con quien muere, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
 - **El Anillo de Valdemora** (`scenarios/valdemora-ring`, 3 días): muere el conde sin heredero claro y quien conserve su anillo doce horas seguidas será el señor. Solo puede ganar uno: hijos, un bastardo, el obispo, el capitán, una herbolaria y un mercenario lo roban, envenenan y matan por él. Con reglas de rol, grupos rivales, secretos y crónica.
 - **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`, 24 horas): la infección se contagia por la sangre, zombis con mente propia (sin habla ni recuerdos), fichas de rol y tiradas, curar y atacar integrados, una votación para atrancar la iglesia, rutinas, secretos y dos finales (amanecer o caída).
 - **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.

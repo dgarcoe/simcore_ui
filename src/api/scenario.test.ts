@@ -340,6 +340,11 @@ describe('advanced example', () => {
     expect(cfg.actions?.arrancar_generador.world).toEqual({ repostado: true });
     expect(cfg.votes?.patrulla.options?.['sí']).toEqual({ join: { 'location:Plaza': 'Guardia' } });
     expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
+    // Coveted items: the antidote is in plain sight, weapons fall where their carrier dies.
+    expect(cfg.items?.antidoto).toMatchObject({ visible: true, drops: true });
+    expect(cfg.items?.escopeta.drops).toBe(true);
+    expect(cfg.rules?.find((r) => r.when?.holds)?.when?.holds).toEqual({ item: 'antidoto', ticks: 6 });
+    expect(cfg.rules?.some((r) => r.when?.count?.item === 'escopeta')).toBe(true);
   });
 });
 

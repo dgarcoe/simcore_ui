@@ -4,6 +4,9 @@
 #   - Conditions: infected → zombie (the LLM keeps deciding, as a zombie: no speech, no memories),
 #     rule-driven hordes (no LLM calls), wounds, panic, exhaustion, daylight.
 #   - Items and weapons: stock, production, a supply drop, shotguns (ranged), shovels, Guard vests.
+#   - Coveted items: everyone sees who carries the antidote (visible), weapons and radio parts drop
+#     where their carrier falls, a rule names whoever hoards the antidote ({holder}) and another
+#     counts who is still armed (count by item).
 #   - Scenario actions only for what is specific to the story (bite, hit or shoot a zombie,
 #     barricade, repair the radio, research a cure, burn the bodies, start the generator); healing,
 #     attacking, searching, whispering, groups and votes are the engine's built-in actions.
@@ -22,7 +25,7 @@ simulation:
     cura y alguien en el pueblo sabe más de lo que cuenta. Hay que aguantar cinco días.
   time_step: 1 hour
   duration: 120 hours
-  seed: 13
+  seed: 22
   language: es
   story: true
   rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
@@ -186,15 +189,16 @@ items:
   comida: {description: comida en conserva, on_use: {energy: 0.3, mood: 0.05}}
   medicina: {description: botiquín, on_use: {health: 0.35}, cures: [herido]}
   calmante: {description: calmantes, on_use: {mood: 0.2}, cures: [en_panico]}
-  antidoto: {description: antídoto experimental, cures: [infectado]}
+  # Objetos codiciados: todos ven quién lleva el antídoto, y las armas y las piezas caen al suelo con quien muere.
+  antidoto: {description: antídoto experimental, cures: [infectado], visible: true, drops: true}
   cartuchos: {description: cartuchos de escopeta}
-  escopeta: {description: escopeta, consumable: false, weapon: {damage: 0.6, chance: 0.65, ammo: cartuchos, ranged: true}}
-  chaleco: {description: chaleco antibalas de la Guardia, consumable: false, armor: 2}
+  escopeta: {description: escopeta, consumable: false, drops: true, weapon: {damage: 0.6, chance: 0.65, ammo: cartuchos, ranged: true}}
+  chaleco: {description: chaleco antibalas de la Guardia, consumable: false, armor: 2, drops: true}
   tablones: {description: tablones y clavos}
-  piezas_radio: {description: válvulas y cables para la radio}
+  piezas_radio: {description: válvulas y cables para la radio, drops: true}
   gasolina: {description: bidón de gasolina}
-  muestra: {description: muestra de sangre infectada}
-  pala: {description: pala o barra de hierro, consumable: false, weapon: {damage: 0.4, chance: 0.6}}
+  muestra: {description: muestra de sangre infectada, drops: true}
+  pala: {description: pala o barra de hierro, consumable: false, drops: true, weapon: {damage: 0.4, chance: 0.6}}
   cafe: {description: café fuerte, on_use: {energy: 0.25}, cures: [agotado]}
 
 rules:
@@ -293,6 +297,15 @@ rules:
   - description: La médica prepara tres dosis de antídoto en el hospital.
     when: {global: {cura: {eq: lista}}}
     then: {items: {"location:Hospital": {antidoto: 3}}}
+    once: true
+  # Quién guarda el antídoto (holds + {holder}) y cuántos siguen armados (count por objeto).
+  - description: "{holder} lleva seis horas con el antídoto encima y no se lo ha dado a nadie."
+    when: {holds: {item: antidoto, ticks: 6}}
+    then: {rumor: {all: {text: "{holder} se guarda el antídoto para sí", true: true}}}
+    once: true
+  - description: Ya no queda una sola escopeta en manos de los vivos.
+    when: {from: 24, count: {item: escopeta, not_condition: zombi, lte: 0}}
+    then: {rumor: {all: {text: En San Lorenzo ya no queda nadie armado, true: true}}}
     once: true
 
   # ── El generador (bandera + adjust; recurso que se agota) ────────
