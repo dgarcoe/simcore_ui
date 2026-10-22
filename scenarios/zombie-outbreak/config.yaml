@@ -1,17 +1,23 @@
-# Example scenario for simcore_ui's 'town' theme with conditions (infected →
-# zombie), scenario actions (bite, shoot, barricade, treat), a changed mind
-# (zombies keep using the LLM, without speech or memories), needs (hunger, sleep), world rules and
-# places that close or catch fire. Needs dgarcoe/simcore (main).
+# Short example (24 hours) for simcore_ui's 'town' theme. Needs dgarcoe/simcore (main).
+# Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
+#   - Conditions: infected → zombie, spread only through blood and wounds (contagion via contact);
+#     zombies keep deciding with the LLM as a changed mind (no speech, no memories, new goals).
+#   - Role-playing rules: character sheets, bites and shots decided by d20 checks, levels.
+#   - Built-in actions do the rest: heal (the doctor, or anyone with a first-aid kit), attack
+#     (the shotgun is a ranged weapon), find, whisper, groups and votes.
+#   - Needs (hunger, sleep), world rules (night, the fire on the hill, the church barricaded, two
+#     endings), a vote on locking the church, routines, secrets, a false belief and rumors.
 simulation:
   name: Brote en Valdeoscuro
   description: Un vecino vuelve del monte con una mordedura. En pocas horas la fiebre se convierte en otra cosa.
     Los supervivientes deben decidir si curar, atrincherarse o disparar.
   time_step: 1 hour
   duration: 24 hours
-  seed: 21
+  seed: 2
   language: es
   story: true
   chapter_every: 6
+  rpg: true
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
@@ -49,6 +55,7 @@ actions:
     who: {conditions: [zombie]}
     target_requires: {not_conditions: [zombie]}
     chance: 0.6
+    check: {attribute: strength, dc: 12, against: dexterity}
     on_target: {health: -0.3, add_conditions: [infected, panicked]}
     message: muerde a {target}
     fail_message: intenta morder a {target}, que se escapa
@@ -58,6 +65,7 @@ actions:
     target_requires: {conditions: [zombie]}
     cost: {ammo: 1}
     chance: 0.7
+    check: {attribute: dexterity, dc: 12}
     on_target: {health: -1.0}
     message: dispara a {target}
     fail_message: dispara a {target} y falla
@@ -69,12 +77,6 @@ actions:
     on_self: {energy: -0.2, mood: 0.1}
     world: {barricadas: true}
     message: atranca puertas y ventanas
-  treat:
-    description: limpiar y vendar una herida (solo personal sanitario)
-    who: {professions: [médic, enfermer]}
-    target_requires: {not_conditions: [zombie]}
-    on_target: {health: 0.3, remove_conditions: [panicked]}
-    message: cura las heridas de {target}
 needs:
   hunger:
     label: hambre
@@ -91,6 +93,10 @@ needs:
     at_max: {energy: -0.1}
     who: {not_conditions: [zombie]}
 rules:
+  - description: Amanece. Los supervivientes salen de sus escondites.
+    when: {at: 23, count: {not_condition: zombie, gte: 1}}
+    then: {end: "Amanece sobre Valdeoscuro. Los que siguen en pie han aguantado la noche."}
+    once: true
   - description: Hay tres zombis o más. Valdeoscuro ha caído.
     when: {count: {condition: zombie, gte: 3}}
     then: {end: Valdeoscuro ha caído en manos de los muertos}
@@ -111,8 +117,9 @@ rules:
 items:
   antidote: {description: suero experimental, cures: [infected]}
   medicine: {description: botiquín, on_use: {health: 0.4}}
-  ammo: {description: cartuchos, consumable: false}
-  shotgun: {description: escopeta de caza, consumable: false}
+  ammo: {description: cartuchos}
+  shotgun: {description: escopeta de caza, consumable: false, weapon: {damage: 0.6, chance: 0.7, ammo: ammo, ranged: true}}
+  azada: {description: azada o garrote, consumable: false, weapon: {damage: 0.35, chance: 0.6}}
   food: {description: comida, on_use: {energy: 0.3}}
   tablones: {description: tablones y clavos para atrancar puertas}
 environment:
@@ -126,7 +133,7 @@ environment:
     - {name: Iglesia, type: religious, position: [6, 2], capacity: 15, stock: {food: 4, tablones: 4}}
     - {name: Taberna, type: commercial, position: [9, 5], capacity: 12, stock: {food: 6, tablones: 2}}
     - {name: Consultorio, type: health, position: [10, 9], capacity: 6, stock: {medicine: 3, antidote: 1}}
-    - {name: Monte, type: outdoor, position: [2, 9], capacity: 10}
+    - {name: Monte, type: outdoor, position: [2, 9], capacity: 10, stock: {azada: 1}}
 agents:
   - name: Ramón
     needs: {hunger: 0.3}
@@ -137,6 +144,11 @@ agents:
     starting_location: Plaza
     conditions: [infected]
     backstory: Algo le mordió en el monte anoche.
+    secrets: [Un lobo con los ojos blancos me mordió en el monte y la herida no deja de supurar]
+    attributes: {strength: 14, dexterity: 10, constitution: 13, intelligence: 9, wisdom: 11, charisma: 10}
+    skills: [athletics, deception]
+    relationships:
+      Mateo: {type: sobrino, sentiment: 0.7}
   - name: Elena
     age: 41
     profession: médica
@@ -144,6 +156,10 @@ agents:
     goals: [Atender a los heridos, Entender qué es esta fiebre]
     starting_location: Consultorio
     resources: {medicine: 2}
+    attributes: {strength: 9, dexterity: 12, constitution: 11, intelligence: 15, wisdom: 15, charisma: 12}
+    skills: [medicine, insight, investigation]
+    beliefs:
+      - {text: La fiebre del pastor es una simple infección, true: false}
   - name: Lucía
     age: 34
     profession: tabernera
@@ -151,12 +167,18 @@ agents:
     goals: [Proteger a los clientes de la taberna]
     starting_location: Taberna
     resources: {food: 2}
+    attributes: {strength: 10, dexterity: 11, constitution: 12, intelligence: 11, wisdom: 12, charisma: 15}
+    skills: [persuasion, insight]
+    relationships:
+      Tomás: {type: hermano, sentiment: 0.6}
   - name: Padre Julián
     age: 66
     profession: sacerdote
     personality: {openness: 0.4, conscientiousness: 0.8, extraversion: 0.45, agreeableness: 0.75, neuroticism: 0.5}
     goals: [Dar refugio en la iglesia]
     starting_location: Iglesia
+    attributes: {strength: 8, dexterity: 9, constitution: 10, intelligence: 13, wisdom: 16, charisma: 14}
+    skills: [insight, persuasion, medicine]
   - name: Tomás
     age: 58
     profession: cazador
@@ -164,14 +186,46 @@ agents:
     goals: [Acabar con lo que esté atacando al pueblo]
     starting_location: Taberna
     resources: {shotgun: 1, ammo: 6}
+    attributes: {strength: 14, dexterity: 15, constitution: 13, intelligence: 10, wisdom: 13, charisma: 9}
+    skills: [athletics, perception, stealth]
+    relationships:
+      Lucía: {type: hermana, sentiment: 0.6}
+      Ramón: {type: rival, sentiment: -0.3}
   - name: Mateo
     age: 19
     profession: estudiante
     personality: {openness: 0.8, conscientiousness: 0.3, extraversion: 0.7, agreeableness: 0.5, neuroticism: 0.7}
     goals: [Grabarlo todo, Salir vivo]
     starting_location: Plaza
+    attributes: {strength: 10, dexterity: 14, constitution: 11, intelligence: 14, wisdom: 9, charisma: 11}
+    skills: [stealth, investigation]
+    relationships:
+      Ramón: {type: tío, sentiment: 0.7}
+# Curar es la acción integrada «heal»: con botiquín cualquiera; sin él, la médica.
+society:
+  healers: [médic, enfermer]
+  heal_removes: [panicked]
+
+votes:
+  iglesia:
+    question: "¿Atrancamos la iglesia y pasamos la noche dentro?"
+    from: 6
+    options:
+      "sí": {locations: {Iglesia: {closed: true}}, needs: {all: {sleep: -0.3}}}
+      "no": {}
+
+routines:
+  "*": {night: {rest: [Iglesia, Taberna]}}
+  médica: {day: {work: [Consultorio]}, evening: {work: [Consultorio]}}
+  cazador: {evening: {observe: [Plaza]}}
+
 events:
   scheduled:
+    - tick: 3
+      type: rumor
+      description: En la taberna se comenta que el pastor volvió del monte cojeando.
+      effects:
+        rumor: {"location:Taberna": {text: A Ramón le mordió algo en el monte, true: true}}
     - tick: 8
       type: escalation
       description: Llega la noche y se va la luz en todo el pueblo.
@@ -180,5 +234,6 @@ events:
       type: turning_point
       description: Una columna de la Guardia Civil entra en Valdeoscuro con suministros.
       effects:
-        spawn: [{name: Guardia, profession: guardia civil, starting_location: Plaza, count: 2, resources: {shotgun: 1, ammo: 10}}]
+        spawn: [{name: Guardia, profession: guardia civil, starting_location: Plaza, count: 2, resources: {shotgun: 1, ammo: 10},
+                 attributes: {strength: 13, dexterity: 14, constitution: 13}, skills: [athletics, perception]}]
         items: {"location:Consultorio": {antidote: 2, medicine: 4}}

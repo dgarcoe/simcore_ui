@@ -212,6 +212,14 @@ describe('conditions and scenario actions', () => {
     const cfg = parse(readFileSync(new URL('../../scenarios/zombie-outbreak/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
     expect(validateScenario(cfg)).toEqual([]);
     expect(scenarioWarnings(cfg)).toEqual([]);
+    // Up to date: role-playing rules, built-in heal, a vote, routines, two endings.
+    expect(cfg.simulation.rpg).toBe(true);
+    expect(cfg.actions?.treat).toBeUndefined();
+    expect(cfg.society?.healers).toContain('médic');
+    expect(cfg.items?.shotgun.weapon?.ranged).toBe(true);
+    expect(Object.keys(cfg.votes ?? {})).toEqual(['iglesia']);
+    expect(cfg.rules?.filter((r) => (r.then as { end?: string })?.end)).toHaveLength(2);
+    expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
   });
 });
 
