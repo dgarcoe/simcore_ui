@@ -686,7 +686,7 @@ details summary {
 /* ── start screen ──────────────────────────────────────────── */
 
 .start {
-  max-width: 1100px;
+  max-width: min(1800px, 100%);
   margin: 0 auto;
   padding: 40px 16px;
 }
@@ -705,7 +705,7 @@ details summary {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 16px;
 }
 
@@ -740,6 +740,19 @@ details summary {
   gap: 10px;
   padding: 8px 0;
   border-top: 1px solid var(--line);
+}
+
+/* The text takes the width; the buttons keep theirs. */
+.scenario-list li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Creating a game: the form gets two columns when there is room. */
+@media (min-width: 1300px) {
+  .cards > .games:has(.game-form) {
+    grid-column: span 2;
+  }
 }
 
 .scenario-list p {
