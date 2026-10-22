@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as api from '../api/client';
 import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
+import { jumpMoment, seekReplay, startRun } from '../store/sources';
 
 /** Shown when a run finishes; live runs can ask Simcore for an LLM-written chronicle. */
 export function EndCard() {
@@ -10,6 +11,8 @@ export function EndCard() {
   const reason = useSim((s) => s.endReason);
   const message = useSim((s) => s.endMessage);
   const sim = useSim((s) => s.sim);
+  const scenarioName = useSim((s) => s.scenarioName);
+  const [replayError, setReplayError] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
   const [text, setText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,6 +32,17 @@ export function EndCard() {
     }
   };
 
+  const watchAgain = async () => {
+    try {
+      const runs = await api.listRuns();
+      const run = runs?.find((r) => r.name === scenarioName && r.status !== 'running') ?? runs?.[0];
+      if (!run) throw new Error('Este Simcore no guarda las simulaciones (actualízalo con ./scripts/simcore-up.sh).');
+      await startRun(run.id);
+    } catch (e) {
+      setReplayError(String((e as Error).message));
+    }
+  };
+
   return (
     <div className="endcard">
       <button className="close" onClick={() => setOpen(false)} aria-label="Cerrar">×</button>
@@ -42,7 +56,20 @@ export function EndCard() {
         </button>
       )}
       {text && <div className="chronicle">{text}</div>}
-      <button className="btn" onClick={() => bus.emit('openTab', 'story')}>📖 Ver la historia</button>
+      <div className="row wrap">
+        <button className="btn" onClick={() => bus.emit('openTab', 'story')}>📖 Ver la historia</button>
+        {mode === 'live' && (
+          <button className="btn btn-accent" onClick={watchAgain} title="Simcore la ha guardado: revísala con la barra de tiempo">
+            ▶ Ver la repetición
+          </button>
+        )}
+        {mode === 'replay' && (
+          <>
+            <button className="btn" onClick={() => { setOpen(false); seekReplay(0); jumpMoment(1); }}>⏮ Revisar desde el primer momento clave</button>
+          </>
+        )}
+      </div>
+      {replayError && <p className="warn">{replayError}</p>}
     </div>
   );
 }

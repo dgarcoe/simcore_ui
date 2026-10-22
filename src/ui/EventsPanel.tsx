@@ -3,6 +3,7 @@ import type { EventType } from '../api/types';
 import { mapLocations } from '../game/map/model';
 import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
+import { seekReplay } from '../store/sources';
 import { inject } from '../store/sources';
 import { WorldControls } from './AgentControls';
 
@@ -55,6 +56,7 @@ export function EventsPanel() {
   const feed = useSim((s) => s.feed);
   const sim = useSim((s) => s.sim);
   const selectAgent = useSim((s) => s.selectAgent);
+  const mode = useSim((s) => s.mode);
   const [filter, setFilter] = useState(0);
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
@@ -100,7 +102,11 @@ export function EventsPanel() {
       <ul className="feed">
         {items.map((f) => (
           <li key={f.id} className={`feed-item t-${f.type}`}>
-            <span className="tick">t{f.tick}</span>
+            {mode === 'replay' ? (
+              <button className="tick link" onClick={() => seekReplay(f.tick)} title="Volver a este momento">t{f.tick}</button>
+            ) : (
+              <span className="tick">t{f.tick}</span>
+            )}
             <span className="icon">{ICON[f.type] ?? '·'}</span>
             <span>
               {f.source && (

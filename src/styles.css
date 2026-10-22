@@ -1430,3 +1430,88 @@ details summary {
   color: var(--accent);
   margin: 4px 0;
 }
+
+/* Replay timeline */
+.replaybar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px 6px;
+  background: var(--panel);
+  border-bottom: 4px solid var(--ink);
+}
+
+.replay-buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.replay-track {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+  padding-top: 12px;
+}
+
+.replay-marks {
+  position: absolute;
+  inset: 0 8px auto 8px;
+  height: 12px;
+}
+
+.replay-mark {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 10px;
+  margin-left: -3px;
+  padding: 0;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+}
+
+.replay-mark:hover {
+  transform: scaleY(1.4);
+}
+
+.replay-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.replay-label {
+  position: relative;
+  min-width: 150px;
+  font-size: 18px;
+}
+
+.replay-hover {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 50;
+  width: max-content;
+  max-width: 360px;
+  padding: 4px 6px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 16px;
+}
+
+@media (max-width: 760px) {
+  .replaybar {
+    flex-wrap: wrap;
+  }
+}
+
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.moments li.future {
+  opacity: 0.45;
+}

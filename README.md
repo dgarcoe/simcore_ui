@@ -215,6 +215,14 @@ Un objeto puede ser **visible** (todos ven quién lo lleva) y **caer al morir** 
 
 **En la UI:** un marcador dorado flota sobre quien lo lleva; en sucesos, «👑 Elvira se hace con el sello» y «el sello cae de las manos de…»; 👑 en la lista de agentes y «Lleva el sello · 5 ticks seguidos» en su ficha. En el editor, «Se ve quién lo lleva» y «Cae al morir» en Objetos, y «Alguien lleva [objeto] durante N ticks seguidos» en las reglas.
 
+### Simulaciones guardadas y reproductor
+
+Simcore guarda solo cada simulación que se lanza (en la Jetson o el PC, en el volumen `simcore-runs`, así que sobreviven a reconstruir; se conservan las 50 últimas, `SIMCORE_RUNS_KEEP`).
+- **Inicio → «Simulaciones guardadas»:** nombre, fecha, duración, modelo, cómo acabó y quién sobrevivió. **Ver**, **⤓ Descargar** (un JSON que también se abre como repetición) y **✕ Borrar**.
+- **Al terminar:** «▶ Ver la repetición» en la tarjeta de fin.
+- **Barra de tiempo** (en cualquier repetición): deslizador por ticks con la hora, marcas de colores en los momentos clave (muertes, transformaciones, el sello cambia de manos, votaciones, críticos…; al pasar el ratón se leen y al hacer clic se salta), ⏮ inicio, momento clave anterior/siguiente, tick anterior/siguiente, reproducir/pausa y velocidad. Saltar es instantáneo: el mapa y los paneles quedan como estaban en ese tick.
+- **Historia:** en una repetición muestra todos los momentos de la partida (los que aún no han llegado, atenuados) y los capítulos; clic para ir a ese momento. En **Sucesos**, clic en «t34» para volver a ese tick.
+
 ### Historia de la simulación
 
 Con `simulation.story: true` un narrador escribe un capítulo cada `chapter_every` ticks. La pestaña «Historia» muestra los capítulos, una línea de tiempo de momentos clave (muertes, transformaciones, secretos, votaciones, críticos…) y un grafo de relaciones que se puede recorrer en el tiempo. Se descarga como HTML. La tarjeta de fin incluye un epílogo.

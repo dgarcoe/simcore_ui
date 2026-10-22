@@ -9,4 +9,10 @@ describe('docs', () => {
     expect(ref).toBeTruthy();
     expect(read('../docs/escenarios-con-llm.md')).toContain(`dgarcoe/simcore/blob/${ref}/docs/scenario-reference.md`);
   });
+
+  it('keeps recorded runs in a volume, so they survive rebuilding Simcore', () => {
+    const compose = read('../docker-compose.yml');
+    expect(compose).toContain('- simcore-runs:/app/runs');
+    expect(compose).toMatch(/^volumes:[\s\S]*^  simcore-runs:$/m);
+  });
 });

@@ -65,6 +65,45 @@ export async function fetchVersion(): Promise<SimcoreVersion | null> {
   }
 }
 
+/** A run Simcore recorded (GET /api/runs). */
+export interface RunMeta {
+  id: string;
+  name: string;
+  description?: string;
+  scenario_id?: string;
+  model?: string;
+  demo?: boolean;
+  started: string;
+  ended: string | null;
+  status: 'running' | 'finished' | 'interrupted' | 'broken';
+  ticks: number;
+  events: number;
+  end_reason: string;
+  end_message: string;
+  alive: string[];
+}
+
+/** Recorded runs, newest first; null when this Simcore doesn't record them. */
+export async function listRuns(): Promise<RunMeta[] | null> {
+  const res = await fetch('/api/runs');
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => null)) as { runs?: RunMeta[] } | null;
+  return Array.isArray(data?.runs) ? data.runs : null;
+}
+
+/** A recorded run in the replay format: {scenario, config, events, meta}. */
+export async function fetchRun(id: string): Promise<{ scenario?: { name?: string; description?: string }; config?: unknown; events: SimEvent[]; meta?: RunMeta }> {
+  return json(await fetch(`/api/runs/${encodeURIComponent(id)}`));
+}
+
+export async function deleteRun(id: string): Promise<void> {
+  const res = await fetch(`/api/runs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail ?? `${res.status} ${res.statusText}`);
+  }
+}
+
 export async function postmortem(): Promise<string> {
   const res = await json<{ narrative?: string; error?: string }>(await post('/api/postmortem/narrative'));
   if (res.error) throw new Error(res.error);

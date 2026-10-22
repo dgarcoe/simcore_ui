@@ -6,6 +6,8 @@ export interface BusEvents {
   event: SimEvent;
   /** Fired when replay/live restarts so the scene can drop pending animations. */
   reset: void;
+  /** A replay jumped: redraw the world from the current state at once. */
+  resync: void;
   focusAgent: string;
   focusZone: string;
   zoom: 'in' | 'out' | 'fit';

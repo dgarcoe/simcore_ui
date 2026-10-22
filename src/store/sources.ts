@@ -4,7 +4,9 @@ import * as api from '../api/client';
 import { requiredFeatures, type ScenarioConfig } from '../api/scenario';
 import { connectSocket } from '../api/socket';
 import type { SimEvent, SimState } from '../api/types';
+import { bus } from './bus';
 import { useSim } from './simStore';
+import { scoreEvent, type Moment } from './story';
 
 let stopCurrent: (() => void) | null = null;
 let replay: Replay | null = null;
@@ -13,6 +15,7 @@ function stop(): void {
   stopCurrent?.();
   stopCurrent = null;
   replay = null;
+  useSim.getState().set({ replayTimeline: null });
 }
 
 /** Stops the current source and goes back to the start screen. */
@@ -124,16 +127,31 @@ export interface ReplayFile {
   /** The scenario YAML, so replays get professions and map hints too. */
   config?: ScenarioConfig;
   events: SimEvent[];
+  /** Runs recorded by Simcore: how it went (model, ending, survivors…). */
+  meta?: api.RunMeta;
 }
 
 export async function startReplay(url: string): Promise<void> {
+  playReplay((await (await fetch(url)).json()) as ReplayFile);
+}
+
+/** Watch a run Simcore recorded. */
+export async function startRun(id: string): Promise<void> {
+  playReplay((await api.fetchRun(id)) as unknown as ReplayFile);
+}
+
+export function playReplay(file: ReplayFile): void {
   stop();
-  const file = (await (await fetch(url)).json()) as ReplayFile;
   const store = useSim.getState();
   store.reset();
-  store.set({ mode: 'replay', connected: true, scenarioDescription: file.scenario?.description ?? '' });
+  store.set({
+    mode: 'replay',
+    connected: true,
+    scenarioDescription: file.scenario?.description ?? '',
+    replayTimeline: timelineOf(file.events),
+  });
   store.setScenarioConfig(file.config ?? null);
-  replay = new Replay(file.events);
+  replay = new Replay(file.events, file.config ?? null);
   stopCurrent = () => replay?.dispose();
   replay.start();
 }
@@ -151,16 +169,57 @@ export async function control(action: 'pause' | 'resume' | 'stop'): Promise<void
   useSim.getState().set({ paused: action === 'pause' });
 }
 
+/** Back to the first tick and play. */
 export function restartReplay(): void {
   if (!replay) return;
-  const events = replay.events;
-  const config = useSim.getState().scenarioConfig;
-  replay.dispose();
-  useSim.getState().reset();
-  useSim.getState().setScenarioConfig(config);
-  replay = new Replay(events);
-  stopCurrent = () => replay?.dispose();
-  replay.start();
+  replay.seek(0);
+  replay.resume();
+  useSim.getState().set({ paused: false });
+}
+
+/** Jump to the end of a tick of the replay (instantly, without animations). */
+export function seekReplay(tick: number): void {
+  replay?.seek(tick);
+}
+
+export function stepReplay(delta: number): void {
+  if (!replay) return;
+  replay.seek(Math.max(0, replay.at + delta));
+}
+
+/** Jump to the next (or previous) key moment. */
+export function jumpMoment(direction: 1 | -1): void {
+  const timeline = useSim.getState().replayTimeline;
+  if (!replay || !timeline) return;
+  const ticks = [...new Set(timeline.moments.map((m) => m.tick))].sort((x, y) => x - y);
+  const at = replay.at;
+  const target = direction > 0 ? ticks.find((t) => t > at) : [...ticks].reverse().find((t) => t < at);
+  if (target !== undefined) replay.seek(target);
+}
+
+export interface Timeline {
+  /** Last tick of the run. */
+  ticks: number;
+  /** Key moments of the whole run (importance ≥ 0.5). */
+  moments: Moment[];
+  /** Clock text at each tick ("Day 2, 14:00"). */
+  times: Record<number, string>;
+}
+
+export function timelineOf(events: SimEvent[]): Timeline {
+  const times: Record<number, string> = {};
+  let ticks = 0;
+  const moments: Moment[] = [];
+  for (const e of events) {
+    ticks = Math.max(ticks, e.tick);
+    if (e.type === 'tick_end') {
+      const time = (e.data as Partial<SimState>).clock?.time;
+      if (time) times[e.tick] = time;
+    }
+    const m = scoreEvent(e);
+    if (m && m.importance >= 0.5) moments.push(m);
+  }
+  return { ticks, moments, times };
 }
 
 /**
@@ -179,13 +238,18 @@ export async function inject(description: string, location: string): Promise<voi
   ingest({ type: 'injected_event', tick: sim?.clock.tick ?? 0, data: { description, location }, source: '' });
 }
 
-/** Plays recorded events tick by tick, like the server would. */
+/** Plays recorded events tick by tick, like the server would, and can jump to any tick. */
 class Replay {
   private i = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private paused = false;
+  /** Last tick fully shown. */
+  at = 0;
 
-  constructor(readonly events: SimEvent[]) {}
+  constructor(
+    readonly events: SimEvent[],
+    private readonly config: ScenarioConfig | null,
+  ) {}
 
   start(): void {
     this.step();
@@ -208,13 +272,52 @@ class Replay {
     this.i = this.events.length;
   }
 
+  /** Show the world at the end of `tick`: replays the events silently and redraws the map at once. */
+  seek(tick: number): void {
+    const wasPaused = this.paused;
+    this.pause();
+    const store = useSim.getState();
+    if (tick <= this.at || this.i === 0) {
+      const { selectedAgent, follow } = store;
+      store.reset();
+      store.setScenarioConfig(this.config);
+      store.set({ selectedAgent, follow });
+      this.i = 0;
+      this.at = 0;
+    }
+    const batch: SimEvent[] = [];
+    while (this.i < this.events.length) {
+      const e = this.events[this.i++];
+      batch.push(e);
+      if (e.type === 'tick_end') {
+        this.at = e.tick;
+        if (e.tick >= tick) break;
+      }
+    }
+    // After the last tick only the ending is left: show it too.
+    if (!this.events.slice(this.i).some((e) => e.type === 'tick_end')) {
+      batch.push(...this.events.slice(this.i));
+      this.i = this.events.length;
+    }
+    useSim.getState().ingestMany(batch);
+    useSim.getState().set({ banner: null });
+    bus.emit('resync');
+    if (!wasPaused) {
+      this.paused = false;
+      if (this.i < this.events.length) this.timer = setTimeout(() => this.step(), useSim.getState().tickMs);
+    }
+  }
+
   private step(): void {
     if (this.paused) return;
     const { ingest } = useSim.getState();
     while (this.i < this.events.length) {
       const e = this.events[this.i++];
       ingest(e);
-      if (e.type === 'tick_end') break;
+      if (e.type === 'tick_end') {
+        this.at = e.tick;
+        break;
+      }
     }
     if (this.i < this.events.length) this.timer = setTimeout(() => this.step(), useSim.getState().tickMs);
   }

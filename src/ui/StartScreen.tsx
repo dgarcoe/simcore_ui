@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as api from '../api/client';
 import type { ScenarioRecord } from '../api/types';
-import { runScenario, startLive, startReplay } from '../store/sources';
+import { runScenario, startLive, startReplay, startRun } from '../store/sources';
 import { useDemoPref } from './demoPref';
 import { openEditor } from './editor/draft';
 
@@ -21,6 +21,7 @@ export function StartScreen() {
   const [speed, setSpeed] = useState(2);
   const [busy, setBusy] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [runs, setRuns] = useState<api.RunMeta[] | null>(null);
   const [outdated, setOutdated] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function StartScreen() {
         else if (!v) setOutdated('Tu Simcore es antiguo (no dice su versión): a algunos escenarios les faltarán funciones.');
       })
       .catch(() => {});
+    api.listRuns().then(setRuns).catch(() => {});
     fetch('fixtures/index.json')
       .then((r) => r.json())
       .then(setFixtures)
@@ -144,6 +146,48 @@ export function StartScreen() {
           )}
         </section>
 
+        {runs && (
+          <section className="card">
+            <h2>Simulaciones guardadas</h2>
+            <p className="dim">Cada simulación lanzada en Simcore se guarda sola. Vuelve a verla, sáltate a cualquier momento o descárgala.</p>
+            <ul className="scenario-list">
+              {runs.map((r) => (
+                <li key={r.id}>
+                  <div>
+                    <strong>{r.name}</strong> <span className="dim">· {runDate(r.started)} · {r.ticks} ticks · {r.demo ? 'demo' : r.model}</span>
+                    <p className="dim">
+                      {runOutcome(r)}
+                      {r.alive.length > 0 && r.status !== 'running' && <> · vivos: {r.alive.join(', ')}</>}
+                    </p>
+                  </div>
+                  <span className="row nowrap">
+                    <button className="btn" disabled={r.events === 0} onClick={() => startRun(r.id).catch((e) => setRunError(String(e.message ?? e)))}>
+                      Ver
+                    </button>
+                    <a className="btn" href={`/api/runs/${encodeURIComponent(r.id)}`} download={`${r.id}.json`} title="Descargar (se puede abrir como repetición)">
+                      ⤓
+                    </a>
+                    {r.status !== 'running' && (
+                      <button
+                        className="btn"
+                        title="Borrar"
+                        onClick={async () => {
+                          if (!confirm(`¿Borrar la simulación «${r.name}» del ${runDate(r.started)}?`)) return;
+                          await api.deleteRun(r.id).catch((e) => setRunError(String(e.message ?? e)));
+                          setRuns(await api.listRuns());
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </span>
+                </li>
+              ))}
+              {runs.length === 0 && <li className="dim">Aún no hay ninguna. Lanza un escenario y aparecerá aquí.</li>}
+            </ul>
+          </section>
+        )}
+
         <section className="card">
           <h2>Repeticiones</h2>
           <p className="dim">Simulaciones grabadas, sin servidor.</p>
@@ -162,6 +206,20 @@ export function StartScreen() {
       </div>
     </main>
   );
+}
+
+function runDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function runOutcome(r: api.RunMeta): string {
+  if (r.status === 'running') return '● en curso';
+  if (r.status === 'interrupted') return 'Interrumpida';
+  if (r.end_reason === 'stopped') return 'Detenida';
+  if (r.end_message) return r.end_message;
+  if (r.end_reason === 'no_agents_left') return 'No quedó nadie';
+  return 'Completada';
 }
 
 /** Local models run on this machine; anything else needs a cloud API key (or the local fallback). */

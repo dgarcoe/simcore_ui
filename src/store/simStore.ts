@@ -3,6 +3,7 @@ import { professions, type ScenarioConfig } from '../api/scenario';
 import type { SimEvent } from '../api/types';
 import { bus } from './bus';
 import { initialSnapshot, reduce, type SimSnapshot } from './reduce';
+import type { Timeline } from './sources';
 
 export type SourceMode = 'none' | 'live' | 'replay' | 'editor';
 
@@ -25,8 +26,13 @@ export interface UIState extends SimSnapshot {
   /** 'auto' or a theme id. */
   themeChoice: string;
 
+  /** Replay only: the whole run at a glance (ticks, key moments, clock). */
+  replayTimeline: Timeline | null;
+
   /** silent: update state without animating it (history catch-up). */
   ingest: (e: SimEvent, silent?: boolean) => void;
+  /** Many events at once, silently and with a single update (jumping in a replay). */
+  ingestMany: (events: SimEvent[]) => void;
   reset: () => void;
   set: (patch: Partial<UIState>) => void;
   selectAgent: (name: string | null) => void;
@@ -44,6 +50,22 @@ function loadThemeChoice(scenario: string): string {
   }
 }
 
+/** What an event changes in the UI state (null: ignored). */
+function applyEvent(prev: UIState, e: SimEvent): Partial<UIState> | null {
+  const next = reduce(prev, e);
+  if (!next) return null;
+  const patch: Partial<UIState> = next;
+  if (next.scenarioName !== prev.scenarioName) patch.themeChoice = loadThemeChoice(next.scenarioName);
+  if (e.type === 'tick_start') patch.tickStartedAt = Date.now();
+  if (e.type === 'simulation_start') {
+    patch.paused = false;
+    // Launched from this UI: we already know who takes part in the new run.
+    const cfg = prev.scenarioConfig;
+    if (cfg && cfg.simulation.name === next.scenarioName) patch.runAgents = cfg.agents.map((a) => a.name);
+  }
+  return patch;
+}
+
 export const useSim = create<UIState>()((set, get) => ({
   ...initialSnapshot(),
   mode: 'none',
@@ -58,22 +80,22 @@ export const useSim = create<UIState>()((set, get) => ({
   selectedAgent: null,
   follow: false,
   themeChoice: 'auto',
+  replayTimeline: null,
 
   ingest: (e, silent = false) => {
-    const prev = get();
-    const next = reduce(prev, e);
-    if (!next) return;
-    const patch: Partial<UIState> = next;
-    if (next.scenarioName !== prev.scenarioName) patch.themeChoice = loadThemeChoice(next.scenarioName);
-    if (e.type === 'tick_start') patch.tickStartedAt = Date.now();
-    if (e.type === 'simulation_start') {
-      patch.paused = false;
-      // Launched from this UI: we already know who takes part in the new run.
-      const cfg = prev.scenarioConfig;
-      if (cfg && cfg.simulation.name === next.scenarioName) patch.runAgents = cfg.agents.map((a) => a.name);
-    }
+    const patch = applyEvent(get(), e);
+    if (!patch) return;
     set(patch);
     if (!silent) bus.emit('event', e);
+  },
+
+  ingestMany: (events) => {
+    let state: UIState = get();
+    for (const e of events) {
+      const patch = applyEvent(state, e);
+      if (patch) state = { ...state, ...patch };
+    }
+    set(state);
   },
 
   reset: () => {

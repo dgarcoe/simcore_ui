@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
+import { seekReplay } from '../store/sources';
 import { edgesOf, frameAt, storyHtml, type Moment, type RelFrame } from '../store/story';
 
 const KIND_COLOR: Record<string, string> = {
@@ -18,6 +19,8 @@ const KIND_COLOR: Record<string, string> = {
 const colorOf = (m: Moment) => KIND_COLOR[m.kind] ?? '#94b0c2';
 
 function focus(m: Moment) {
+  // In a replay, go to that moment first (the map shows the world as it was then).
+  if (useSim.getState().mode === 'replay') seekReplay(m.tick);
   if (m.agents[0]) bus.emit('focusAgent', m.agents[0]);
   else if (m.place) bus.emit('focusZone', m.place);
 }
@@ -33,8 +36,12 @@ export function StoryPanel() {
   const endMessage = useSim((s) => s.endMessage);
   const epilogue = useSim((s) => s.epilogue);
   const [onlyKey, setOnlyKey] = useState(true);
+  const replayTimeline = useSim((s) => s.replayTimeline);
+  const now = sim?.clock.tick ?? 0;
+  // A replay knows the whole run: list every moment (the ones still to come, dimmed) to jump to.
+  const all = replayTimeline ? mergeMoments(moments, replayTimeline.moments) : moments;
   const maxTick = Math.max(lastTick, moments.at(-1)?.tick ?? 0, 1);
-  const shown = moments.filter((m) => !onlyKey || m.importance >= 0.5);
+  const shown = all.filter((m) => !onlyKey || m.importance >= 0.5);
 
   const download = () => {
     const cast = Object.values(sim?.agents ?? {}).map((a) => ({
@@ -62,7 +69,14 @@ export function StoryPanel() {
         chapters.map((c) => (
           <article key={c.n} className="chapter">
             <h4>
-              {c.title} <span className="dim small">t{c.from_tick}–{c.to_tick}</span>
+              {c.title}{' '}
+              {replayTimeline ? (
+                <button className="link dim small" onClick={() => seekReplay(c.from_tick)} title="Ir al principio del capítulo">
+                  t{c.from_tick}–{c.to_tick}
+                </button>
+              ) : (
+                <span className="dim small">t{c.from_tick}–{c.to_tick}</span>
+              )}
             </h4>
             <p>{c.text}</p>
           </article>
@@ -87,8 +101,8 @@ export function StoryPanel() {
       </label>
       <ol className="moments">
         {[...shown].reverse().slice(0, 80).map((m, i) => (
-          <li key={`${m.tick}-${i}`}>
-            <button className="link" onClick={() => focus(m)} title="Ver en el mapa">
+          <li key={`${m.tick}-${i}`} className={replayTimeline && m.tick > now ? 'future' : ''}>
+            <button className="link" onClick={() => focus(m)} title={replayTimeline ? 'Ir a este momento' : 'Ver en el mapa'}>
               <span className="dot" style={{ background: colorOf(m) }} />
               <span className="dim">t{m.tick}</span> {m.text}
             </button>
@@ -189,4 +203,11 @@ function RelationsGraph({ frames }: { frames: RelFrame[] }) {
       )}
     </div>
   );
+}
+
+/** What has been seen so far plus the rest of the run's key moments (a replay), without repeats. */
+function mergeMoments(seen: Moment[], whole: Moment[]): Moment[] {
+  const key = (m: Moment) => `${m.tick}|${m.text}`;
+  const known = new Set(seen.map(key));
+  return [...seen, ...whole.filter((m) => !known.has(key(m)))].sort((a, b) => a.tick - b.tick);
 }

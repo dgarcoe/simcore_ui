@@ -4,6 +4,7 @@ import { useSim } from './store/simStore';
 import { Banner } from './ui/Banner';
 import { EndCard } from './ui/EndCard';
 import { LlmAlert } from './ui/LlmStatus';
+import { ReplayBar } from './ui/ReplayBar';
 import { ScenarioEditor } from './ui/editor/ScenarioEditor';
 import { Sidebar } from './ui/Sidebar';
 import { StartScreen } from './ui/StartScreen';
@@ -20,6 +21,7 @@ export function App() {
   return (
     <div className="app" style={{ ['--accent' as string]: theme.ui.accent }}>
       <TopBar theme={theme} detected={detected} />
+      {mode === 'replay' && <ReplayBar />}
       <div className="main">
         <section className="stage">
           <PhaserGame map={map} theme={theme} />

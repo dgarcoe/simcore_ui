@@ -1,7 +1,7 @@
 import { bus } from '../store/bus';
 import { LlmChip, TickProgress } from './LlmStatus';
 import { useSim } from '../store/simStore';
-import { control, leave, restartReplay } from '../store/sources';
+import { control, leave } from '../store/sources';
 import type { ThemeSource } from '../themes/registry';
 import { THEMES } from '../themes/registry';
 import type { ThemePack } from '../themes/types';
@@ -61,7 +61,6 @@ export function TopBar({ theme, detected }: { theme: ThemePack; detected: { them
         )}
         {s.mode === 'replay' && (
           <>
-            <button className="btn" onClick={restartReplay} title="Reiniciar repetición">↺</button>
             <select className="select" value={s.tickMs} onChange={(e) => s.set({ tickMs: Number(e.target.value) })} title="Velocidad">
               {SPEEDS.map(([label, ms]) => (
                 <option key={ms} value={ms}>{label}</option>

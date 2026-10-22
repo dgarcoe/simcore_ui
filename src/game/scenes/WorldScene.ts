@@ -152,6 +152,12 @@ export class WorldScene extends Phaser.Scene {
     this.unsubs.push(
       bus.on('event', (e) => this.onEvent(e)),
       bus.on('reset', () => this.resetAgents()),
+      bus.on('resync', () => {
+        // A replay jumped: drop pending animations and put everyone where they are now.
+        this.cues = [];
+        const sim = useSim.getState().sim;
+        if (sim) this.reconcile(sim, true);
+      }),
       bus.on('focusAgent', (name) => this.focusAgent(name)),
       bus.on('focusZone', (name) => this.focusZone(name)),
       bus.on('zoom', (z) => this.zoomStep(z)),
