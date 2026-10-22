@@ -38,7 +38,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/scenarios')"
+          "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/version')"
         ]
       interval: 5s
       timeout: 5s

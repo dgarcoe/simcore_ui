@@ -23,6 +23,9 @@ describe('docs', () => {
       expect(compose, file).toContain(`SIMCORE_REF:-${ref}}`);
       expect(compose, file).toContain('- simcore-runs:/app/runs');
       expect(compose, file).toContain('- simcore-games:/app/games');
+      // With a DM password every other route answers 401 and Simcore would never be healthy.
+      expect(compose, file).toContain("urlopen('http://localhost:8420/api/version')");
+      expect(compose, file).not.toMatch(/healthcheck:[\s\S]{0,200}api\/(scenarios|state)/);
     }
   });
 });

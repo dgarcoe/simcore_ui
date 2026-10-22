@@ -35,7 +35,7 @@ services:
     ports:
       - "${SIMCORE_PORT:-8420}:8420"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/scenarios')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/version')"]
       interval: 5s
       timeout: 5s
       retries: 20
