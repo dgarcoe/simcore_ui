@@ -221,6 +221,8 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'artifacts', label: 'objetos codiciados (quién lleva un objeto y durante cuánto)' });
   if (Object.values(cfg.conditions ?? {}).some((c) => c.contagion?.via === 'contact'))
     out.push({ feature: 'contact_contagion', label: 'contagio por sangre o heridas' });
+  if (Object.values(cfg.actions ?? {}).some((a) => a.where?.length))
+    out.push({ feature: 'recipes', label: 'acciones que solo se hacen en un lugar' });
   return out;
 }
 
@@ -243,6 +245,8 @@ export interface ActionConfig {
   /** Role-playing rules: a d20 roll decides instead of the chance. */
   check?: CheckConfig;
   cost?: Record<string, number>;
+  /** Only at these places (a workshop, the radio tower); anywhere if empty. */
+  where?: string[];
   on_target?: Outcome;
   on_self?: Outcome;
   world?: Record<string, unknown>;
@@ -741,6 +745,8 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     need([l.hazard?.condition ?? ''].filter(Boolean), `El lugar ${l.name}`, `locations.${i}`);
     need([...(l.access?.conditions ?? []), ...(l.access?.not_conditions ?? [])], `El lugar ${l.name}`, `locations.${i}`);
   });
+  for (const [k, a] of Object.entries(acts))
+    for (const p of a.where ?? []) if (!places.has(p)) issues.push({ path: `actions.${k}`, message: `La acción ${k} se hace en «${p}», que no existe.` });
   for (const [k, n] of Object.entries(needs)) {
     for (const p of n.satisfied_by?.places ?? []) if (!places.has(p)) issues.push({ path: `needs.${k}`, message: `La necesidad ${k} usa el lugar «${p}», que no existe.` });
     for (const a of n.satisfied_by?.actions ?? [])

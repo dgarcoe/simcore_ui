@@ -1,7 +1,7 @@
 # Generar un escenario con un LLM
 
 Simcore tiene una referencia completa de su YAML pensada para pasársela a un LLM:
-[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/f1ec4aa61ee12e37bd5c0e7ccced6c78c03f200f/docs/scenario-reference.md).
+[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/3a099fc6e049c101751699cfa051c442486218e4/docs/scenario-reference.md).
 
 El enlace apunta a la versión de Simcore que usa esta UI (`SIMCORE_REF`). La referencia incluye:
 - todas las claves, con su tipo, valor por defecto y rango;
@@ -37,7 +37,8 @@ Idea: <describe the story: setting, conflict, what can go right and wrong>
 Language of all story text: <es | en | pt…>   (simulation.language)
 Duration: <e.g. 3 days>, time step: <e.g. 1 hour>
 Cast: <e.g. 8 agents>; give them conflicting goals, relationships, at least one secret and one false belief.
-Systems to use: <e.g. conditions with contagion, needs, items, scenario actions, world rules,
+Systems to use: <e.g. conditions with contagion, needs, items, recipes (actions that need items
+  gathered from several places and are done at one place), scenario actions, world rules,
   factions, a vote, routines, rpg, story>
 Endings: at least <2> rules that end the run (one good, one bad), reachable within the duration.
 Map theme: <town | spaceship | warehouse | factory | space-battle>
@@ -66,6 +67,8 @@ El mapa se genera a partir del escenario, así que conviene que el LLM:
 - [ ] Hay presión desde el principio (una necesidad, un peligro, una variable que baja) y sucesos programados que escalan.
 - [ ] Hay pocas acciones de escenario, solo las propias de la historia: atacar, curar, buscar, susurrar, votar o fundar grupos ya vienen de serie.
 - [ ] Con `rpg: true`, los protagonistas tienen `attributes` y `skills`, y las acciones clave tienen `check`.
+
+Para algo que haya que **construir o reparar juntando piezas** («crafteo»), pide una acción con `who.items` y `cost` (las piezas), `where` (el lugar donde se hace) y `world` u `on_self.items` (lo que se consigue), con las piezas repartidas entre lugares y personajes (patrón «Crafting / recipes» de la referencia). A los agentes se les dice qué les falta y dónde está. La radio de `zombie-siege` es el ejemplo.
 
 Para un escenario en el que **solo puede ganar uno**, pide un objeto `visible` y `drops` y una regla `holds` con `{holder}` en el final (patrón «King of the hill» de la referencia); `valdemora-ring` es el ejemplo.
 

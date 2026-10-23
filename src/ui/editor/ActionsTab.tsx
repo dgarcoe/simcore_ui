@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BUILTIN_ACTIONS, type ActionConfig, type CheckConfig } from '../../api/scenario';
 import { ATTRIBUTES, SKILLS } from '../../store/rpg';
 import { AmountsField } from './AmountsField';
+import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 import { OutcomeEditor, prune, RequirementEditor } from './RulesWidgets';
 
@@ -23,7 +24,8 @@ export function ActionsTab() {
       <h3>Acciones ({Object.keys(acts).length})</h3>
       <p className="dim small">
         Acciones propias del escenario. Al LLM solo se le ofrecen a quien puede hacerlas; Simcore decide si salen bien (probabilidad) y
-        aplica sus consecuencias al objetivo y a quien la hace.
+        aplica sus consecuencias al objetivo y a quien la hace. Para una receta («crafteo»), pide objetos en «Quién puede hacerla», gástalos,
+        elige el lugar y da el resultado en «Efecto en quien la hace»: a quien le falte algo se le dice qué y dónde está.
       </p>
       <form
         className="row"
@@ -82,6 +84,15 @@ export function ActionsTab() {
               </label>
             )}
             <AmountsField label="Gasta (aunque falle)" value={a.cost} placeholder="ammo: 1" onChange={(cost) => set(key, (x) => void (x.cost = cost))} />
+            <label title="Si eliges lugares, solo se puede hacer allí. A quien le falte el lugar o los objetos se le dice qué le falta y dónde está, para que lo junte (recetas, «crafteo»).">
+              Solo en estos lugares
+              <ChipPicker
+                options={draft.environment.locations.map((l) => l.name)}
+                value={a.where}
+                placeholder="+ lugar (vacío: en cualquiera)"
+                onChange={(v) => set(key, (x) => void (v.length ? (x.where = v) : delete x.where))}
+              />
+            </label>
           </div>
           <details>
             <summary>Quién puede hacerla</summary>

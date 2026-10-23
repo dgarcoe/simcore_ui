@@ -345,6 +345,9 @@ describe('advanced example', () => {
     expect(cfg.items?.escopeta.drops).toBe(true);
     expect(cfg.rules?.find((r) => r.when?.holds)?.when?.holds).toEqual({ item: 'antidoto', ticks: 6 });
     expect(cfg.rules?.some((r) => r.when?.count?.item === 'escopeta')).toBe(true);
+    // A recipe: three sets of radio parts, gathered and taken to the tower.
+    expect(cfg.actions?.reparar_radio).toMatchObject({ cost: { piezas_radio: 3 }, where: ['Torre de radio'] });
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toContain('recipes');
   });
 });
 
@@ -426,5 +429,8 @@ describe('coveted items', () => {
     // an older Simcore would ignore `holds` and end the run at once: the UI must refuse it
     expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts']);
     expect(requiredFeatures(emptyScenario())).toEqual([]);
+    const forge = { ...emptyScenario(), actions: { reparar: { target: 'none' as const, where: ['Faro'] } } };
+    expect(requiredFeatures(forge).map((f) => f.feature)).toEqual(['recipes']);
+    expect(validateScenario(forge).map((i) => i.message)).toContain('La acción reparar se hace en «Faro», que no existe.');
   });
 });

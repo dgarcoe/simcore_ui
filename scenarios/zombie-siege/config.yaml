@@ -7,6 +7,9 @@
 #   - Coveted items: everyone sees who carries the antidote (visible), weapons and radio parts drop
 #     where their carrier falls, a rule names whoever hoards the antidote ({holder}) and another
 #     counts who is still armed (count by item).
+#   - Recipes: the radio needs three sets of parts gathered from the barracks, the tower and two
+#     survivors and taken to the tower; the cure is researched at the hospital and the generator
+#     started at the market (actions with `where`).
 #   - Scenario actions only for what is specific to the story (bite, hit or shoot a zombie,
 #     barricade, repair the radio, research a cure, burn the bodies, start the generator); healing,
 #     attacking, searching, whispering, groups and votes are the engine's built-in actions.
@@ -140,11 +143,12 @@ actions:
     world: {barricadas: true}
     message: atranca las puertas de la iglesia
   reparar_radio:
-    description: reparar la radio de la torre con piezas (hace falta saber de electricidad)
+    description: reparar la radio de la torre con tres juegos de piezas (hace falta saber de electricidad)
     target: none
-    who: {professions: [electricist, guardia, radioaficionad], items: {piezas_radio: 1}, not_conditions: [zombi]}
-    cost: {piezas_radio: 1}
-    chance: 0.4
+    who: {professions: [electricist, guardia, radioaficionad], items: {piezas_radio: 3}, not_conditions: [zombi]}
+    cost: {piezas_radio: 3}
+    where: [Torre de radio]  # receta: juntar tres piezas (Cuartel, Torre, Ortega, Sara) y llevarlas a la torre
+    chance: 0.8  # las piezas se gastan aunque falle
     on_self: {energy: -0.2}
     world: {radio: reparada}
     message: consigue que la radio de la torre vuelva a sonar
@@ -154,6 +158,7 @@ actions:
     target: none
     who: {professions: [médic], items: {muestra: 1}, not_conditions: [zombi]}
     cost: {muestra: 1}
+    where: [Hospital]
     chance: 0.5
     on_self: {energy: -0.25}
     world: {cura: lista}
@@ -170,6 +175,7 @@ actions:
     target: none
     who: {professions: [electricist, radioaficionad, guardia], items: {gasolina: 1}, not_conditions: [zombi]}
     cost: {gasolina: 1}
+    where: [Mercado]
     chance: 0.6
     check: {attribute: intelligence, skill: investigation, dc: 12}
     on_self: {energy: -0.15}
