@@ -6,6 +6,7 @@ import { useSim } from '../store/simStore';
 import { seekReplay } from '../store/sources';
 import { inject } from '../store/sources';
 import { WorldControls } from './AgentControls';
+import { DiceChips } from './DiceChips';
 
 const ICON: Partial<Record<EventType, string>> = {
   agent_move: '➜',
@@ -60,6 +61,12 @@ export function EventsPanel() {
   const [filter, setFilter] = useState(0);
   const [text, setText] = useState('');
   const [location, setLocation] = useState('');
+  const [lit, setLit] = useState<number | null>(null);
+  const showCause = (id: number) => {
+    setFilter(0);
+    setLit(id);
+    setTimeout(() => document.getElementById(`feed-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0);
+  };
   const types = FILTERS[filter][1];
   const items = feed
     .filter((f) =>
@@ -101,7 +108,7 @@ export function EventsPanel() {
       {items.length === 0 && <p className="empty">Sin sucesos todavía.</p>}
       <ul className="feed">
         {items.map((f) => (
-          <li key={f.id} className={`feed-item t-${f.type}`}>
+          <li key={f.id} id={`feed-${f.id}`} className={`feed-item t-${f.type} ${lit === f.id ? 'lit' : ''}`}>
             {mode === 'replay' ? (
               <button className="tick link" onClick={() => seekReplay(f.tick)} title="Volver a este momento">t{f.tick}</button>
             ) : (
@@ -114,7 +121,21 @@ export function EventsPanel() {
                   {f.source}
                 </button>
               )}{' '}
-              {f.text}
+              {f.link ? (
+                <span
+                  className="roll-for"
+                  role="button"
+                  tabIndex={0}
+                  title="Ver la acción de esta tirada"
+                  onClick={() => showCause(f.link!)}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && showCause(f.link!)}
+                >
+                  {f.text}
+                </span>
+              ) : (
+                f.text
+              )}
+              <DiceChips rolls={f.rolls} />
               {f.reasoning && <span className={`why ${/^(LLM error|LLM failed|Parse error)/.test(f.reasoning) ? 'why-bad' : ''}`}>{shortWhy(f.reasoning)}</span>}
             </span>
           </li>

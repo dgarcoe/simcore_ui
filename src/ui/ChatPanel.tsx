@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
+import { DiceChips } from './DiceChips';
 import { Portrait } from './Portrait';
 
 const KIND_ICON = { speak: '', trade: '⇄ ', interact: '✋ ', whisper: '🤫 ', invite: '🚪 ' } as const;
@@ -41,6 +42,7 @@ export function ChatPanel({ theme }: { theme: ThemePack }) {
               <span className="what">
                 {KIND_ICON[l.kind]}
                 {l.kind === 'speak' ? `“${l.text}”` : l.kind === 'whisper' ? <em>“{l.text}”</em> : l.text}
+                <DiceChips rolls={l.rolls} />
               </span>
             </div>
           ))}

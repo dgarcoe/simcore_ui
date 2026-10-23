@@ -281,6 +281,7 @@ function Sheet({ sheet, rolls }: { sheet: RpgSheet; rolls: DiceRoll[] }) {
             .map((r, i) => (
               <li key={i} className={r.critical ? 'crit' : r.success ? 'ok' : 'ko'}>
                 <span className="dim">t{r.tick}</span> {diceText(r)}
+                {r.for && <span className="roll-why">por: {r.for}</span>}
               </li>
             ))}
         </ul>

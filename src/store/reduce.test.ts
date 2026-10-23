@@ -414,9 +414,40 @@ describe('attack lines', () => {
     const base = { action: 'attacks Marcos', action_type: 'attack', target: 'Marcos' };
     expect(attackText({ ...base, hit: false, damage: 0 })).toBe('ataca a Marcos: falla');
     expect(attackText({ ...base, weapon: 'escopeta', hit: true, damage: 0.6 })).toBe('ataca a Marcos con escopeta: acierta (−60 % de salud)');
-    expect(attackText({ ...base, hit: true, damage: 0.4, killed: true })).toBe('ataca a Marcos y lo mata');
+    expect(attackText({ ...base, hit: true, damage: 0.4, killed: true })).toBe('ataca a Marcos — Marcos muere');
     expect(attackText(base)).toBe('attacks Marcos'); // an older Simcore without the result
     const s = reduce(initialSnapshot(), { type: 'agent_action', tick: 1, source: 'Ortega', data: { ...base, hit: false, damage: 0 } } as SimEvent);
     expect(s?.feed.at(-1)?.text).toBe('ataca a Marcos: falla');
+  });
+});
+
+describe('rolls tied to what caused them', () => {
+  const replay = JSON.parse(readFileSync(new URL('../../public/fixtures/valdemora-ring.json', import.meta.url), 'utf8')) as { events: SimEvent[] };
+  let s = initialSnapshot();
+  let chatRolls = 0;
+  for (const e of replay.events) {
+    s = reduce(s, e) ?? s;
+    chatRolls = Math.max(chatRolls, s.conversations.flatMap((c) => c.lines).filter((l) => l.rolls?.length).length);
+  }
+
+  it('links every roll to the action, speech or search of the same agent', () => {
+    const dice = s.feed.filter((f) => f.dice);
+    expect(dice.length).toBeGreaterThan(5);
+    for (const f of dice) {
+      const cause = s.feed.find((x) => x.id === f.link);
+      expect(cause?.source).toBe(f.source);
+      expect(cause?.tick).toBe(f.tick);
+      expect(cause?.rolls?.length).toBeGreaterThan(0);
+      expect(f.text).toContain(' · por «');
+    }
+    expect(s.feed.some((f) => f.type === 'agent_action' && /^ataca a /.test(f.text) && f.rolls?.[0]?.check === 'attack')).toBe(true);
+    expect(Object.keys(s.pendingRolls)).toEqual([]);
+  });
+
+  it('shows what each roll was for on the sheet and in conversations', () => {
+    const sheets = Object.values(s.rolls).flat();
+    expect(sheets.length).toBeGreaterThan(0);
+    expect(sheets.every((r) => r.for)).toBe(true);
+    expect(chatRolls).toBeGreaterThan(0);
   });
 });

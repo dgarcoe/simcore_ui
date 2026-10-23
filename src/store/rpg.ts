@@ -59,6 +59,8 @@ export interface DiceRoll {
   fumble: boolean;
   target?: string;
   tick?: number;
+  /** The action, speech or search it was for (set by the UI). */
+  for?: string;
 }
 
 export interface RpgSheet {

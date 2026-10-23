@@ -15,6 +15,11 @@ export interface FeedItem {
   action?: ParsedAction;
   /** Why the agent did it (the LLM's reasoning, or Simcore's note). */
   reasoning?: string;
+  /** A die roll: the roll itself, and the action, speech or search it was for. */
+  dice?: DiceRoll;
+  link?: number;
+  /** The rolls this action, speech or search needed. */
+  rolls?: DiceRoll[];
 }
 
 export type ChatKind = 'speak' | 'trade' | 'interact' | 'whisper' | 'invite';
@@ -25,6 +30,8 @@ export interface ChatLine {
   target: string;
   kind: ChatKind;
   text: string;
+  /** Persuade / intimidate / deceive rolls this line needed. */
+  rolls?: DiceRoll[];
 }
 
 export interface Conversation {
@@ -149,6 +156,8 @@ export interface SimSnapshot {
   epilogue: string;
   /** Latest d20 rolls of each agent (role-playing rules). */
   rolls: Record<string, DiceRoll[]>;
+  /** Feed ids of each agent's rolls waiting for the action that caused them (same tick). */
+  pendingRolls: Record<string, { tick: number; ids: number[] }>;
 }
 
 export const FEED_LIMIT = 400;
@@ -184,6 +193,7 @@ export function initialSnapshot(): SimSnapshot {
     relFrames: [],
     epilogue: '',
     rolls: {},
+    pendingRolls: {},
   };
 }
 
@@ -247,6 +257,51 @@ export function isStale(s: SimSnapshot, e: SimEvent): boolean {
 
 /** Returns null when the event is a duplicate or a leftover and must be ignored. */
 export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
+  const next = reduceEvent(s, e);
+  return next && linkRolls(s, next, e);
+}
+
+const ROLL_CAUSES = new Set(['agent_action', 'agent_speak', 'agent_search']);
+
+/**
+ * Simcore emits a roll right before the action, speech or search of the same agent that needed it,
+ * in the same tick: tie them together, both ways.
+ */
+function linkRolls(prev: SimSnapshot, next: SimSnapshot, e: SimEvent): SimSnapshot {
+  const last = next.feed.at(-1);
+  const added = last && last !== prev.feed.at(-1) ? last : undefined;
+  if (e.type === 'dice_roll' && added?.dice) {
+    const who = added.source;
+    const was = next.pendingRolls[who];
+    const ids = was && was.tick === e.tick ? [...was.ids, added.id] : [added.id];
+    return { ...next, pendingRolls: { ...next.pendingRolls, [who]: { tick: e.tick, ids } } };
+  }
+  const waiting = next.pendingRolls[e.source];
+  if (!ROLL_CAUSES.has(e.type) || !waiting) return next;
+  const { [e.source]: _, ...rest } = next.pendingRolls;
+  if (waiting.tick !== e.tick || !added || added.source !== e.source) return { ...next, pendingRolls: rest };
+  const label = added.text.length > 70 ? `${added.text.slice(0, 69)}…` : added.text;
+  const dice: DiceRoll[] = [];
+  const feed = next.feed.map((f) => {
+    if (!waiting.ids.includes(f.id) || !f.dice) return f;
+    const d = { ...f.dice, for: label };
+    dice.push(d);
+    return { ...f, dice: d, link: added.id, text: `${f.text} · por «${label}»` };
+  });
+  feed[feed.length - 1] = { ...added, rolls: dice };
+  const rolls = (next.rolls[e.source] ?? []).map((r) => (r.tick === e.tick && !r.for && dice.some((d) => d.check === r.check && d.roll === r.roll && d.target === r.target) ? { ...r, for: label } : r));
+  let conversations = next.conversations;
+  if (e.type === 'agent_speak') {
+    conversations = conversations.map((c) =>
+      c.lastTick !== e.tick || !c.participants.includes(e.source)
+        ? c
+        : { ...c, lines: c.lines.map((l) => (l.tick === e.tick && l.speaker === e.source && !l.rolls && dice.some((d) => d.target === l.target) ? { ...l, rolls: dice.filter((d) => d.target === l.target) } : l)) },
+    );
+  }
+  return { ...next, feed, rolls: { ...next.rolls, [e.source]: rolls }, conversations, pendingRolls: rest };
+}
+
+function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
   // A relaunched scenario repeats its simulation_start verbatim: never a duplicate.
   if (e.type !== 'tick_end' && e.type !== 'simulation_start' && isDuplicate(s.recent, e)) return null;
   if (isStale(s, e)) return null;
@@ -374,7 +429,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const d = { ...(e.data as unknown as DiceRoll), tick: e.tick };
       const who = d.agent || e.source;
       const mine = [...(next.rolls[who] ?? []).slice(-(ROLL_LIMIT - 1)), d];
-      return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who }) };
+      return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who, dice: d }) };
     }
     case 'level_up': {
       const d = e.data as unknown as LevelUp;
@@ -525,13 +580,13 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
   }
 }
 
-/** «ataca a Marcos con la escopeta: acierta (−40 % de salud)», «… : falla», «… y lo mata». */
+/** «ataca a Marcos con la escopeta: acierta (−40 % de salud)», «… : falla», «… — Marcos muere». */
 export function attackText(d: Record<string, unknown>): string {
   const target = String(d.target ?? '');
   const weapon = d.weapon ? ` con ${String(d.weapon)}` : '';
   const head = `ataca a ${target}${weapon}`;
   if (d.hit === undefined) return String(d.action ?? head);
-  if (d.killed) return `${head} y lo mata`;
+  if (d.killed) return `${head} — ${target} muere`;
   if (!d.hit) return `${head}: falla`;
   return `${head}: acierta (−${Math.round(Number(d.damage ?? 0) * 100)} % de salud)`;
 }

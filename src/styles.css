@@ -1665,3 +1665,52 @@ table.players td {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Rolls tied to what caused them */
+.dice-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.dice-chip {
+  font-size: 0.85em;
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.dice-chip.ok {
+  color: var(--good);
+}
+
+.dice-chip.ko {
+  color: var(--bad);
+}
+
+.dice-chip.crit {
+  color: var(--accent);
+}
+
+.feed-item .roll-for {
+  cursor: pointer;
+}
+
+.feed-item .roll-for:hover {
+  text-decoration: underline;
+}
+
+.feed-item.lit {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.rpg-rolls .roll-why {
+  display: block;
+  color: var(--dim);
+  font-size: 0.9em;
+  padding-left: 2.2em;
+}
