@@ -1,34 +1,45 @@
 import { useEffect, useState } from 'react';
 import type { SimState } from '../api/types';
+import { decisions, healthAdvice, REASON_LABEL, topReasons, usefulPct, type LlmHealth } from '../store/llmHealth';
 import { isAlive } from '../store/reduce';
 import { useSim } from '../store/simStore';
 
 const PARSE_HINT =
   'El modelo no responde con el JSON que espera Simcore ({"action": "speak|move|work|rest|…", "target", "content", "reasoning"}), así que el agente se queda esperando. Suele pasar con modelos pequeños: prueba otro (p. ej. ./scripts/simcore-up.sh pull llama3.2:3b y cámbialo en el editor) o uno más grande si cabe en memoria.';
 
-/** Top-bar chip: demo mock, real LLM (with call count), unusable answers or failing LLM. */
+/** Top-bar chip: demo mock, real LLM (share of usable decisions), unusable answers or failing LLM; opens the health panel. */
 export function LlmChip() {
   const llm = useSim((s) => s.llm);
   const model = useSim((s) => String(s.scenarioConfig?.llm?.model ?? ''));
+  const [open, setOpen] = useState(false);
   if (llm.mode === 'unknown') return null;
+  const panel = open && <LlmHealthPanel health={llm.health} model={model} demo={llm.mode === 'demo'} lastError={llm.lastError} onClose={() => setOpen(false)} />;
   if (llm.mode === 'demo')
     return (
-      <span className="chip warn-chip" title="Modo demo: Simcore usa respuestas de ejemplo y no llama a ningún LLM. Desmarca «Modo demo» al ejecutar.">
-        DEMO · sin LLM
+      <span className="llm-chip-wrap">
+        <button className="chip warn-chip" onClick={() => setOpen(!open)} title="Modo demo: Simcore usa respuestas de ejemplo y no llama a ningún LLM. Desmarca «Modo demo» al ejecutar. Pulsa para ver qué decisiones salen bien.">
+          DEMO · sin LLM
+        </button>
+        {panel}
       </span>
     );
+  const pct = usefulPct(llm.health);
   const failing = llm.failingTicks > 0;
   const someInvalid = !failing && llm.lastTickParseErrors > 0;
   const hitRate = llm.calls + llm.cacheHits > 0 ? Math.round((llm.cacheHits / (llm.calls + llm.cacheHits)) * 100) : 0;
   const shortModel = model.replace(/^ollama\//, '');
+  const tone = failing ? 'bad' : pct !== null && pct < 60 ? 'bad' : someInvalid || (pct !== null && pct < 80) ? 'warn' : 'ok';
   return (
-    <span
-      className={`chip ${failing ? 'bad' : someInvalid ? 'warn' : 'ok'}`}
+    <span className="llm-chip-wrap">
+    <button
+      className={`chip ${tone}`}
+      onClick={() => setOpen(!open)}
       title={[
         model && `Modelo: ${model}`,
         `${llm.calls} llamadas al LLM · ${hitRate}% desde caché`,
         llm.errors ? `${llm.errors} llamadas fallidas (última: ${llm.lastError})` : '',
         llm.parseErrors ? `${llm.parseErrors} respuestas no válidas (última: ${llm.lastParseError})` : '',
+        pct !== null ? `${pct} % de las decisiones se pueden llevar a cabo · pulsa para ver por qué fallan las demás` : '',
       ]
         .filter(Boolean)
         .join('\n')}
@@ -39,8 +50,66 @@ export function LlmChip() {
           : 'LLM con errores'
         : someInvalid
           ? `LLM · ${llm.lastTickParseErrors}/${llm.lastTickDecisions} no válidas`
-          : `LLM${shortModel ? ` · ${shortModel}` : ''} · ${llm.calls}`}
+          : `LLM${shortModel ? ` · ${shortModel}` : ''}${pct !== null ? ` · ${pct} % útil` : ` · ${llm.calls}`}`}
+    </button>
+    {panel}
     </span>
+  );
+}
+
+/** Which decisions of the model can be carried out, why the rest can't, and what to do about it. */
+export function LlmHealthPanel({ health, model, demo, lastError, onClose }: { health: LlmHealth; model: string; demo: boolean; lastError: string; onClose: () => void }) {
+  const n = decisions(health);
+  const pct = usefulPct(health);
+  const bad = Object.entries(health.badBy).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const advice = demo ? [] : healthAdvice(health, model, llmHint(lastError), PARSE_HINT);
+  const recent = health.current.ok + health.current.bad ? [...health.recent, health.current].slice(-10) : health.recent;
+  return (
+    <div className="llm-health" role="dialog" aria-label="Salud del LLM">
+      <button className="close" onClick={onClose} aria-label="Cerrar">×</button>
+      <h3>Salud del LLM{model && <span className="dim"> · {model.replace(/^ollama\//, '')}</span>}</h3>
+      {demo && <p className="dim small">Modo demo: son respuestas de ejemplo, no de un LLM. Sirve para ver qué acciones del escenario se pueden hacer.</p>}
+      {!n ? (
+        <p className="dim">Aún no hay decisiones.</p>
+      ) : (
+        <>
+          <p>
+            De <strong>{n}</strong> decisiones: <strong className="ok-text">{health.ok} útiles ({pct} %)</strong>
+            {health.refused > 0 && <> · <span className="warn-text">{health.refused} rechazadas</span></>}
+            {health.invalid > 0 && <> · <span className="bad-text">{health.invalid} ilegibles</span></>}
+            {health.failed > 0 && <> · <span className="bad-text">{health.failed} fallos de conexión</span></>}
+          </p>
+          <div className="health-bars" title="Últimos ticks: decisiones útiles (verde) y que no sirvieron (rojo)">
+            {recent.map((t) => (
+              <span key={t.tick} className="health-bar" title={`t${t.tick}: ${t.ok} útiles, ${t.bad} no`}>
+                <span className="good" style={{ flexGrow: t.ok }} />
+                <span className="badp" style={{ flexGrow: t.bad }} />
+                <small>t{t.tick}</small>
+              </span>
+            ))}
+          </div>
+          {topReasons(health).length > 0 && (
+            <>
+              <h4>Por qué no se pudieron hacer</h4>
+              <ul className="health-reasons">
+                {topReasons(health).map(([r, v]) => (
+                  <li key={r}>
+                    <strong>{v.count}</strong> {REASON_LABEL[r]}
+                    <span className="dim small"> — {v.agent}, t{v.tick}: «{v.example}»</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {bad.length > 0 && <p className="dim small">Más decisiones fallidas: {bad.map(([a, k]) => `${a} (${k})`).join(', ')}</p>}
+          {advice.length > 0 && (
+            <div className="health-advice">
+              {advice.map((a, i) => <p key={i}>💡 {a}</p>)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

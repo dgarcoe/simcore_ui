@@ -1714,3 +1714,92 @@ table.players td {
   font-size: 0.9em;
   padding-left: 2.2em;
 }
+
+/* LLM health: chip that opens a panel with usable / refused / unreadable decisions */
+.llm-chip-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.llm-chip-wrap > button.chip {
+  cursor: pointer;
+  font: inherit;
+}
+
+.warn-text {
+  color: var(--accent);
+}
+
+.llm-health {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: min(460px, calc(100vw - 32px));
+  max-height: 70vh;
+  overflow: auto;
+  background: var(--panel);
+  border: 4px solid var(--ink);
+  outline: 2px solid var(--accent);
+  padding: 10px 14px;
+  text-align: left;
+  white-space: normal;
+}
+
+.llm-health .close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.llm-health h3,
+.llm-health h4 {
+  margin: 0 0 6px;
+}
+
+.health-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  margin: 6px 0 22px;
+}
+
+.health-bar {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 28px;
+  height: 44px;
+  position: relative;
+}
+
+.health-bar .good {
+  background: var(--good);
+  min-height: 0;
+}
+
+.health-bar .badp {
+  background: var(--bad);
+  min-height: 0;
+}
+
+.health-bar small {
+  position: absolute;
+  bottom: -14px;
+  left: 0;
+  font-size: 9px;
+  color: var(--dim);
+}
+
+.health-reasons {
+  margin: 10px 0 6px;
+  padding-left: 18px;
+}
+
+.health-advice p {
+  margin: 6px 0 0;
+}

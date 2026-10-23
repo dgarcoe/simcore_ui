@@ -3,6 +3,7 @@
 
 import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../api/parse';
 import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
+import { addDecision, closeTick, initialHealth, type LlmHealth } from './llmHealth';
 import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
 import type { Agent, EventType, SimEvent, SimState } from '../api/types';
 
@@ -81,6 +82,8 @@ export interface LlmStatus {
   tickDecisions: number;
   tickErrors: number;
   tickParseErrors: number;
+  /** Usable, refused, unreadable and failed decisions, and why (see llmHealth.ts). */
+  health: LlmHealth;
 }
 
 export function initialLlm(): LlmStatus {
@@ -100,6 +103,7 @@ export function initialLlm(): LlmStatus {
     tickDecisions: 0,
     tickErrors: 0,
     tickParseErrors: 0,
+    health: initialHealth(),
   };
 }
 
@@ -442,6 +446,7 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     }
     case 'agent_search': {
       const text = searchText(e.data as SearchData);
+      next = { ...next, llm: { ...next.llm, health: addDecision(next.llm.health, String(e.data.reasoning ?? ''), e.source, e.tick) } };
       return text ? { ...next, feed: pushFeed(next.feed, feedItem(seq, e, text)) } : next;
     }
     case 'speech_ignored': {
@@ -605,6 +610,7 @@ function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {
     lastError: failed ? reasoning.replace(LLM_ERROR, '') : llm.lastError,
     lastParseError: unparsable ? reasoning.replace(PARSE_ERROR, '') : llm.lastParseError,
     lastErrorTick: failed || unparsable ? e.tick : llm.lastErrorTick,
+    health: addDecision(llm.health, reasoning, e.source, e.tick),
   };
 }
 
@@ -623,6 +629,7 @@ function llmAfterTick(llm: LlmStatus, stats: Record<string, unknown> | undefined
     tickDecisions: 0,
     tickErrors: 0,
     tickParseErrors: 0,
+    health: closeTick(llm.health),
   };
 }
 
