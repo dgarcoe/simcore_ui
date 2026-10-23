@@ -500,7 +500,7 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       next = {
         ...next,
         llm: llmAfterDecision(s.llm, e),
-        feed: pushFeed(next.feed, { ...feedItem(seq, e, String(e.data.action ?? '')), action, reasoning: reasoning || undefined }),
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, e.data.action_type === 'attack' ? attackText(e.data) : String(e.data.action ?? '')), action, reasoning: reasoning || undefined }),
         reasoning: { ...s.reasoning, [e.source]: { tick: e.tick, action: String(e.data.action ?? ''), text: reasoning } },
         progress: s.progress.decided.includes(e.source)
           ? s.progress
@@ -523,6 +523,17 @@ export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     default:
       return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, JSON.stringify(e.data))) };
   }
+}
+
+/** «ataca a Marcos con la escopeta: acierta (−40 % de salud)», «… : falla», «… y lo mata». */
+export function attackText(d: Record<string, unknown>): string {
+  const target = String(d.target ?? '');
+  const weapon = d.weapon ? ` con ${String(d.weapon)}` : '';
+  const head = `ataca a ${target}${weapon}`;
+  if (d.hit === undefined) return String(d.action ?? head);
+  if (d.killed) return `${head} y lo mata`;
+  if (!d.hit) return `${head}: falla`;
+  return `${head}: acierta (−${Math.round(Number(d.damage ?? 0) * 100)} % de salud)`;
 }
 
 function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {

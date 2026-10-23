@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { SimEvent } from '../api/types';
-import { initialSnapshot, reduce, type SimSnapshot } from './reduce';
+import { attackText, initialSnapshot, reduce, type SimSnapshot } from './reduce';
 
 const fixture: SimEvent[] = JSON.parse(
   readFileSync(new URL('../../public/fixtures/epidemic.json', import.meta.url), 'utf8'),
@@ -406,5 +406,17 @@ describe('relaunch', () => {
     s = run([ev('tick_end', 0, { clock: { tick: 0, time: 'Day 1, 00:00', max_ticks: 48 }, agents: {} })], s);
     expect(s.simFresh).toBe(true);
     expect(s.sim?.clock.time).toBe('Day 1, 00:00');
+  });
+});
+
+describe('attack lines', () => {
+  it('say whether it hit, how hard and whether it killed', () => {
+    const base = { action: 'attacks Marcos', action_type: 'attack', target: 'Marcos' };
+    expect(attackText({ ...base, hit: false, damage: 0 })).toBe('ataca a Marcos: falla');
+    expect(attackText({ ...base, weapon: 'escopeta', hit: true, damage: 0.6 })).toBe('ataca a Marcos con escopeta: acierta (−60 % de salud)');
+    expect(attackText({ ...base, hit: true, damage: 0.4, killed: true })).toBe('ataca a Marcos y lo mata');
+    expect(attackText(base)).toBe('attacks Marcos'); // an older Simcore without the result
+    const s = reduce(initialSnapshot(), { type: 'agent_action', tick: 1, source: 'Ortega', data: { ...base, hit: false, damage: 0 } } as SimEvent);
+    expect(s?.feed.at(-1)?.text).toBe('ataca a Marcos: falla');
   });
 });
