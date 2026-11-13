@@ -16,7 +16,7 @@ export interface Classified {
 
 const LLM_ERROR = /^(LLM error|LLM failed after \d+ attempts):\s*/;
 const PARSE_ERROR = /^Parse error:\s*/;
-const INVENTED = /is not a valid action/;
+const INVENTED = /is not a valid action|free text is not one of the actions/;
 const REFUSED = /^(Couldn't .+?|Could not move to .+?|Target not present at this location)(?::\s*|$)/;
 // Agents moved by rules (a horde): "<condition>: goes for Ana", "…: roams".
 const RULES = /(?:^|\. )[\p{L}\w-]+: (goes for |drawn to where people are|roams|lingers)/u;
@@ -33,7 +33,7 @@ export const REASON_LABEL: Record<RefusalReason, string> = {
   item: 'Pide o usa un objeto que no tiene o que no hay',
   place: 'Va a un lugar cerrado o actúa en el sitio equivocado',
   not_allowed: 'Elige una acción que su personaje no puede hacer',
-  invented: 'Se inventa una acción que no existe',
+  invented: 'Se inventa una acción o la describe con texto libre',
   other: 'Otros rechazos',
 };
 
@@ -57,7 +57,7 @@ export function classifyDecision(reasoning: string): Classified {
   const m = REFUSED.exec(r);
   if (!m) return { kind: 'ok' };
   const why = r.slice(m[0].length).split('. ')[0];
-  const reason = REASONS.find(([, re]) => re.test(`${m[1]} ${why}`))?.[0] ?? 'other';
+  const reason = INVENTED.test(why) ? 'invented' : (REASONS.find(([, re]) => re.test(`${m[1]} ${why}`))?.[0] ?? 'other');
   return { kind: 'refused', reason, detail: `${m[1].replace(/:$/, '')}${why ? `: ${why}` : ''}` };
 }
 

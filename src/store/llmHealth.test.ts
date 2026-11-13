@@ -19,6 +19,7 @@ describe('classifying decisions', () => {
     ['Could not move to Cuartel de la Guardia: only for guardia. I want weapons', 'refused', 'place'],
     ["Couldn't reparar_radio: it has to be done at Torre de radio. Let's fix it", 'refused', 'place'],
     ["Couldn't disparar: I'm not able to. Shoot!", 'refused', 'not_allowed'],
+    ['Couldn\'t Bailo una jota: free text is not one of the actions, so nothing happened; put an action name in "action". x', 'refused', 'invented'],
   ])('%s → %s', (reasoning, kind, reason) => {
     const c = classifyDecision(reasoning);
     expect(c.kind).toBe(kind);
