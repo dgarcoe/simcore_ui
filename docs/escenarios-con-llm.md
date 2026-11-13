@@ -1,7 +1,7 @@
 # Generar un escenario con un LLM
 
 Simcore tiene una referencia completa de su YAML pensada para pasársela a un LLM:
-[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/8a0612a94d144758e6bf3c2f362397bf1e3ecaf2/docs/scenario-reference.md).
+[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/541cc8e4d5ce584c04f52fd590dae206804d23a5/docs/scenario-reference.md).
 
 El enlace apunta a la versión de Simcore que usa esta UI (`SIMCORE_REF`). La referencia incluye:
 - todas las claves, con su tipo, valor por defecto y rango;
