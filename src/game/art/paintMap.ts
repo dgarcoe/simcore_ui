@@ -3,7 +3,7 @@
 
 import { P } from '../../themes/palette';
 import { buildingFor, floorFor, type FloorStyle, type ThemePack } from '../../themes/types';
-import type { Ground, MapModel, Zone } from '../map/model';
+import type { Ground, Lot, MapModel, Rect, Street, Zone } from '../map/model';
 import { createRng, hashString, type Rng } from '../map/rng';
 import type { ZoneRole } from '../map/roles';
 import { drawPixels, frame, makeCanvas, rect, shade } from './pixel';
@@ -38,7 +38,7 @@ export function paintMap(map: MapModel, theme: ThemePack): HTMLCanvasElement {
             const n = g(x + dx, y + dy);
             return n === 'path' || n === 'plaza' || n === 'building';
           };
-          if (theme.urban) paintRoad(ctx, theme, px, py, rng, road, (dx, dy) => g(x + dx, y + dy) === 'path', x, y);
+          if (theme.urban) paintRoad(ctx, theme, px, py, rng, road, map.city ? () => false : (dx, dy) => g(x + dx, y + dy) === 'path', x, y);
           else paintPath(ctx, theme, px, py, rng, road);
           break;
         }
@@ -71,6 +71,7 @@ export function paintMap(map: MapModel, theme: ThemePack): HTMLCanvasElement {
     for (const link of map.links) paintLane(ctx, theme, link.path);
     for (const z of map.zones) paintHull(ctx, theme, z);
   }
+  if (map.city) paintCity(ctx, theme, map);
   if (map.layout === 'outdoor') for (const z of map.zones) paintBuilding(ctx, theme, z);
   return canvas;
 }
@@ -504,6 +505,209 @@ function paintPark(ctx: CanvasRenderingContext2D, theme: ThemePack, x: number, y
   rect(ctx, P.sky, cx - 6, cy - 4, 12, 8);
   rect(ctx, P.cyan, cx - 1, cy - 9, 2, 8);
   rect(ctx, P.white, cx - 3, cy - 3, 2, 1);
+}
+
+// ── City plan: street marks, towers, parking lots ─────────────────────────
+
+const WHITE_MARK = '#e9e6dc';
+const YELLOW_MARK = '#e8c64a';
+
+function paintCity(ctx: CanvasRenderingContext2D, theme: ThemePack, map: MapModel): void {
+  const city = map.city!;
+  const vCols = new Set<number>();
+  const hRows = new Set<number>();
+  for (const s of city.streets) for (let i = 0; i < 2; i++) (s.dir === 'v' ? vCols : hRows).add(s.at + i);
+  const crossing = (x: number, y: number) => vCols.has(x) && hRows.has(y);
+  for (const s of city.streets) paintStreetMarks(ctx, s, crossing);
+  for (const b of city.blocks) roundCorners(ctx, theme, b);
+  // shadows first so no tower casts onto a taller neighbour's roof
+  for (const lot of city.lots) if (lot.kind === 'tower') {
+    const d = 3 + lot.height * 3;
+    rect(ctx, 'rgba(10,12,24,0.32)', lot.x * TILE + d, lot.y * TILE + d, lot.w * TILE, lot.h * TILE);
+  }
+  for (const lot of city.lots) {
+    if (lot.kind === 'tower') paintTower(ctx, lot);
+    else if (lot.kind === 'parking') paintParking(ctx, theme, lot);
+    else paintCityPark(ctx, theme, lot.x * TILE, lot.y * TILE, lot.w * TILE, lot.h * TILE, `park${lot.tone}`);
+  }
+}
+
+/** Avenues: a double yellow line; streets: white dashes; zebra crossings next to every junction. */
+function paintStreetMarks(ctx: CanvasRenderingContext2D, s: Street, crossing: (x: number, y: number) => boolean): void {
+  const mid = (s.at + 1) * TILE;
+  for (let i = s.from; i <= s.to; i++) {
+    const [x, y] = s.dir === 'h' ? [i, s.at] : [s.at, i];
+    if (crossing(x, y)) continue;
+    const prev = s.dir === 'h' ? crossing(x - 1, y) : crossing(x, y - 1);
+    const next = s.dir === 'h' ? crossing(x + 1, y) : crossing(x, y + 1);
+    const p = i * TILE;
+    if (prev || next) {
+      // zebra across both lanes
+      for (let k = 2; k < 2 * TILE - 2; k += 4) {
+        if (s.dir === 'h') rect(ctx, WHITE_MARK, p + 3, s.at * TILE + k, TILE - 6, 2);
+        else rect(ctx, WHITE_MARK, s.at * TILE + k, p + 3, 2, TILE - 6);
+      }
+      continue;
+    }
+    if (s.avenue) {
+      if (s.dir === 'h') {
+        rect(ctx, YELLOW_MARK, p, mid - 2, TILE, 1);
+        rect(ctx, YELLOW_MARK, p, mid + 1, TILE, 1);
+      } else {
+        rect(ctx, YELLOW_MARK, mid - 2, p, 1, TILE);
+        rect(ctx, YELLOW_MARK, mid + 1, p, 1, TILE);
+      }
+    } else if (s.dir === 'h') rect(ctx, WHITE_MARK, p + 4, mid - 1, 8, 2);
+    else rect(ctx, WHITE_MARK, mid - 1, p + 4, 2, 8);
+  }
+}
+
+/** Sidewalk corners curve into the junction. */
+function roundCorners(ctx: CanvasRenderingContext2D, theme: ThemePack, b: Rect): void {
+  const steps = [5, 3, 2, 1, 1];
+  const corners: Array<[number, number, 1 | -1, 1 | -1]> = [
+    [b.x * TILE, b.y * TILE, 1, 1],
+    [(b.x + b.w) * TILE - 1, b.y * TILE, -1, 1],
+    [b.x * TILE, (b.y + b.h) * TILE - 1, 1, -1],
+    [(b.x + b.w) * TILE - 1, (b.y + b.h) * TILE - 1, -1, -1],
+  ];
+  for (const [cx, cy, sx, sy] of corners)
+    steps.forEach((len, row) => {
+      const y = cy + sy * row;
+      const x0 = sx > 0 ? cx : cx - len + 1;
+      rect(ctx, theme.path.base, x0, y, len, 1);
+      rect(ctx, theme.path.edge, sx > 0 ? x0 + len : x0 - 1, y, 1, 1);
+    });
+}
+
+const FACADES = ['#5b7fa6', '#7a8fa8', '#b7b0a3', '#a35d4a', '#e7c6a1', '#9fd8cf', '#f2a7c3', '#4c5566', '#c9c2b4', '#6d8f8a'];
+const LIT = ['#ffe9a6', '#ffd36b', '#9ff0ff'];
+
+/**
+ * A tower seen from above with a fixed tilt: its roof on top and its south
+ * facade below it. Taller towers show more facade, stepped tiers and a longer shadow.
+ */
+function paintTower(ctx: CanvasRenderingContext2D, lot: Lot): void {
+  const rng = createRng(lot.tone * 7919 + lot.x * 31 + lot.y);
+  const x = lot.x * TILE;
+  const y = lot.y * TILE;
+  const w = lot.w * TILE;
+  const h = lot.h * TILE;
+  const face = FACADES[lot.tone % FACADES.length];
+  const roof = shade(face === '#4c5566' ? '#6b6f7d' : face, -0.38);
+  const faceH = Math.min(Math.floor(h * 0.55), 8 + lot.height * 5);
+  const roofH = h - faceH;
+  const glass = lot.tone % 3 === 0;
+
+  // south facade: a grid of windows over a shop floor
+  rect(ctx, face, x, y + roofH, w, faceH);
+  rect(ctx, shade(face, -0.25), x + w - 3, y + roofH, 3, faceH); // the east side, in shadow
+  for (let wy = y + roofH + 3; wy + 3 < y + h - 6; wy += 5)
+    for (let wx = x + 3; wx + 3 < x + w - 4; wx += glass ? 4 : 5) {
+      const lit = rng() < 0.22;
+      rect(ctx, lit ? pick3(rng, LIT) : shade(face, glass ? 0.25 : -0.35), wx, wy, glass ? 3 : 3, 3);
+    }
+  const shopY = y + h - 6;
+  rect(ctx, shade(face, -0.45), x, shopY, w, 6);
+  for (let sx = x + 3; sx + 6 < x + w - 3; sx += 9) rect(ctx, rng() < 0.4 ? pick3(rng, NEON) : '#2b2d36', sx, shopY + 2, 6, 3);
+  frame(ctx, P.ink, x, y + roofH, w, faceH);
+
+  // roof with a parapet
+  rect(ctx, roof, x, y, w, roofH);
+  rect(ctx, shade(roof, 0.3), x, y, w, 2);
+  rect(ctx, shade(roof, 0.3), x, y, 2, roofH);
+  rect(ctx, shade(roof, -0.3), x + w - 2, y, 2, roofH);
+  rect(ctx, shade(roof, -0.3), x, y + roofH - 2, w, 2);
+  frame(ctx, P.ink, x, y, w, roofH);
+
+  // stepped tiers on taller towers
+  let tx = x;
+  let ty = y;
+  let tw = w;
+  let th = roofH;
+  for (let tier = 3; tier <= lot.height && tw > 28 && th > 26; tier += 2) {
+    const ix = Math.max(4, Math.floor(tw * 0.18));
+    const iy = Math.max(4, Math.floor(th * 0.16));
+    tx += ix;
+    ty += iy;
+    tw -= ix * 2;
+    th -= iy * 2;
+    const step = 4 + Math.floor(lot.height / 2);
+    rect(ctx, 'rgba(10,12,24,0.3)', tx + 3, ty + 3, tw, th);
+    rect(ctx, face, tx, ty + th - step, tw, step);
+    for (let wx = tx + 2; wx + 2 < tx + tw - 2; wx += 4) rect(ctx, rng() < 0.3 ? pick3(rng, LIT) : shade(face, -0.35), wx, ty + th - step + 1, 2, 2);
+    const r2 = shade(roof, 0.12 * (tier - 1) / 2);
+    rect(ctx, r2, tx, ty, tw, th - step);
+    rect(ctx, shade(r2, 0.3), tx, ty, tw, 1);
+    frame(ctx, P.ink, tx, ty, tw, th);
+  }
+  // crown: a helipad on the tallest, AC units and a water tank elsewhere
+  if (lot.height >= 5 && tw >= 24 && th >= 22) {
+    const cx = tx + Math.floor(tw / 2);
+    const cy = ty + Math.floor((th - 6) / 2);
+    rect(ctx, P.ink, cx - 8, cy - 8, 16, 16);
+    rect(ctx, '#3d404c', cx - 7, cy - 7, 14, 14);
+    rect(ctx, YELLOW_MARK, cx - 4, cy - 4, 1, 8);
+    rect(ctx, YELLOW_MARK, cx + 3, cy - 4, 1, 8);
+    rect(ctx, YELLOW_MARK, cx - 4, cy, 8, 1);
+  } else {
+    const units = Math.max(1, Math.floor((tw * th) / 900));
+    for (let i = 0; i < units; i++) {
+      const ux = tx + 4 + Math.floor(rng() * Math.max(1, tw - 14));
+      const uy = ty + 4 + Math.floor(rng() * Math.max(1, th - 16));
+      rect(ctx, P.ink, ux - 1, uy - 1, 9, 7);
+      rect(ctx, P.silver, ux, uy, 7, 5);
+      rect(ctx, P.slate, ux + 2, uy + 2, 3, 1);
+    }
+    if (rng() < 0.5 && tw >= 30) {
+      const wx = tx + tw - 13;
+      const wy = ty + 4;
+      rect(ctx, P.ink, wx - 1, wy - 1, 10, 10);
+      rect(ctx, P.brown, wx, wy, 8, 8);
+      rect(ctx, P.wood, wx + 1, wy + 1, 6, 2);
+    }
+  }
+  if (lot.height >= 4 && rng() < 0.6) {
+    // antenna with a red light
+    const ax = tx + 3 + Math.floor(rng() * Math.max(1, tw - 8));
+    rect(ctx, P.ink, ax, ty + 2, 1, 7);
+    rect(ctx, P.red, ax - 1, ty + 1, 3, 2);
+  }
+}
+
+function pick3<T>(rng: Rng, items: readonly T[]): T {
+  return items[Math.floor(rng() * items.length)];
+}
+
+const CAR_COLORS = ['#ef7d57', '#3fe8ff', '#ffcd75', '#f4f4f4', '#b13e53', '#38b764', '#566c86', '#ff3fa4'];
+
+/** An open-air parking lot: stalls and a few parked cars. */
+function paintParking(ctx: CanvasRenderingContext2D, theme: ThemePack, lot: Lot): void {
+  const rng = createRng(lot.tone + lot.x * 131 + lot.y);
+  const x = lot.x * TILE;
+  const y = lot.y * TILE;
+  const w = lot.w * TILE;
+  const h = lot.h * TILE;
+  rect(ctx, shade(theme.path.base, 0.1), x, y, w, h);
+  frame(ctx, theme.path.edge, x, y, w, h);
+  const vertical = h >= w;
+  const len = vertical ? h : w;
+  for (let i = 4; i + 10 < len; i += 10) {
+    for (const side of [0, 1]) {
+      const sx = vertical ? x + (side ? w - 14 : 2) : x + i;
+      const sy = vertical ? y + i : y + (side ? h - 14 : 2);
+      if (vertical) rect(ctx, WHITE_MARK, sx, sy, 12, 1);
+      else rect(ctx, WHITE_MARK, sx, sy, 1, 12);
+      if (rng() < 0.55) {
+        const color = pick3(rng, CAR_COLORS);
+        const [cx, cy, cw, ch] = vertical ? [sx + 1, sy + 2, 11, 7] : [sx + 2, sy + 1, 7, 11];
+        rect(ctx, P.ink, cx - 1, cy - 1, cw + 2, ch + 2);
+        rect(ctx, color, cx, cy, cw, ch);
+        if (vertical) rect(ctx, P.sky, cx + 3, cy + 1, 3, ch - 2);
+        else rect(ctx, P.sky, cx + 1, cy + 3, cw - 2, 3);
+      }
+    }
+  }
 }
 
 // ── Void: hulls and lanes ───────────────────────────────────────────────

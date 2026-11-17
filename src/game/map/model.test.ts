@@ -134,19 +134,40 @@ describe('generateMap with agent hints', () => {
 });
 
 describe('city maps', () => {
-  it('lay a grid of streets around the blocks and city props', () => {
-    const env = {
-      locations: Object.fromEntries(
-        [['A', 0, 0], ['B', 1, 0], ['C', 0, 1], ['D', 1, 1]].map(([n, x, y]) => [n, { name: n, type: 'commercial', position: [x, y], capacity: 10 }]),
-      ),
-      global_state: {},
-    } as unknown as Parameters<typeof generateMap>[0];
+  const env = {
+    locations: Object.fromEntries(
+      [['A', 0, 0], ['B', 1, 0], ['C', 0, 1], ['D', 1, 1]].map(([n, x, y]) => [n, { name: n, type: 'commercial', position: [x, y], capacity: 10 }]),
+    ),
+    global_state: {},
+  } as unknown as Parameters<typeof generateMap>[0];
+  const urban = { residents: {}, resources: {}, urban: true, scenery: ['lamp', 'car', 'palm', 'hydrant'] };
+
+  it('lays districts of blocks between avenues, with towers and city props', () => {
     const plain = generateMap(env, 'outdoor', 's');
-    const city = generateMap(env, 'outdoor', 's', { residents: {}, resources: {}, urban: true, scenery: ['lamp', 'car'] });
+    const city = generateMap(env, 'outdoor', 's', urban);
     const roads = (m: typeof plain) => m.ground.filter((g) => g === 'path').length;
     expect(roads(city)).toBeGreaterThan(roads(plain) * 2);
-    const scenery = city.props.filter((p) => !p.zone).map((p) => p.key);
-    expect(scenery.length).toBeGreaterThan(0);
-    expect(scenery.every((k) => k === 'lamp' || k === 'car' || k.startsWith('resource') || k === 'house')).toBe(true);
+    expect(city.city!.blocks).toHaveLength(16);
+    expect(city.city!.lots.some((l) => l.kind === 'tower')).toBe(true);
+    expect(city.city!.streets.some((s) => s.avenue) && city.city!.streets.some((s) => !s.avenue)).toBe(true);
+    const keys = new Set(city.props.filter((p) => !p.zone).map((p) => p.key));
+    expect(keys.has('lamp') && keys.has('car')).toBe(true);
+    expect([...keys].every((k) => urban.scenery.includes(k) || k.startsWith('resource') || k === 'house')).toBe(true);
+    // every place still reachable on foot
+    const [first, ...rest] = city.zones;
+    for (const z of rest) expect(routeBetween(city, first.spots[0], z.spots[0]), z.name).not.toBeNull();
+  });
+
+  it('gives territories a district of several blocks and other places one', () => {
+    const city = generateMap(env, 'outdoor', 's', { ...urban, territories: ['A', 'B'] });
+    const blocks = (name: string) => city.city!.districts[name].filter((r) => r.w > 2 && r.h > 2).length;
+    expect(blocks('A')).toBeGreaterThanOrEqual(2);
+    expect(blocks('B')).toBeGreaterThanOrEqual(2);
+    expect(blocks('C')).toBe(1);
+    // the district holds the place's own building
+    for (const z of city.zones) {
+      const inside = city.city!.districts[z.name].some((r) => z.body.x >= r.x && z.body.y >= r.y && z.body.x + z.body.w <= r.x + r.w && z.body.y + z.body.h <= r.y + r.h);
+      expect(inside, z.name).toBe(true);
+    }
   });
 });

@@ -7,7 +7,9 @@ import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
 import { propSprite } from '../art/propSprite';
 import { ensureSharedTextures, propKey } from '../art/textures';
-import { itemIcon, routeBetween, type MapModel, type Tile, type Zone } from '../map/model';
+import { drawPixels, makeCanvas } from '../art/pixel';
+import { PROPS } from '../art/sprites';
+import { itemIcon, routeBetween, type MapModel, type Rect, type Tile, type Zone } from '../map/model';
 import type { Bubble } from '../fx/Bubble';
 import { AgentView, PIXEL_FONT } from '../sprites/AgentView';
 
@@ -17,6 +19,7 @@ export interface WorldData {
 }
 
 const ZOOMS = [0.5, 1, 1.5, 2, 3, 4];
+const CAR_TINTS = [0xffffff, 0xff9a7a, 0xffe08a, 0x9ff0ff, 0xff8fc8, 0xa7f070, 0xc0c0d0, 0xff6060];
 
 /** Emote for a pressing need: food for hunger/thirst, zzz for sleep, alert otherwise. */
 export function needIcon(name: string, label = ''): string {
@@ -142,6 +145,7 @@ export class WorldScene extends Phaser.Scene {
     this.add.image(0, 0, mapKey).setOrigin(0).setDepth(-1);
 
     this.placeProps();
+    this.startTraffic();
     this.placeLabels();
     this.addAmbient();
     this.setupCamera(w, h);
@@ -208,11 +212,59 @@ export class WorldScene extends Phaser.Scene {
       const img = this.add.image(x, y, propKey(this.theme, key)).setOrigin(0.5, 1);
       // Furniture stands against the wall; scenery is sorted with the agents.
       img.setDepth(this.map.layout === 'outdoor' ? y - 2 : y - TILE);
+      if (key === 'car' && this.map.city) {
+        // parked: lying flat on the street, under the passers-by
+        img.setTexture(this.carTexture()).setOrigin(0.5).setPosition(x, y - TILE / 2).setAngle(p.angle ?? 0).setDepth(0);
+        img.setTint(CAR_TINTS[(p.x * 7 + p.y * 13) % CAR_TINTS.length]);
+      }
       if (p.owner) this.ownerTag(img, key === 'house' ? `Casa de ${p.owner}` : `Cama de ${p.owner}`);
       if (key === 'asteroid' || key === 'debris') {
         img.setDepth(-5);
         this.tweens.add({ targets: img, angle: 360, duration: 20000 + (p.x * 977) % 20000, repeat: -1 });
       }
+    }
+  }
+
+  /** A white car (tinted per car) with dark windows. */
+  private carTexture(): string {
+    const key = `${this.theme.id}:citycar`;
+    if (!this.textures.exists(key)) {
+      const c = makeCanvas(16, 16);
+      drawPixels(c.getContext('2d')!, PROPS.car, { ...this.theme.propColors, a: '#f4f4f4', A: '#a9adbd', l: '#2b2d36', k: '#1a1c2c' });
+      this.textures.addCanvas(key, c);
+    }
+    return key;
+  }
+
+  /** City themes: a few cars driving along the streets, on the right-hand lane. */
+  private startTraffic(): void {
+    const city = this.map.city;
+    if (!city) return;
+    const streets = city.streets.filter((s) => s.to - s.from > 6);
+    const n = Math.min(14, Math.ceil(streets.length * 0.6));
+    for (let i = 0; i < n; i++) {
+      const s = streets[(i * 5 + 3) % streets.length];
+      const forward = i % 2 === 0;
+      // right-hand traffic: eastbound / southbound on the second lane
+      const lane = (forward ? s.at + 1 : s.at) * TILE + TILE / 2;
+      const a = (forward ? s.from : s.to) * TILE + TILE / 2;
+      const b = (forward ? s.to : s.from) * TILE + TILE / 2;
+      const angle = s.dir === 'h' ? (forward ? 0 : 180) : forward ? 90 : 270;
+      const at = (v: number) => (s.dir === 'h' ? { x: v, y: lane } : { x: lane, y: v });
+      const car = this.add
+        .image(at(a).x, at(a).y, this.carTexture())
+        .setAngle(angle)
+        .setTint(CAR_TINTS[(i * 3 + 1) % CAR_TINTS.length])
+        .setDepth(0);
+      const duration = Math.abs(b - a) * 9;
+      this.tweens.add({
+        targets: car,
+        ...(s.dir === 'h' ? { x: b } : { y: b }),
+        duration,
+        delay: (i * 1777) % duration,
+        repeat: -1,
+        repeatDelay: 1500 + ((i * 911) % 4000),
+      });
     }
   }
 
@@ -237,7 +289,7 @@ export class WorldScene extends Phaser.Scene {
       const label = this.add
         .text(x, y, z.name, {
           fontFamily: PIXEL_FONT,
-          fontSize: '8px',
+          fontSize: this.map.city ? '10px' : '8px',
           color: this.theme.ui.label,
           backgroundColor: this.theme.ui.labelBg,
           padding: { x: 3, y: 2 },
@@ -294,8 +346,9 @@ export class WorldScene extends Phaser.Scene {
     const pad = 4 * TILE;
     cam.setBounds(-pad, -pad, w + pad * 2, h + pad * 2);
     const fit = Math.min(this.scale.width / w, this.scale.height / h);
-    // Largest zoom that shows the whole map, but never below 1x (pixels stay crisp).
-    this.zoomIndex = Math.max(1, ZOOMS.filter((z) => z <= fit).length - 1);
+    // Largest zoom that shows the whole map, but never below 1x (pixels stay crisp)
+    // except for big cities, which open showing all their districts.
+    this.zoomIndex = Math.max(this.map.city && fit < 1 ? 0 : 1, ZOOMS.filter((z) => z <= fit).length - 1);
     cam.setZoom(ZOOMS[this.zoomIndex]);
     cam.centerOn(w / 2, h / 2);
 
@@ -425,15 +478,19 @@ export class WorldScene extends Phaser.Scene {
       current?.parts.forEach((p) => p.destroy());
       this.territoryMarks.delete(z.name);
       if (!t || (!t.owner && !t.contested)) continue;
-      const x = z.body.x * TILE;
-      const y = z.body.y * TILE;
-      const w = z.body.w * TILE;
-      const h = z.body.h * TILE;
+      const area = this.map.city?.districts[z.name] ?? [z.body];
+      const bounds = area.reduce(
+        (b, r) => ({ x0: Math.min(b.x0, r.x), y0: Math.min(b.y0, r.y), x1: Math.max(b.x1, r.x + r.w), y1: Math.max(b.y1, r.y + r.h) }),
+        { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity },
+      );
+      const x = bounds.x0 * TILE;
+      const y = bounds.y0 * TILE;
+      const w = (bounds.x1 - bounds.x0) * TILE;
+      const h = (bounds.y1 - bounds.y0) * TILE;
       const parts: Phaser.GameObjects.GameObject[] = [];
       if (t.owner) {
         const hex = Phaser.Display.Color.HexStringToColor(color).color;
-        parts.push(this.add.rectangle(x, y, w, h, hex, 0.22).setOrigin(0).setDepth(99989));
-        parts.push(this.add.rectangle(x, y, w, h).setOrigin(0).setStrokeStyle(2, hex, 0.9).setDepth(99989));
+        parts.push(this.districtShape(area, hex, 0.2, 99989));
         parts.push(
           this.add
             .text(x + 3, y + 3, `■ ${t.owner}`, { fontFamily: PIXEL_FONT, fontSize: '6px', color, backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
@@ -442,8 +499,8 @@ export class WorldScene extends Phaser.Scene {
         );
       }
       if (t.contested?.length) {
-        const veil = this.add.rectangle(x, y, w, h, 0xef7d57, 0.2).setOrigin(0).setDepth(99990);
-        this.tweens.add({ targets: veil, alpha: 0.04, duration: 400, yoyo: true, repeat: -1 });
+        const veil = this.districtShape(area, 0xef7d57, 0.2, 99990);
+        this.tweens.add({ targets: veil, alpha: 0.2, duration: 400, yoyo: true, repeat: -1 });
         parts.push(veil);
         parts.push(
           this.add
@@ -455,6 +512,26 @@ export class WorldScene extends Phaser.Scene {
       }
       this.territoryMarks.set(z.name, { sig, parts });
     }
+  }
+
+  /** A district (or a single building) tinted in a color, outlined along its outer edge only. */
+  private districtShape(area: Rect[], color: number, alpha: number, depth: number): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics().setDepth(depth);
+    const tiles = new Set<string>();
+    for (const r of area) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) tiles.add(`${x},${y}`);
+    g.fillStyle(color, alpha);
+    for (const r of area) g.fillRect(r.x * TILE, r.y * TILE, r.w * TILE, r.h * TILE);
+    g.lineStyle(2, color, 0.9);
+    for (const k of tiles) {
+      const [x, y] = k.split(',').map(Number);
+      const px = x * TILE;
+      const py = y * TILE;
+      if (!tiles.has(`${x},${y - 1}`)) g.lineBetween(px, py + 1, px + TILE, py + 1);
+      if (!tiles.has(`${x},${y + 1}`)) g.lineBetween(px, py + TILE - 1, px + TILE, py + TILE - 1);
+      if (!tiles.has(`${x - 1},${y}`)) g.lineBetween(px + 1, py, px + 1, py + TILE);
+      if (!tiles.has(`${x + 1},${y}`)) g.lineBetween(px + TILE - 1, py, px + TILE - 1, py + TILE);
+    }
+    return g;
   }
 
   /** A gold marker over whoever carries a coveted item; it sparkles when it changes hands. */

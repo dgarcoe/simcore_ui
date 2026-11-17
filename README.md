@@ -100,7 +100,7 @@ npm run build          # typecheck + build de producción en dist/
 | Tema | Layout | Ejemplo |
 |---|---|---|
 | `town` | exterior: edificios, caminos, plazas | escenarios incluidos en Simcore |
-| `city` | exterior urbano estilo GTA: cuadrícula de calles con carriles, aceras, azoteas con neón, farolas, coches y palmeras | `scenarios/los-santos` |
+| `city` | ciudad estilo GTA: cada lugar es un barrio de manzanas (2–4 si es `territory`, una si no) entre avenidas con doble línea amarilla y pasos de cebra; rascacielos con perspectiva, escalonados y con helipuerto, aparcamientos, parques, farolas, coches aparcados y tráfico. El color de la banda tiñe el barrio entero | `scenarios/los-santos` |
 | `spaceship` | interior: salas, pasillos, puertas | `scenarios/spaceship` |
 | `warehouse` | interior | `scenarios/warehouse` |
 | `factory` | interior | `scenarios/factory` |

@@ -55,6 +55,8 @@ export interface Prop {
   zone?: string;
   /** Agent this prop belongs to (a resident's bed or house). */
   owner?: string;
+  /** Rotation in degrees (cars parked along vertical streets). */
+  angle?: number;
 }
 
 export interface Link {
@@ -71,6 +73,34 @@ export interface MapModel {
   zones: Zone[];
   links: Link[];
   props: Prop[];
+  /** City themes: blocks, streets and the districts each place spans. */
+  city?: CityPlan;
+}
+
+/** A filler lot in a city block: a skyscraper, a parking lot or a little park. */
+export interface Lot extends Rect {
+  kind: 'tower' | 'parking' | 'park';
+  /** Floors, in steps of 1–5: taller towers show more facade and cast a longer shadow. */
+  height: number;
+  tone: number;
+}
+
+/** A street two lanes wide: `at` is its first row (horizontal) or column (vertical). */
+export interface Street {
+  dir: 'h' | 'v';
+  at: number;
+  from: number;
+  to: number;
+  /** Avenues run between districts; streets inside one. */
+  avenue: boolean;
+}
+
+export interface CityPlan {
+  blocks: Rect[];
+  lots: Lot[];
+  streets: Street[];
+  /** Place → tiles of its district (its blocks and the streets between them). */
+  districts: Record<string, Rect[]>;
 }
 
 const SLOT = { outdoor: { w: 12, h: 11 }, indoor: { w: 14, h: 12 }, void: { w: 16, h: 13 } } as const;
@@ -116,6 +146,7 @@ const NO_HINTS: MapHints = { residents: {}, resources: {} };
 export function generateMap(env: Environment, layout: LayoutKind, seed: string, hints: MapHints = NO_HINTS): MapModel {
   const rng = createRng(`${seed}|${layout}`);
   const locations = mapLocations(env);
+  if (layout === 'outdoor' && hints.urban) return generateCity(locations, rng, hints);
   const slot = SLOT[layout];
   const cells = assignCells(locations);
   const nCols = Math.max(1, ...cells.map((c) => c.col + 1));
@@ -138,25 +169,8 @@ export function generateMap(env: Environment, layout: LayoutKind, seed: string, 
     if (path) map.links.push({ from: map.zones[a].name, to: map.zones[b].name, path });
   }
   if (layout === 'indoor') raiseWalls(map);
-  if (layout === 'outdoor' && hints.urban) gridStreets(map, nCols, nRows, slot);
   scatterProps(map, rng, hints);
   return map;
-}
-
-/** City themes: streets between all the blocks (along the slot borders), not only the links. */
-function gridStreets(map: MapModel, nCols: number, nRows: number, slot: { w: number; h: number }): void {
-  const top = MARGIN - 1;
-  const bottom = MARGIN + nRows * slot.h;
-  const left = MARGIN - 1;
-  const right = MARGIN + nCols * slot.w;
-  for (let k = 0; k <= nCols; k++) {
-    const x = Math.min(right, MARGIN + k * slot.w - (k === 0 ? 1 : 0));
-    for (let y = top; y <= bottom; y++) if (get(map, x, y) === 'ground') set(map, x, y, 'path');
-  }
-  for (let k = 0; k <= nRows; k++) {
-    const y = Math.min(bottom, MARGIN + k * slot.h - (k === 0 ? 1 : 0));
-    for (let x = left; x <= right; x++) if (get(map, x, y) === 'ground') set(map, x, y, 'path');
-  }
 }
 
 /**
@@ -468,4 +482,165 @@ export function resourceSprite(resource: string): string {
   if (/data|intel|research|book|libro|livro|document|archiv/.test(r)) return 'shelf';
   if (/fuel|oil|energ|combust|gas|water|agua|[aá]gua|food|comida|ration|raci[oó]n|grain|grano/.test(r)) return 'barrel';
   return 'crate';
+}
+
+// ── City: districts of blocks between avenues ───────────────────────────
+//
+// Every place gets a cell of 2×2 blocks. Places groups fight over (or all of
+// them, if the scenario has no territories) take 2–4 blocks of it as their
+// district; the others take one. The place's own building sits in one block,
+// with its plaza; the rest are filled with towers, parking lots and parks.
+
+/** A block including its one-tile sidewalk. */
+const BLOCK = { w: 14, h: 11 } as const;
+const STREET = 2;
+const PITCH = { x: BLOCK.w + STREET, y: BLOCK.h + STREET } as const;
+const EDGE = 1;
+
+const SHAPES: ReadonlyArray<ReadonlyArray<[number, number]>> = [
+  [[0, 0], [1, 0], [0, 1], [1, 1]],
+  [[0, 0], [1, 0], [0, 1], [1, 1]],
+  [[0, 0], [1, 0], [0, 1]],
+  [[0, 0], [1, 0], [1, 1]],
+  [[0, 0], [0, 1], [1, 1]],
+  [[1, 0], [0, 1], [1, 1]],
+  [[0, 0], [1, 0]],
+  [[0, 1], [1, 1]],
+  [[0, 0], [0, 1]],
+];
+
+function generateCity(locations: Location[], rng: Rng, hints: MapHints): MapModel {
+  const cells = assignCells(locations);
+  const bCols = 2 * Math.max(1, ...cells.map((c) => c.col + 1));
+  const bRows = 2 * Math.max(1, ...cells.map((c) => c.row + 1));
+  const cols = EDGE * 2 + STREET + bCols * PITCH.x;
+  const rows = EDGE * 2 + STREET + bRows * PITCH.y;
+  const city: CityPlan = { blocks: [], lots: [], streets: [], districts: {} };
+  const map: MapModel = { layout: 'outdoor', cols, rows, ground: new Array(cols * rows).fill('ground'), zones: [], links: [], props: [], city };
+  const blockAt = (c: number, r: number): Rect => ({ x: EDGE + STREET + c * PITCH.x, y: EDGE + STREET + r * PITCH.y, w: BLOCK.w, h: BLOCK.h });
+
+  for (let c = 0; c <= bCols; c++) {
+    const at = EDGE + c * PITCH.x;
+    city.streets.push({ dir: 'v', at, from: EDGE, to: rows - EDGE - 1, avenue: c % 2 === 0 });
+    fill(map, { x: at, y: EDGE, w: STREET, h: rows - 2 * EDGE }, 'path');
+  }
+  for (let r = 0; r <= bRows; r++) {
+    const at = EDGE + r * PITCH.y;
+    city.streets.push({ dir: 'h', at, from: EDGE, to: cols - EDGE - 1, avenue: r % 2 === 0 });
+    fill(map, { x: EDGE, y: at, w: cols - 2 * EDGE, h: STREET }, 'path');
+  }
+
+  const big = (name: string) => !hints.territories?.length || hints.territories.includes(name);
+  const mains = new Set<string>();
+  locations.forEach((loc, i) => {
+    const { col, row } = cells[i];
+    const shape = big(loc.name) ? pick(rng, SHAPES) : [pick(rng, SHAPES[0])];
+    const blocks = shape.map(([dx, dy]) => [col * 2 + dx, row * 2 + dy] as const);
+    const [mc, mr] = blocks[Math.floor(rng() * blocks.length)];
+    mains.add(`${mc},${mr}`);
+    const b = blockAt(mc, mr);
+    map.zones.push(buildZone(map, loc, b.x + 1, b.y + 1, b.w - 2, b.h - 2, hints.residents[loc.name]?.length ?? 0));
+    const inside = new Set(blocks.map(([c, r]) => `${c},${r}`));
+    const rects = blocks.map(([c, r]) => blockAt(c, r));
+    for (const [c, r] of blocks) {
+      const a = blockAt(c, r);
+      if (inside.has(`${c + 1},${r}`)) rects.push({ x: a.x + a.w, y: a.y, w: STREET, h: a.h });
+      if (inside.has(`${c},${r + 1}`)) rects.push({ x: a.x, y: a.y + a.h, w: a.w, h: STREET });
+      if (inside.has(`${c + 1},${r}`) && inside.has(`${c},${r + 1}`) && inside.has(`${c + 1},${r + 1}`))
+        rects.push({ x: a.x + a.w, y: a.y + a.h, w: STREET, h: STREET });
+    }
+    city.districts[loc.name] = rects;
+  });
+
+  for (let r = 0; r < bRows; r++)
+    for (let c = 0; c < bCols; c++) {
+      const b = blockAt(c, r);
+      city.blocks.push(b);
+      if (!mains.has(`${c},${r}`)) fillLots(map, { x: b.x + 1, y: b.y + 1, w: b.w - 2, h: b.h - 2 }, rng);
+    }
+
+  for (const [a, b] of linkGraph(map.zones)) {
+    const path = routeBetween(map, map.zones[a].spots[0], map.zones[b].spots[0]);
+    if (path) map.links.push({ from: map.zones[a].name, to: map.zones[b].name, path });
+  }
+  placeOutdoorResources(map, hints);
+  cityProps(map, rng, hints);
+  return map;
+}
+
+/** Towers, parking lots and parks with alleys between them. */
+function fillLots(map: MapModel, r: Rect, rng: Rng): void {
+  const city = map.city!;
+  const add = (x: number, y: number, w: number, h: number, kind: Lot['kind']) => {
+    fill(map, { x, y, w, h }, 'building');
+    const height = kind === 'tower' ? 1 + Math.floor(rng() * 5) : 0;
+    city.lots.push({ x, y, w, h, kind, height, tone: Math.floor(rng() * 1000) });
+  };
+  const half = Math.floor((r.w - 1) / 2);
+  const p = rng();
+  if (p < 0.25) add(r.x, r.y, r.w, r.h, 'tower');
+  else if (p < 0.55) {
+    add(r.x, r.y, half, r.h, 'tower');
+    add(r.x + half + 1, r.y, r.w - half - 1, r.h, 'tower');
+  } else if (p < 0.72) {
+    const w = r.w - 5;
+    const left = rng() < 0.5;
+    add(left ? r.x : r.x + 5, r.y, w, r.h, 'tower');
+    add(left ? r.x + w + 1 : r.x, r.y, 4, r.h, 'parking');
+  } else if (p < 0.9) {
+    const hh = Math.floor((r.h - 1) / 2);
+    for (const [x, w] of [[r.x, half], [r.x + half + 1, r.w - half - 1]])
+      for (const [y, h] of [[r.y, hh], [r.y + hh + 1, r.h - hh - 1]]) add(x, y, w, h, rng() < 0.15 ? 'parking' : 'tower');
+  } else add(r.x, r.y, r.w, r.h, 'park');
+}
+
+/** Street lamps along the sidewalks, palms around the plazas and cars parked along the curbs. */
+function cityProps(map: MapModel, rng: Rng, hints: MapHints): void {
+  const city = map.city!;
+  const taken = new Set(map.props.map((p) => `${p.x},${p.y}`));
+  const put = (x: number, y: number, key: string, angle?: number) => {
+    if (taken.has(`${x},${y}`)) return;
+    taken.add(`${x},${y}`);
+    map.props.push(angle === undefined ? { x, y, key } : { x, y, key, angle });
+  };
+  const scenery = (hints.scenery ?? []).filter((k) => k !== 'car' && k !== 'lamp');
+  for (const b of city.blocks) {
+    // lamps on the bottom and top sidewalks, the odd hydrant or bin
+    for (let x = b.x + 2; x < b.x + b.w - 1; x += 4) {
+      for (const y of [b.y, b.y + b.h - 1]) {
+        if (get(map, x, y) !== 'ground') continue;
+        put(x, y, rng() < 0.75 ? 'lamp' : scenery.length ? pick(rng, scenery) : 'lamp');
+      }
+    }
+  }
+  // palms and benches around the plazas, on free pavement
+  for (const z of map.zones) {
+    const b = z.body;
+    for (let y = b.y - 1; y <= b.y + b.h + 3; y++)
+      for (let x = b.x - 3; x <= b.x + b.w + 2; x++) {
+        if (get(map, x, y) !== 'ground' || rng() > 0.18) continue;
+        let clear = true;
+        for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1 && clear; dx++) clear = get(map, x + dx, y + dy) !== 'path';
+        if (clear && !isSidewalk(map, x, y)) put(x, y, scenery.length ? pick(rng, scenery) : 'palm');
+      }
+  }
+  // parked cars along the curb lanes, away from the crossings
+  for (const s of city.streets) {
+    for (const [lane, out, angle] of [
+      [s.at, -1, s.dir === 'h' ? 180 : 90],
+      [s.at + 1, 1, s.dir === 'h' ? 0 : 270],
+    ] as const) {
+      const curb = (i: number) => (s.dir === 'h' ? get(map, i, lane + out) : get(map, lane + out, i)) === 'ground';
+      for (let i = s.from + 1; i < s.to; i++)
+        if (curb(i - 1) && curb(i) && curb(i + 1) && rng() < 0.07) {
+          if (s.dir === 'h') put(i, lane, 'car', angle);
+          else put(lane, i, 'car', angle);
+        }
+    }
+  }
+}
+
+function isSidewalk(map: MapModel, x: number, y: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (get(map, x + dx, y + dy) === 'path') return true;
+  return false;
 }

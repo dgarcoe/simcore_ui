@@ -518,10 +518,14 @@ export interface MapHints {
   urban?: boolean;
   /** Props scattered outdoors (the theme's; trees and rocks by default). */
   scenery?: readonly string[];
+  /** Places groups fight over: in cities they span a whole district. */
+  territories?: string[];
 }
 
 export function mapHints(cfg: ScenarioConfig | null | undefined): MapHints {
   const hints: MapHints = { residents: {}, resources: {} };
+  const territories = (cfg?.environment?.locations ?? []).filter((l) => l.territory).map((l) => l.name);
+  if (territories.length) hints.territories = territories;
   for (const a of cfg?.agents ?? []) {
     const loc = a.starting_location;
     if (!loc) continue;
