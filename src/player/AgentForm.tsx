@@ -1,6 +1,7 @@
 import type { AgentConfig } from '../api/scenario';
 import { FIXED_FIELDS, pointsSpent, type GameTemplate } from '../api/games';
 import { ATTRIBUTES, SKILLS, modifier, signed } from '../store/rpg';
+import { OrdersForm } from './OrdersForm';
 
 const TRAITS: Array<[string, string, string]> = [
   ['openness', 'Apertura', 'curiosidad, imaginación'],
@@ -149,6 +150,27 @@ export function AgentForm({
               );
             })}
           </div>
+        </div>
+      )}
+      {can('faction') && (
+        <label>
+          Tu banda
+          {template.factions?.length ? (
+            <select className="select" value={agent.faction ?? ''} onChange={(e) => set({ faction: e.target.value })}>
+              <option value="">(elige)</option>
+              {template.factions.map((f) => (
+                <option key={f}>{f}</option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" maxLength={40} value={agent.faction ?? ''} onChange={(e) => set({ faction: e.target.value })} />
+          )}
+        </label>
+      )}
+      {can('orders') && (
+        <div className="player-block">
+          <h4>Tus órdenes para ganar</h4>
+          <OrdersForm orders={agent.orders ?? {}} readOnly={readOnly} onChange={(orders) => set({ orders })} />
         </div>
       )}
       {fixed.length > 0 && <p className="dim small">Lo decide el DM: {fixed.join(', ')}.</p>}

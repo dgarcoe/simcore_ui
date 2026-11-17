@@ -44,7 +44,11 @@ export type EventType =
   // Role-playing rules: d20 checks and level ups.
   | 'dice_roll'
   | 'level_up'
-  | 'score_change';
+  | 'score_change'
+  | 'territory_change'
+  | 'agent_knockout'
+  | 'orders'
+  | 'intermission';
 
 export interface Belief {
   text: string;
@@ -207,10 +211,13 @@ export interface SimState {
   holders?: Record<string, { agent: string; since: number; ticks: number }>;
   /** Points and achievements (scenarios with scores). */
   scores?: ScoresState;
+  /** Who holds each territory (scenarios with territories). */
+  territories?: Record<string, { owner: string; contested?: string[] }>;
 }
 
 export interface ScoresState {
   ranking: Array<{ agent: string; points: number }>;
+  groups?: Array<{ group: string; points: number }>;
   earned: Record<string, Record<string, number>>;
 }
 

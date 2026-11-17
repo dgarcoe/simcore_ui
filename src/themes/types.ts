@@ -26,6 +26,10 @@ export interface ThemePack {
   id: string;
   label: string;
   layout: LayoutKind;
+  /** Outdoor as a city: a street grid, lane marks, pavements, flat roofs with neon signs. */
+  urban?: boolean;
+  /** Props scattered outdoors instead of trees and rocks. */
+  scenery?: string[];
   /** Words that suggest this theme when guessing it from scenario text. */
   keywords: RegExp[];
   background: string;

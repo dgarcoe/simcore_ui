@@ -11,6 +11,7 @@ export function EndCard() {
   const reason = useSim((s) => s.endReason);
   const message = useSim((s) => s.endMessage);
   const winner = useSim((s) => s.endWinner);
+  const mvp = useSim((s) => s.endMvp);
   const scores = useSim((s) => s.finalScores ?? s.sim?.scores ?? null);
   const sim = useSim((s) => s.sim);
   const scenarioName = useSim((s) => s.scenarioName);
@@ -52,6 +53,16 @@ export function EndCard() {
       {reason === 'no_agents_left' && <p>No queda nadie con vida en el escenario.</p>}
       {message && <p className="end-message">{message}</p>}
       {winner && !message.includes(winner) && <p className="end-winner">👑 Gana: {winner}</p>}
+      {mvp && mvp !== winner && !message.includes(mvp) && <p className="end-winner">⭐ La persona con más puntos: {mvp}</p>}
+      {scores?.groups && scores.groups.length > 0 && (
+        <ol className="end-scores">
+          {scores.groups.slice(0, 5).map((g) => (
+            <li key={g.group}>
+              🏴 {g.group} <strong>{g.points}</strong> pts
+            </li>
+          ))}
+        </ol>
+      )}
       {scores && scores.ranking.length > 0 && (
         <ol className="end-scores">
           {scores.ranking.slice(0, 5).map((r) => (

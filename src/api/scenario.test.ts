@@ -467,3 +467,19 @@ describe('game systems in the editor and validation', () => {
   });
 });
 
+
+describe('Los Santos', () => {
+  it('validates cleanly and uses territories, knockouts, two winners and orders', async () => {
+    const { parse } = await import('yaml');
+    const cfg = parse(readFileSync(new URL('../../scenarios/los-santos/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;
+    expect(validateScenario(cfg)).toEqual([]);
+    expect(cfg.environment.global_state?.ui_theme).toBe('city');
+    expect(cfg.environment.locations.filter((l) => l.territory)).toHaveLength(8);
+    expect(cfg.society).toMatchObject({ lethal: false, knockout: { condition: 'noqueado', place: 'Hospital' } });
+    const ends = (cfg.rules ?? []).filter((r) => (r.then as { end?: string }).end);
+    expect(ends.some((r) => r.when?.territories?.gte === 5)).toBe(true);
+    expect(ends.find((r) => r.winner === 'group')?.then).toMatchObject({ end: expect.stringContaining('{mvp}') });
+    expect(cfg.agents.every((a) => a.orders?.style)).toBe(true);
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'recipes', 'game_systems', 'gangs', 'orders']);
+  });
+});

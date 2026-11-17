@@ -63,6 +63,10 @@ export function GeneralTab() {
           <input type="checkbox" checked={!!sim.rpg} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.rpg = true) : delete d.simulation.rpg))} />
           Modo rol (tiradas de dado)
         </label>
+        <label className="toggle" title="Al final de cada día la partida se para: en las partidas con jugadores, cada uno lee su parte y puede cambiar las órdenes de su agente; el DM reanuda cuando quiere.">
+          <input type="checkbox" checked={!!sim.pause_each_day} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.pause_each_day = true) : delete d.simulation.pause_each_day))} />
+          Parar al final de cada día (jornadas)
+        </label>
         {sim.story && (
           <label>
             Un capítulo cada (ticks)

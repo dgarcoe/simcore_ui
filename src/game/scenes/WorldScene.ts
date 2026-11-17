@@ -100,6 +100,7 @@ export class WorldScene extends Phaser.Scene {
   private labels = new Map<string, Phaser.GameObjects.Text>();
   /** Padlock / fire markers and overlays for closed or dangerous places. */
   private placeMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
+  private territoryMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
 
   constructor() {
     super('world');
@@ -407,7 +408,53 @@ export class WorldScene extends Phaser.Scene {
     for (const [name, view] of this.agents) if (!seen.has(name)) this.removeAgent(name, view, !instant);
     this.updateStock(sim);
     this.updatePlaces(sim);
+    this.updateTerritories(sim);
     this.updatePrizes(sim);
+  }
+
+  /** Territories: tinted with the color of the group that holds them, a pulsing veil if contested. */
+  private updateTerritories(sim: SimState): void {
+    const owners = sim.territories ?? {};
+    const groups = sim.society?.factions ?? {};
+    for (const z of this.map.zones) {
+      const t = owners[z.name];
+      const color = t?.owner ? groups[t.owner]?.color || '#f4f4f4' : '';
+      const sig = t ? `${t.owner}|${color}|${(t.contested ?? []).join(',')}` : '';
+      const current = this.territoryMarks.get(z.name);
+      if (current?.sig === sig) continue;
+      current?.parts.forEach((p) => p.destroy());
+      this.territoryMarks.delete(z.name);
+      if (!t || (!t.owner && !t.contested)) continue;
+      const x = z.body.x * TILE;
+      const y = z.body.y * TILE;
+      const w = z.body.w * TILE;
+      const h = z.body.h * TILE;
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      if (t.owner) {
+        const hex = Phaser.Display.Color.HexStringToColor(color).color;
+        parts.push(this.add.rectangle(x, y, w, h, hex, 0.22).setOrigin(0).setDepth(99989));
+        parts.push(this.add.rectangle(x, y, w, h).setOrigin(0).setStrokeStyle(2, hex, 0.9).setDepth(99989));
+        parts.push(
+          this.add
+            .text(x + 3, y + 3, `■ ${t.owner}`, { fontFamily: PIXEL_FONT, fontSize: '6px', color, backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
+            .setResolution(4)
+            .setDepth(100001),
+        );
+      }
+      if (t.contested?.length) {
+        const veil = this.add.rectangle(x, y, w, h, 0xef7d57, 0.2).setOrigin(0).setDepth(99990);
+        this.tweens.add({ targets: veil, alpha: 0.04, duration: 400, yoyo: true, repeat: -1 });
+        parts.push(veil);
+        parts.push(
+          this.add
+            .text(x + w - 3, y + h - 3, 'EN DISPUTA', { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#ffcd75', backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
+            .setResolution(4)
+            .setOrigin(1, 1)
+            .setDepth(100001),
+        );
+      }
+      this.territoryMarks.set(z.name, { sig, parts });
+    }
   }
 
   /** A gold marker over whoever carries a coveted item; it sparkles when it changes hands. */

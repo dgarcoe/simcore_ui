@@ -472,3 +472,29 @@ describe('points, winner and theft', () => {
     expect(s.finalScores?.ranking).toEqual(ranking);
   });
 });
+
+describe('gang wars', () => {
+  it('reports territories, knockouts, orders, days and two winners', () => {
+    let s = initialSnapshot();
+    const step = (type: string, data: Record<string, unknown>, tick = 1, source = '') =>
+      (s = reduce(s, { type, tick, source, data } as SimEvent) ?? s);
+    step('territory_change', { place: 'El Puerto', owner: 'Motoristas', previous: 'Puerto' }, 2);
+    expect(s.feed.at(-1)?.text).toBe('🏴 Motoristas toma El Puerto (se lo quita a Puerto)');
+    expect(s.banner).toMatchObject({ kind: 'territory', location: 'El Puerto' });
+    step('territory_change', { place: 'El Club', owner: '', previous: '', contested: ['A', 'B'] }, 3);
+    expect(s.feed.at(-1)?.text).toBe('⚔ El Club en disputa: A contra B');
+    step('agent_knockout', { agent: 'Rata', location: 'El Club', to: 'Hospital', cause: 'Toro' }, 4, 'Rata');
+    expect(s.feed.at(-1)).toMatchObject({ source: 'Rata', text: '💫 queda K.O. en El Club y despierta en Hospital (Toro)' });
+    step('orders', { agent: 'Rata', kind: 'plan', text: 'Escóndete' }, 5, 'Rata');
+    expect(s.feed.at(-1)?.text).toBe('📜 se activa su plan: Escóndete');
+    step('orders', { agent: 'Rata', kind: 'red_line', text: 'leave your group' }, 5, 'Rata');
+    expect(s.feed.at(-1)?.text).toBe('⛔ su línea roja le frena: no leave your group');
+    step('intermission', { day: 1 }, 12);
+    expect(s.intermission).toBe(1);
+    step('tick_start', {}, 13);
+    expect(s.intermission).toBeNull();
+    expect(attackText({ target: 'Rata', hit: true, damage: 0.4, knocked_out: true })).toBe('ataca a Rata — Rata queda K.O.');
+    step('simulation_end', { reason: 'rule', message: 'fin', winner: 'Motoristas', mvp: 'Rata' }, 36);
+    expect([s.endWinner, s.endMvp]).toEqual(['Motoristas', 'Rata']);
+  });
+});

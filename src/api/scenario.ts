@@ -44,6 +44,30 @@ export interface AgentConfig {
   skills?: string[];
   /** Starting level (1..10). */
   level?: number;
+  /** What the player who configured it tells it to do to win (games with players). */
+  orders?: Orders;
+}
+
+/** A player's orders for their agent: read every turn above everything else. */
+export interface Orders {
+  style?: string;
+  priorities?: string[];
+  risk?: '' | 'careful' | 'bold' | 'reckless';
+  /** Never done (enforced): an action, optionally only against someone ("my_group" = own group). */
+  red_lines?: Array<{ action: string; target?: string }>;
+  /** Told as "ACTIVE NOW" while every test holds. */
+  plans?: Array<{ when: PlanWhen; then: string }>;
+  text?: string;
+}
+
+export interface PlanWhen {
+  day?: number;
+  group_rank?: Compare;
+  my_rank?: Compare;
+  carries?: string;
+  health?: Compare;
+  knocked_out?: boolean;
+  group_territories?: Compare;
 }
 
 export interface LocationConfig {
@@ -61,6 +85,10 @@ export interface LocationConfig {
   closed?: boolean;
   access?: Requirement | null;
   hazard?: HazardConfig | null;
+  /** Groups fight over it: it belongs to the group with members there and no rivals. */
+  territory?: boolean;
+  /** Paid into the holding group's stash every `territories.every` ticks. */
+  income?: Record<string, number>;
 }
 
 export interface HazardConfig {
@@ -104,6 +132,8 @@ export interface RuleWhen {
   score?: Compare;
   /** Any one of these sets of tests is enough (several ways to win in one rule). */
   any?: RuleWhen[];
+  /** A group holds at least `gte` territories for `ticks` ticks in a row ({winner} is the group). */
+  territories?: { faction?: string; gte?: number; ticks?: number };
 }
 
 /** This set of tests and every alternative inside it. */
@@ -116,6 +146,8 @@ export interface RuleConfig {
   when?: RuleWhen;
   then?: Record<string, unknown>;
   once?: boolean;
+  /** Who {winner} names when no test does: the best group or the best person. */
+  winner?: '' | 'group' | 'person';
 }
 
 /** Item catalog entry (Simcore with inventories). */
@@ -147,6 +179,10 @@ export interface AchievementWhen {
   alive_at_end?: boolean;
   without?: string;
   every?: number;
+  /** Being there when your group takes a territory. */
+  captures?: boolean;
+  /** Being in a territory your group holds (with repeat: each `every` ticks). */
+  in_territory?: boolean;
 }
 
 export interface Achievement {
@@ -184,6 +220,9 @@ export interface SocietyConfig {
   spontaneous_groups?: boolean;
   /** Belonging pays: allies' bonus, common stash, mutual defense (default true). */
   group_perks?: boolean;
+  /** false: nobody dies; whoever would die is knocked out (see knockout). */
+  lethal?: boolean;
+  knockout?: { condition?: string; place?: string; health?: number };
   healers?: string[];
   heal_removes?: string[];
 }
@@ -273,6 +312,16 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     outcomes.some((o) => o?.steal || (o?.items && '*' in o.items))
   )
     out.push({ feature: 'game_systems', label: 'puntos y logros, varias victorias, objetos malditos o robos' });
+  if (
+    cfg.environment.locations.some((l) => l.territory) ||
+    cfg.society?.lethal === false ||
+    tests.some((w) => w.territories) ||
+    rules.some((r) => r.winner) ||
+    JSON.stringify(rules).includes('{mvp}')
+  )
+    out.push({ feature: 'gangs', label: 'territorios, peleas sin muertes o banda y persona ganadoras' });
+  if (cfg.agents.some((a) => a.orders) || cfg.simulation.pause_each_day)
+    out.push({ feature: 'orders', label: 'órdenes de los jugadores o jornadas con pausa' });
   return out;
 }
 
@@ -331,6 +380,8 @@ export interface ScenarioConfig {
     awareness?: 'local' | 'full';
     /** Role-playing rules: attributes, d20 checks, experience and levels. */
     rpg?: boolean;
+    /** Pause at the end of each day (games with players: report and new orders). */
+    pause_each_day?: boolean;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {
@@ -351,6 +402,7 @@ export interface ScenarioConfig {
   society?: SocietyConfig;
   routines?: Routines;
   scores?: ScoresConfig;
+  territories?: { every?: number; group_points?: number };
 }
 
 export const LOCATION_TYPES = [
@@ -462,6 +514,10 @@ export interface MapHints {
   residents: Record<string, string[]>;
   /** Resource names held by the agents that start in each location. */
   resources: Record<string, string[]>;
+  /** City themes: a grid of streets around the blocks. */
+  urban?: boolean;
+  /** Props scattered outdoors (the theme's; trees and rocks by default). */
+  scenery?: readonly string[];
 }
 
 export function mapHints(cfg: ScenarioConfig | null | undefined): MapHints {
@@ -790,6 +846,15 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
         issues.push({ path: `rules.${i}`, message: `${where} mira los puntos, pero el escenario no tiene logros (scores.achievements).` });
     }
   });
+  cfg.environment.locations.forEach((l, i) => {
+    for (const item of Object.keys(l.income ?? {}))
+      if (!cfg.items?.[item]) issues.push({ path: `locations.${i}`, message: `${l.name} da «${item}», que no está en el catálogo de objetos.` });
+  });
+  const ko = cfg.society?.knockout;
+  if (ko?.condition) need([ko.condition], 'El K.O.', 'society');
+  if (ko?.place && !places.has(ko.place)) issues.push({ path: 'society', message: `Tras un K.O. se despierta en «${ko.place}», que no existe.` });
+  if ((cfg.rules ?? []).some((r) => allTests(r.when).some((w) => w.territories)) && !cfg.environment.locations.some((l) => l.territory))
+    issues.push({ path: 'rules', message: 'Una regla cuenta territorios, pero ningún lugar es territorio.' });
   for (const [k, it] of Object.entries(cfg.items ?? {})) {
     if (!it.curse) continue;
     need([it.curse.condition], `La maldición de ${k}`, `items.${k}`);
@@ -804,7 +869,7 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     if (Array.isArray(w.visited)) for (const p of w.visited) if (!places.has(p)) issues.push({ path: `scores.${k}`, message: `${where} visita «${p}», que no existe.` });
     if (w.carries && !cfg.items?.[w.carries]) issues.push({ path: `scores.${k}`, message: `${where} mira «${w.carries}», que no está en el catálogo de objetos.` });
     if (w.condition) need([w.condition], where, `scores.${k}`);
-    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without)
+    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without && !w.captures && !w.in_territory)
       issues.push({ path: `scores.${k}`, message: `${where} no dice qué lo consigue (when).` });
   }
   const agentNames = new Set(cfg.agents.map((a) => a.name));

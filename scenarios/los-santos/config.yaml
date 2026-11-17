@@ -1,0 +1,361 @@
+# Gang war in a GTA-style city for simcore_ui's 'city' theme (3 days, 36 ticks of 2 hours).
+# Made for games with players: each player configures a gang member and the orders it follows to
+# win (style, priorities, risk, red lines, conditional plans). Two prizes: the gang that rules the
+# city and the city's Legend (the best individual score, from any gang).
+# Uses: territories (`territory`, `income`, `territories`, `when.territories`), knockouts instead
+# of deaths (`society.lethal: false`), a winning group and person (`winner: group`, `{winner}`,
+# `{mvp}`), points and achievements, groups with perks (allies' bonus, common stash, mutual
+# defense), police driven by rules, stealing (`steal: one`), a coveted briefcase (`visible`,
+# `drops`), a cursed gun, recipes (`where`), orders for the demo cast. For a game with players,
+# turn on `simulation.pause_each_day` so they get a report and change orders each night.
+# Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
+simulation:
+  name: "Los Santos: guerra de barrios"
+  description: El viejo jefe que mantenía la paz entre bandas ha caído. Durante tres días cada banda intentará
+    quedarse con la ciudad barrio a barrio mientras cada uno busca hacerse un nombre. Nadie muere aquí, pero
+    quien cae despierta en el hospital, y la policía detiene a quien está en busca y captura.
+  time_step: 2 hours
+  duration: 72 hours
+  seed: 5
+  language: es
+  rpg: true
+  story: true
+  chapter_every: 12
+  planning: true
+  plan_every: 12
+  awareness: local
+  pause_each_day: false   # true en partidas con jugadores: parte y órdenes nuevas cada noche
+llm:
+  model: ollama/qwen2.5:7b
+  reflection_model: ollama/qwen2.5:7b
+  cache: true
+  temperature: 0.6
+  max_concurrency: 4   # cerca de OLLAMA_NUM_PARALLEL; súbelo con un modelo en la nube
+
+environment:
+  type: grid
+  size: [14, 14]
+  global_state:
+    ui_theme: city
+    calor: 0
+    golpe: false
+    redada: false
+  locations:
+    - {name: El Puerto, type: industrial, position: [2, 2], capacity: 30, territory: true, income: {mercancia: 2},
+       stock: {mercancia: 2}}
+    - {name: El Taller, type: industrial, position: [6, 2], capacity: 30, territory: true, income: {piezas: 2},
+       stock: {bate: 2}}
+    - {name: El Club, type: commercial, position: [10, 2], capacity: 30, territory: true, income: {dinero: 3}}
+    - {name: El Mercado, type: commercial, position: [2, 6], capacity: 30, territory: true, income: {dinero: 2, comida: 2},
+       stock: {comida: 6}}
+    - {name: El Polígono, type: industrial, position: [10, 6], capacity: 30, territory: true, income: {bate: 1},
+       stock: {bate: 1}}
+    - {name: Las Torres, type: residential, position: [2, 10], capacity: 40, territory: true, income: {comida: 1},
+       stock: {botiquin: 2}}
+    - {name: El Paseo, type: public, position: [6, 10], capacity: 40, territory: true, income: {dinero: 3}}
+    - {name: Las Afueras, type: outdoor, position: [10, 10], capacity: 30, territory: true, income: {mercancia: 2}}
+    - {name: Comisaría, type: government, position: [6, 6], capacity: 30}
+    - {name: Hospital, type: healthcare, position: [13, 13], capacity: 40, stock: {botiquin: 4}}
+
+items:
+  dinero: {description: billetes arrugados}
+  mercancia: {description: cajas de contrabando}
+  piezas: {description: piezas de coche robadas}
+  comida: {description: tacos y refrescos, on_use: {energy: 0.3}}
+  botiquin: {description: botiquín, on_use: {health: 0.3}}
+  bate: {description: bate de béisbol, consumable: false, weapon: {damage: 0.35, chance: 0.7}}
+  maletin: {description: un maletín con el dinero del viejo jefe, consumable: false, visible: true, drops: true}
+  pistola_del_jefe:
+    description: la pistola chapada en oro del viejo jefe
+    consumable: false
+    visible: true
+    drops: true
+    weapon: {damage: 0.6, chance: 0.75}
+    curse: {condition: paranoia, sticky: true, broken_by: [entregar_pistola],
+            description: "desde que la llevas, sospechas hasta de tu propia banda"}
+
+conditions:
+  noqueado:
+    description: te han dejado K.O.; te recuperas en el hospital
+    appearance: vendado
+    duration: 2
+    color: "#94a3b8"
+  buscado:
+    description: la policía te busca por tu último golpe
+    appearance: en busca y captura
+    duration: 4
+    color: "#f2c14e"
+  detenido:
+    description: estás detenido en la comisaría
+    appearance: esposado
+    duration: 2
+    color: "#41a6f6"
+    mind:
+      goals: [Salir de la comisaría cuanto antes]
+      actions: [wait, speak, rest, observe, sobornar]
+  paranoia:
+    description: la pistola del jefe te susurra que tu propia banda te quiere traicionar
+    appearance: mirada huidiza
+    per_tick: {mood: -0.05}
+    color: "#5d275d"
+    mind:
+      goals: [Que nadie te quite la pistola, Desconfiar de todos, incluida tu banda]
+  policia:
+    description: eres policía de Los Santos
+    appearance: uniforme azul
+    color: "#3f8fe8"
+    controller: rules
+    rules: {action: detener, targets: {conditions: [buscado]}, seek: true, wander: 0.3}
+
+actions:
+  dar_un_palo:
+    description: robarle algo a alguien de aquí sin que se dé cuenta (nunca el maletín ni la pistola del jefe)
+    who: {not_conditions: [detenido, noqueado, policia]}
+    target_requires: {not_conditions: [policia]}
+    chance: 0.4
+    check: {attribute: dexterity, skill: sleight_of_hand, against: wisdom, against_skill: perception}
+    on_target: {steal: one, steal_except: [maletin, pistola_del_jefe], mood: -0.1}
+    message: le da un palo a {target}
+    fail_message: intenta darle un palo a {target}, que le pilla la mano
+  atracar_negocio:
+    description: atracar la caja de un negocio del barrio (en El Club, El Mercado o El Paseo); deja rastro
+    target: none
+    who: {not_conditions: [detenido, noqueado, policia]}
+    where: [El Club, El Mercado, El Paseo]
+    chance: 0.5
+    check: {attribute: dexterity, skill: stealth, dc: 12}
+    on_self: {items: {dinero: 3}, add_conditions: [buscado]}
+    world: {golpe: true}
+    message: atraca la caja del negocio y sale corriendo
+    fail_message: intenta atracar la caja, pero salta la alarma
+  pintada:
+    description: hacer una pintada de tu banda en este barrio
+    target: none
+    who: {not_conditions: [detenido, noqueado, policia]}
+    message: deja una pintada con el nombre de su banda
+  entregar_mercancia:
+    description: entregar dos cajas de mercancía a los compradores de Las Afueras
+    target: none
+    who: {items: {mercancia: 2}, not_conditions: [detenido, noqueado, policia]}
+    cost: {mercancia: 2}
+    where: [Las Afueras]
+    on_self: {items: {dinero: 4}}
+    message: entrega la mercancía y cobra
+  chivarse:
+    description: dar un chivatazo a la policía sobre alguien de aquí (le buscarán)
+    who: {not_conditions: [detenido, policia]}
+    target_requires: {not_conditions: [policia, buscado]}
+    on_target: {add_conditions: [buscado]}
+    message: da un chivatazo a la policía sobre {target}
+  sobornar:
+    description: pagar tres billetes a un agente para salir de la comisaría
+    target: none
+    who: {conditions: [detenido], items: {dinero: 3}}
+    cost: {dinero: 3}
+    on_self: {remove_conditions: [detenido]}
+    message: suelta unos billetes y sale de la comisaría
+  entregar_pistola:
+    description: entregar la pistola del jefe en la comisaría para librarte de ella
+    target: none
+    who: {items: {pistola_del_jefe: 1}, not_conditions: [policia]}
+    where: [Comisaría]
+    message: deja la pistola del jefe sobre el mostrador de la comisaría
+  detener:
+    description: detener a alguien en busca y captura
+    who: {conditions: [policia]}
+    target_requires: {conditions: [buscado], not_conditions: [detenido, noqueado]}
+    chance: 0.5
+    on_target: {add_conditions: [detenido], remove_conditions: [buscado]}
+    message: detiene a {target}
+    fail_message: intenta detener a {target}, que se escapa
+
+society:
+  lethal: false
+  knockout: {condition: noqueado, place: Hospital, health: 0.4}
+  healers: [médic, enfermer, sanitari]
+  heal_removes: [noqueado]
+
+territories: {every: 2, group_points: 3}
+
+factions:
+  Los Motoristas: {goal: "Que la ciudad se mueva sobre nuestras ruedas", leader: Toro, members: [Toro, Chispa, Grasa, Lupe],
+                   rivals: [Los del Puerto, La Familia, Los Niños Bien], color: "#e8502c"}
+  Los del Puerto: {goal: "Controlar todo lo que entra por mar", leader: Marea, members: [Marea, Ancla, Rata, Sirena],
+                   rivals: [Los Motoristas, La Familia, Los Niños Bien], color: "#3f8fe8"}
+  La Familia: {goal: "Que todo vuelva a ser como con el viejo jefe", leader: Don Paco, members: [Don Paco, Nena, Tito, Abuela Rosa],
+               rivals: [Los Motoristas, Los del Puerto, Los Niños Bien], color: "#b14fd6"}
+  Los Niños Bien: {goal: "Comprar la ciudad entera con el dinero de papá", leader: Borja, members: [Borja, Cayetana, Íñigo, Pipo],
+                   rivals: [Los Motoristas, Los del Puerto, La Familia], color: "#f2c14e"}
+
+# Respeto: los pandilleros ven su puntuación, el marcador individual y el de bandas.
+scores:
+  achievements:
+    conquista: {description: "Tomar un barrio para tu banda", points: 5, repeat: true, when: {captures: true}}
+    en_casa: {description: "Cada cuatro horas en un barrio de tu banda", points: 1, repeat: true, when: {in_territory: true, every: 2}}
+    palo: {description: "Cada palo con éxito", points: 1, repeat: true, when: {action: dar_un_palo}}
+    atraco: {description: "Cada atraco con éxito", points: 2, repeat: true, when: {action: atracar_negocio}}
+    encargo: {description: "Cada entrega de mercancía", points: 4, repeat: true, when: {action: entregar_mercancia}}
+    pintadas: {description: "Tres pintadas", points: 2, when: {action: pintada, times: 3}}
+    ciudad: {description: "Pisar los ocho barrios", points: 5,
+             when: {visited: [El Puerto, El Taller, El Club, El Mercado, El Polígono, Las Torres, El Paseo, Las Afueras]}}
+    maletin: {description: "Cada seis horas con el maletín", points: 10, repeat: true, when: {carries: maletin, every: 3}}
+    superviviente: {description: "Seguir en la calle al final", points: 3, when: {alive_at_end: true}}
+    chivato: {description: "Dar un chivatazo", points: -3, repeat: true, when: {action: chivarse}}
+    parado: {description: "Un día entero sin moverte", points: -2, when: {without: move, every: 12}}
+
+rules:
+  - description: Amanece en Los Santos. El viejo jefe ha caído y las bandas salen a la calle.
+    when: {at: 1}
+    once: true
+    then:
+      spawn: [{name: Agente, profession: policía, starting_location: Comisaría, count: 3, conditions: [policia]}]
+  - when: {global: {golpe: {eq: true}}}
+    then: {adjust: {calor: 1}, golpe: false}
+  - when: {every: 6, global: {calor: {gt: 0}}}
+    then: {adjust: {calor: -1}}
+  - description: El calor en la calle es insoportable. Llegan refuerzos a la comisaría.
+    when: {global: {calor: {gte: 4}}}
+    once: true
+    then:
+      spawn: [{name: Refuerzo, profession: policía, starting_location: Comisaría, count: 2, conditions: [policia]}]
+  # Gana una banda: cinco barrios durante doce horas seguidas.
+  - description: "{winner} controla cinco barrios desde hace doce horas. La ciudad es suya."
+    when: {territories: {gte: 5, ticks: 6}}
+    once: true
+    then: {end: "{winner} se quedan con Los Santos. La Leyenda de la ciudad es {mvp}."}
+  # O alguien llega a 60 de respeto y se corona.
+  - description: "{winner} llega a 60 de respeto. Ya nadie discute quién manda."
+    when: {score: {gte: 60}}
+    once: true
+    then: {end: "{winner} se proclama rey de Los Santos, aunque su banda no lo haya conseguido."}
+  # Si no, al final del tercer día gana la banda con más respeto.
+  - description: Se acaba el tercer día de guerra.
+    when: {at: 36}
+    once: true
+    winner: group
+    then: {end: "Tras tres días de guerra, {winner} manda en más calles que nadie. La Leyenda de Los Santos es {mvp}."}
+  - description: La policía levanta el cordón del Club.
+    when: {at: 32, global: {redada: {eq: true}}}
+    once: true
+    then: {locations: {El Club: {closed: false}}, redada: false}
+
+events:
+  scheduled:
+    - tick: 5
+      type: delivery
+      description: Un camión con contrabando atraca de noche en El Puerto.
+      effects:
+        items: {"location:El Puerto": {mercancia: 6}}
+    - tick: 8
+      type: omen
+      description: Alguien jura haber visto la pistola del viejo jefe en El Polígono.
+      effects:
+        items: {"location:El Polígono": {pistola_del_jefe: 1}}
+    - tick: 13
+      type: rumor
+      description: Corre la voz de que hay un chivato en una de las bandas.
+      effects:
+        rumor: {all: {text: Uno de los del Puerto habla con la policía, true: false}}
+    - tick: 17
+      type: briefcase
+      description: El maletín con el dinero del viejo jefe aparece en Las Afueras.
+      effects:
+        items: {"location:Las Afueras": {maletin: 1}}
+    - tick: 28
+      type: raid
+      description: Redada policial. Cierran El Club durante cuatro horas.
+      effects: {locations: {El Club: {closed: true}}, redada: true}
+
+agents:
+  # Los Motoristas
+  - {name: Toro, age: 41, profession: mecánico, starting_location: El Taller, faction: Los Motoristas,
+     goals: [Que Los Motoristas manden en la ciudad, Quedarse con El Polígono],
+     attributes: {strength: 15, dexterity: 11, constitution: 14, intelligence: 9, wisdom: 10, charisma: 13},
+     skills: [athletics, intimidation], resources: {bate: 1, dinero: 2},
+     personality: {extraversion: 0.7, agreeableness: 0.3, neuroticism: 0.4},
+     orders: {style: agresivo, priorities: [que gane mi banda, ser la leyenda], risk: bold,
+              red_lines: [{action: attack, target: my_group}, {action: leave}],
+              plans: [{when: {group_territories: {lte: 1}}, then: "Reúne a la banda y tomad El Polígono"}]}}
+  - {name: Chispa, age: 24, profession: mecánica, starting_location: El Taller, faction: Los Motoristas,
+     goals: [Ser la leyenda de Los Santos, Que nadie toque su moto],
+     attributes: {strength: 11, dexterity: 15, constitution: 11, intelligence: 12, wisdom: 10, charisma: 11},
+     skills: [stealth, sleight_of_hand], resources: {dinero: 1},
+     orders: {style: sigiloso, priorities: [ser la leyenda, que gane mi banda], risk: careful,
+              plans: [{when: {carries: maletin}, then: "Escóndete en Las Torres con el maletín"}]}}
+  - {name: Grasa, age: 33, profession: conductor, starting_location: El Puerto, faction: Los Motoristas,
+     goals: [Ganar dinero, Que Toro le haga su mano derecha],
+     attributes: {strength: 12, dexterity: 12, constitution: 13, intelligence: 11, wisdom: 11, charisma: 10},
+     skills: [athletics, perception],
+     orders: {style: empresario, priorities: [ganar dinero, que gane mi banda], risk: careful}}
+  - {name: Lupe, age: 29, profession: sanitaria, starting_location: Las Torres, faction: Los Motoristas,
+     goals: [Que nadie de su banda se quede tirado, Ser respetada],
+     attributes: {strength: 10, dexterity: 11, constitution: 12, intelligence: 13, wisdom: 14, charisma: 11},
+     skills: [medicine, insight], resources: {botiquin: 1},
+     orders: {style: leal, priorities: [que gane mi banda, no caer nunca], risk: careful,
+              red_lines: [{action: chivarse}]}}
+  # Los del Puerto
+  - {name: Marea, age: 45, profession: estibadora, starting_location: El Puerto, faction: Los del Puerto,
+     goals: [Que todo lo que entra por mar pase por ella, Que Los del Puerto ganen],
+     attributes: {strength: 14, dexterity: 10, constitution: 14, intelligence: 12, wisdom: 12, charisma: 13},
+     skills: [intimidation, athletics], resources: {bate: 1, mercancia: 2},
+     orders: {style: leal, priorities: [que gane mi banda], risk: bold, red_lines: [{action: leave}]}}
+  - {name: Ancla, age: 38, profession: estibador, starting_location: El Puerto, faction: Los del Puerto,
+     goals: [Proteger El Puerto, Vengarse de Toro],
+     attributes: {strength: 16, dexterity: 9, constitution: 15, intelligence: 9, wisdom: 10, charisma: 9},
+     skills: [athletics, intimidation],
+     relationships: {Toro: {type: enemigo, sentiment: -0.6}},
+     orders: {style: agresivo, priorities: [que gane mi banda], risk: reckless}}
+  - {name: Rata, age: 22, profession: ratero, starting_location: El Mercado, faction: Los del Puerto,
+     goals: [Ser la leyenda de Los Santos, No volver a la comisaría],
+     attributes: {strength: 9, dexterity: 16, constitution: 10, intelligence: 13, wisdom: 12, charisma: 10},
+     skills: [sleight_of_hand, stealth], secrets: [Habla con la policía a cambio de que le dejen en paz],
+     orders: {style: oportunista, priorities: [ser la leyenda, no caer nunca], risk: careful,
+              plans: [{when: {day: 3, group_rank: {gte: 3}}, then: "Deja a Los del Puerto y únete a la banda que vaya primera"}]}}
+  - {name: Sirena, age: 31, profession: contrabandista, starting_location: Las Afueras, faction: Los del Puerto,
+     goals: [Hacer el negocio de su vida, Que Marea confíe en ella],
+     attributes: {strength: 10, dexterity: 13, constitution: 11, intelligence: 14, wisdom: 12, charisma: 14},
+     skills: [persuasion, deception],
+     orders: {style: negociador, priorities: [ganar dinero, que gane mi banda], risk: careful}}
+  # La Familia
+  - {name: Don Paco, age: 62, profession: dueño de un bar, starting_location: El Mercado, faction: La Familia,
+     goals: [Que La Familia vuelva a mandar, Encontrar a quien tumbó al viejo jefe],
+     attributes: {strength: 9, dexterity: 9, constitution: 10, intelligence: 15, wisdom: 15, charisma: 16},
+     skills: [persuasion, insight], resources: {dinero: 6},
+     orders: {style: negociador, priorities: [que gane mi banda], risk: careful, red_lines: [{action: chivarse}]}}
+  - {name: Nena, age: 27, profession: camarera, starting_location: El Club, faction: La Familia,
+     goals: [Ser la leyenda de Los Santos, Que Don Paco la respete],
+     attributes: {strength: 11, dexterity: 14, constitution: 11, intelligence: 12, wisdom: 11, charisma: 13},
+     skills: [stealth, deception],
+     orders: {style: sigiloso, priorities: [ser la leyenda], risk: bold}}
+  - {name: Tito, age: 35, profession: portero de discoteca, starting_location: El Club, faction: La Familia,
+     goals: [Que nadie entre en El Club sin permiso, Ganar respeto],
+     attributes: {strength: 15, dexterity: 10, constitution: 15, intelligence: 9, wisdom: 11, charisma: 10},
+     skills: [athletics, intimidation], resources: {bate: 1},
+     orders: {style: leal, priorities: [que gane mi banda], risk: bold, red_lines: [{action: attack, target: my_group}]}}
+  - {name: Abuela Rosa, age: 74, profession: prestamista, starting_location: Las Torres, faction: La Familia,
+     goals: [Que todo el barrio le deba dinero, Que La Familia gane],
+     attributes: {strength: 7, dexterity: 9, constitution: 9, intelligence: 16, wisdom: 16, charisma: 14},
+     skills: [insight, persuasion], resources: {dinero: 8},
+     orders: {style: empresario, priorities: [ganar dinero, que gane mi banda], risk: careful}}
+  # Los Niños Bien
+  - {name: Borja, age: 26, profession: heredero, starting_location: El Paseo, faction: Los Niños Bien,
+     goals: [Comprar la ciudad, Que papá esté orgulloso],
+     attributes: {strength: 10, dexterity: 11, constitution: 11, intelligence: 12, wisdom: 9, charisma: 15},
+     skills: [persuasion, intimidation], resources: {dinero: 10},
+     orders: {style: negociador, priorities: [que gane mi banda, ser la leyenda], risk: bold}}
+  - {name: Cayetana, age: 24, profession: influencer, starting_location: El Paseo, faction: Los Niños Bien,
+     goals: [Ser la leyenda de Los Santos, Grabarlo todo],
+     attributes: {strength: 9, dexterity: 13, constitution: 10, intelligence: 13, wisdom: 12, charisma: 16},
+     skills: [deception, persuasion],
+     orders: {style: oportunista, priorities: [ser la leyenda], risk: bold,
+              plans: [{when: {my_rank: {lte: 3}}, then: "Haz pintadas en todos los barrios y que se vea"}]}}
+  - {name: Íñigo, age: 28, profession: boxeador amateur, starting_location: El Paseo, faction: Los Niños Bien,
+     goals: [Demostrar que no es solo un niño bien, Que Los Niños Bien ganen],
+     attributes: {strength: 15, dexterity: 13, constitution: 13, intelligence: 10, wisdom: 9, charisma: 11},
+     skills: [athletics, intimidation],
+     orders: {style: agresivo, priorities: [que gane mi banda], risk: reckless}}
+  - {name: Pipo, age: 23, profession: estudiante, starting_location: El Club, faction: Los Niños Bien,
+     goals: [Que no se entere su madre, Ganar dinero rápido],
+     attributes: {strength: 9, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 11, charisma: 12},
+     skills: [stealth, investigation],
+     orders: {style: empresario, priorities: [ganar dinero, no caer nunca], risk: careful}}

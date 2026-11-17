@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  dayReport,
   gameLink,
   joinGame,
   myAgent,
@@ -8,14 +9,18 @@ import {
   pointsSpent,
   savedToken,
   saveMyAgent,
+  saveOrders,
   saveToken,
+  type DayReport,
   type PlayerResults,
   type PublicGame,
 } from '../api/games';
-import type { AgentConfig } from '../api/scenario';
+import type { AgentConfig, Orders } from '../api/scenario';
+import type { SimEvent } from '../api/types';
 import { initialSnapshot, reduce } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import { AgentForm } from './AgentForm';
+import { OrdersForm } from './OrdersForm';
 
 // The map and the replay player load only if the DM publishes the replay.
 const App = lazy(() => import('../App').then((m) => ({ default: m.App })));
@@ -24,6 +29,7 @@ const STATUS: Record<string, string> = {
   open: 'Inscripciones abiertas',
   closed: 'Inscripciones cerradas: la partida empezará pronto',
   running: 'La partida está en marcha',
+  intermission: 'Fin de la jornada: lee tu parte y cambia tus órdenes',
   finished: 'La partida ha terminado',
 };
 
@@ -36,6 +42,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
   const [draft, setDraft] = useState<Partial<AgentConfig>>({});
   const [status, setStatus] = useState<string | null>(null);
   const [results, setResults] = useState<PlayerResults | null>(null);
+  const [report, setReport] = useState<DayReport | null>(null);
   const [watching, setWatching] = useState(false);
   const mode = useSim((s) => s.mode);
 
@@ -57,6 +64,8 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
         setMe(mine);
         setDraft((d) => (Object.keys(d).length ? d : mine.agent));
         if (g.status === 'finished') setResults(await myResults(code, token));
+        if (g.status === 'intermission') setReport(await dayReport(code, token).catch(() => null));
+        else setReport(null);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -142,6 +151,16 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
       ) : (
         <>
           {results && <Results results={results} onWatch={watch} />}
+          {report && game.status === 'intermission' && (
+            <DayCard
+              report={report}
+              canOrder={game.template.editable.includes('orders')}
+              onSave={async (orders) => {
+                await saveOrders(code, token, orders);
+                setDraft((d) => ({ ...d, orders }));
+              }}
+            />
+          )}
           <section className="card">
             <h2>Tu agente{me?.submitted ? ' · enviado ✓' : ''}</h2>
             <AgentForm agent={draft} template={game.template} readOnly={!open} onChange={setDraft} />
@@ -212,15 +231,104 @@ function PersonalLink({ code, token }: { code: string; token: string }) {
   );
 }
 
+/** What the agent lived, as feed lines (others idling left out). */
+function livedLines(events: SimEvent[], agent: string | undefined) {
+  let s = initialSnapshot();
+  // Others act in it too: don't drop their events as leftovers of another run.
+  for (const e of events) s = { ...(reduce(s, e) ?? s), runAgents: null };
+  return s.feed.filter((f) => f.source === agent || !/^(waits|observes)/.test(f.text));
+}
+
+/** How the agent followed its orders: plans that applied and red lines that stopped it. */
+function ordersReport(events: SimEvent[], agent: string | undefined) {
+  const mine = events.filter((e) => e.type === 'orders' && (e.data.agent ?? e.source) === agent);
+  const plans = [...new Set(mine.filter((e) => e.data.kind === 'plan').map((e) => String(e.data.text)))];
+  const stops = mine.filter((e) => e.data.kind === 'red_line').length;
+  const acts: Record<string, number> = {};
+  for (const e of events)
+    if (e.type === 'agent_action' && e.source === agent) {
+      const k = String(e.data.name ?? e.data.action_type ?? '');
+      if (k && k !== 'wait') acts[k] = (acts[k] ?? 0) + 1;
+    }
+  const top = Object.entries(acts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  return { plans, stops, top };
+}
+
+function OrdersReport({ events, agent }: { events: SimEvent[]; agent: string | undefined }) {
+  const r = useMemo(() => ordersReport(events, agent), [events, agent]);
+  if (!r.plans.length && !r.stops && !r.top.length) return null;
+  return (
+    <div className="orders-report">
+      <h3>Cómo siguió tus órdenes</h3>
+      {r.top.length > 0 && <p>Lo que más hizo: {r.top.map(([k, n]) => `${k.replace(/_/g, ' ')} (${n})`).join(', ')}.</p>}
+      {r.plans.length > 0 ? <p>Planes que se activaron: {r.plans.map((p) => `«${p}»`).join('; ')}.</p> : <p className="dim">No se activó ninguno de tus planes.</p>}
+      {r.stops > 0 && <p>Tus líneas rojas le frenaron {r.stops} {r.stops === 1 ? 'vez' : 'veces'}.</p>}
+    </div>
+  );
+}
+
+function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: boolean; onSave: (o: Orders) => Promise<void> }) {
+  const [orders, setOrders] = useState<Orders>(report.orders ?? {});
+  const [status, setStatus] = useState<string | null>(null);
+  const lived = useMemo(() => livedLines(report.diary.events, report.agent), [report]);
+  return (
+    <section className="card day-card">
+      <h2>🌙 Fin del día {report.day}</h2>
+      {report.rank !== null && (
+        <p>
+          {report.agent}: <strong>{report.points} puntos</strong>, puesto {report.rank} de {report.players}.
+        </p>
+      )}
+      {report.groups.length > 0 && (
+        <p>
+          Bandas: {report.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}
+        </p>
+      )}
+      {Object.keys(report.territories).length > 0 && (
+        <p className="small">
+          Barrios: {Object.entries(report.territories).map(([p, t]) => `${p}: ${t.contested ? 'en disputa' : t.owner || 'de nadie'}`).join(' · ')}
+        </p>
+      )}
+      <details>
+        <summary>Lo que vivió hoy tu agente ({lived.length})</summary>
+        <ol className="diary">
+          {lived.map((f) => (
+            <li key={f.id}>
+              <span className="tick">t{f.tick}</span> {f.source && <strong>{f.source}</strong>} {f.text}
+            </li>
+          ))}
+        </ol>
+      </details>
+      <OrdersReport events={report.diary.events} agent={report.agent} />
+      {canOrder && (
+        <>
+          <h3>Tus órdenes para mañana</h3>
+          <OrdersForm orders={orders} onChange={setOrders} />
+          <div className="row">
+            <button
+              className="btn btn-accent"
+              onClick={async () => {
+                try {
+                  await onSave(orders);
+                  setStatus('✓ Guardadas: tu agente las seguirá cuando el DM reanude la partida.');
+                } catch (e) {
+                  setStatus(`✗ ${(e as Error).message}`);
+                }
+              }}
+            >
+              Guardar órdenes
+            </button>
+            {status && <span className={status.startsWith('✗') ? 'bad-text' : 'dim'}>{status}</span>}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => void }) {
-  const lived = useMemo(() => {
-    if (!results.diary) return [];
-    let s = initialSnapshot();
-    // Others act in it too: don't drop their events as leftovers of another run.
-    for (const e of results.diary.events) s = { ...(reduce(s, e) ?? s), runAgents: null };
-    // Others standing around doing nothing is noise.
-    return s.feed.filter((f) => f.source === results.agent || !/^(waits|observes)/.test(f.text));
-  }, [results.diary, results.agent]);
+  const lived = useMemo(() => (results.diary ? livedLines(results.diary.events, results.agent) : []), [results.diary, results.agent]);
+  const r = results.result;
   const anything = results.result || results.diary || results.replay;
   return (
     <section className="card">
@@ -229,6 +337,13 @@ function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => 
       {results.result && (
         <>
           {results.result.message && <p className="end-message">{results.result.message}</p>}
+          {r?.winner && <p>👑 Gana: <strong>{r.winner}</strong>{r.mvp && r.mvp !== r.winner ? <> · ⭐ más puntos: <strong>{r.mvp}</strong></> : null}</p>}
+          {r?.rank && (
+            <p>
+              Tú: <strong>{r.points} puntos</strong>, puesto {r.rank} de {r.players}.
+            </p>
+          )}
+          {r?.groups && <p className="small">Bandas: {r.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>}
           <p>
             {results.agent}: {results.result.alive ? <strong className="ok-text">sigue en pie</strong> : <strong className="bad-text">no llegó al final</strong>}
             <span className="dim"> · {results.result.ticks} ticks</span>
@@ -240,6 +355,7 @@ function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => 
       )}
       {results.diary && (
         <>
+          <OrdersReport events={results.diary.events} agent={results.agent} />
           <h3>Diario de {results.agent}</h3>
           <p className="dim small">Solo lo que tu agente vivió: lo que hizo, lo que le dijeron, lo que pasó donde estaba y las noticias que llegaron a todos.</p>
           <ol className="diary">

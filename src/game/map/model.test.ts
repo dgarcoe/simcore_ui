@@ -132,3 +132,21 @@ describe('generateMap with agent hints', () => {
     expect(resourceSprite('fuel')).toBe('barrel');
   });
 });
+
+describe('city maps', () => {
+  it('lay a grid of streets around the blocks and city props', () => {
+    const env = {
+      locations: Object.fromEntries(
+        [['A', 0, 0], ['B', 1, 0], ['C', 0, 1], ['D', 1, 1]].map(([n, x, y]) => [n, { name: n, type: 'commercial', position: [x, y], capacity: 10 }]),
+      ),
+      global_state: {},
+    } as unknown as Parameters<typeof generateMap>[0];
+    const plain = generateMap(env, 'outdoor', 's');
+    const city = generateMap(env, 'outdoor', 's', { residents: {}, resources: {}, urban: true, scenery: ['lamp', 'car'] });
+    const roads = (m: typeof plain) => m.ground.filter((g) => g === 'path').length;
+    expect(roads(city)).toBeGreaterThan(roads(plain) * 2);
+    const scenery = city.props.filter((p) => !p.zone).map((p) => p.key);
+    expect(scenery.length).toBeGreaterThan(0);
+    expect(scenery.every((k) => k === 'lamp' || k === 'car' || k.startsWith('resource') || k === 'house')).toBe(true);
+  });
+});

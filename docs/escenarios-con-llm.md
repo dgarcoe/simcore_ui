@@ -1,7 +1,7 @@
 # Generar un escenario con un LLM
 
 Simcore tiene una referencia completa de su YAML pensada para pasársela a un LLM:
-[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/0f0b49432739723737f0dbf6a995988857bc9bb2/docs/scenario-reference.md).
+[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/b17801f90a3fba4401efe5b9764c959a1accc452/docs/scenario-reference.md).
 
 El enlace apunta a la versión de Simcore que usa esta UI (`SIMCORE_REF`). La referencia incluye:
 - todas las claves, con su tipo, valor por defecto y rango;
@@ -43,7 +43,7 @@ Systems to use: <e.g. conditions with contagion, needs, items, recipes (actions 
   stealing (steal: one | all)>
 Endings: at least <2> rules that end the run (one good, one bad), reachable within the duration;
   use "{winner}" in an ending's text to name who won, and when.any for several ways to win.
-Map theme: <town | spaceship | warehouse | factory | space-battle>
+Map theme: <town | city | spaceship | warehouse | factory | space-battle>
 
 Before answering, check every cross-reference (places, conditions, actions, needs, agents, groups)
 and quote boolean-like YAML keys ("sí", "no", "yes").
@@ -52,7 +52,7 @@ and quote boolean-like YAML keys ("sí", "no", "yes").
 ## Pistas para el mapa pixel
 
 El mapa se genera a partir del escenario, así que conviene que el LLM:
-- **Tema:** lo fije con `environment.global_state.ui_theme`: `town`, `spaceship`, `warehouse`, `factory` o `space-battle`.
+- **Tema:** lo fije con `environment.global_state.ui_theme`: `town`, `city` (ciudad estilo GTA), `spaceship`, `warehouse`, `factory` o `space-battle`.
 - **Posiciones:** dé a cada lugar una `position` en una cuadrícula de unos 12×12, con los lugares relacionados cerca y sin repetir coordenadas. Los caminos se trazan entre vecinos.
 - **Tipos de lugar:** use `type` reconocibles: `residential`, `healthcare`, `commercial`, `public`, `religious`, `military`, `farm`, `industrial`, `storage`, `engineering`, `government`, `education`, `outdoor`. Si el nombre no lo deja claro, puede fijar el rol en `properties.ui_role`: `medical`, `commerce`, `storage`, `production`, `engineering`, `command`, `quarters`, `social`, `education`, `agriculture`, `leisure`, `transit`, `combat`, `generic`.
 - **Tamaño:** ajuste `capacity` a lo que es el lugar. Las zonas crecen con la capacidad y con la gente que empieza allí.
@@ -80,5 +80,7 @@ Otros sistemas que se le pueden pedir (todos en la referencia; `valdemora-ring` 
 - **Objetos malditos** (`curse`): un estado mientras se lleva (daño por turno o una mente cambiada), `sticky` para que no se pueda soltar, y `broken_by` con el objeto o la acción que rompe la maldición.
 - **Robos** (`on_target: {steal: one | all}`) y objetos que aparecen con un suceso (`items: {"location:X": {objeto: 1}}`), que se anuncian a quien está allí, y a todos si el objeto es `visible`.
 - **Grupos con ventajas** (`society.group_perks`, activado por defecto): ayuda en las tiradas, defensa mutua y un almacén común.
+- **Territorios** (`territory: true` e `income` en los lugares, `territories`, `when: {territories: {gte, ticks}}`): barrios que se disputan los grupos; `winner: group` y `{mvp}` para un final con banda y persona ganadoras; `society.lethal: false` para que nadie muera (K.O.). `los-santos` es el ejemplo.
+- **Órdenes de los jugadores** (`agents[].orders`) y `simulation.pause_each_day` para partidas por jornadas.
 
-Los escenarios de `scenarios/` sirven de modelo: `zombie-siege`, `kepler-station`, `zombie-outbreak` y `last-night`.
+Los escenarios de `scenarios/` sirven de modelo: `zombie-siege`, `kepler-station`, `zombie-outbreak`, `valdemora-ring`, `los-santos` y `last-night`.

@@ -33,8 +33,15 @@ export function useWorld() {
     [sig, scenarioName, scenarioDescription],
   );
   const map = useMemo(
-    () => (env ? generateMap(env, resolved.theme.layout, scenarioName || sig, mapHints(config)) : null),
-    [sig, resolved.theme.layout, scenarioName, config],
+    () =>
+      env
+        ? generateMap(env, resolved.theme.layout, scenarioName || sig, {
+            ...mapHints(config),
+            urban: resolved.theme.urban,
+            scenery: resolved.theme.scenery,
+          })
+        : null,
+    [sig, resolved.theme, scenarioName, config],
   );
   return { theme: resolved.theme, source: resolved.source, detected, map };
 }

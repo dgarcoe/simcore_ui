@@ -3,11 +3,12 @@ import { factory } from './factory';
 import overrides from './overrides.json';
 import { spaceBattle } from './spaceBattle';
 import { spaceship } from './spaceship';
+import { city } from './city';
 import { town } from './town';
 import type { ThemePack } from './types';
 import { warehouse } from './warehouse';
 
-export const THEMES: ThemePack[] = [town, spaceship, warehouse, factory, spaceBattle];
+export const THEMES: ThemePack[] = [town, city, spaceship, warehouse, factory, spaceBattle];
 export const DEFAULT_THEME = town;
 
 export function themeById(id: string | null | undefined): ThemePack | undefined {

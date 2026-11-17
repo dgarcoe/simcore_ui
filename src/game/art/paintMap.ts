@@ -30,14 +30,18 @@ export function paintMap(map: MapModel, theme: ThemePack): HTMLCanvasElement {
           if (map.layout !== 'void') paintOutside(ctx, theme, px, py, rng, x, y);
           break;
         case 'ground':
-          paintGrass(ctx, theme, px, py, rng);
+          if (theme.urban) paintPavement(ctx, theme, px, py, rng, x, y);
+          else paintGrass(ctx, theme, px, py, rng);
           break;
-        case 'path':
-          paintPath(ctx, theme, px, py, rng, (dx, dy) => {
+        case 'path': {
+          const road = (dx: number, dy: number) => {
             const n = g(x + dx, y + dy);
             return n === 'path' || n === 'plaza' || n === 'building';
-          });
+          };
+          if (theme.urban) paintRoad(ctx, theme, px, py, rng, road, (dx, dy) => g(x + dx, y + dy) === 'path', x, y);
+          else paintPath(ctx, theme, px, py, rng, road);
           break;
+        }
         case 'plaza':
           paintFloor(ctx, { pattern: 'tiles', base: theme.plaza.base, alt: theme.plaza.alt }, px, py, x, y, rng);
           break;
@@ -243,7 +247,163 @@ const ROLE_ICONS: Partial<Record<ZoneRole, string[]>> = {
   combat: ['..a...', '.aaa..', 'aaaaa.', '..a...', '..a...', '.aaa..'],
 };
 
+// ── City (urban themes) ─────────────────────────────────────────────────
+
+/** Pavement: square slabs with joints and the odd crack. */
+function paintPavement(ctx: CanvasRenderingContext2D, theme: ThemePack, px: number, py: number, rng: Rng, x: number, y: number): void {
+  rect(ctx, (x + y) % 2 ? theme.ground.base : theme.ground.alt, px, py, TILE, TILE);
+  rect(ctx, theme.ground.detail, px, py, TILE, 1);
+  rect(ctx, theme.ground.detail, px, py, 1, TILE);
+  rect(ctx, shade(theme.ground.base, 0.08), px + 8, py + 1, 1, TILE - 1);
+  if (rng() < 0.12) {
+    const cx = px + 3 + Math.floor(rng() * 9);
+    const cy = py + 3 + Math.floor(rng() * 9);
+    rect(ctx, theme.ground.detail, cx, cy, 2, 1);
+    rect(ctx, theme.ground.detail, cx + 1, cy + 1, 2, 1);
+  }
+  if (rng() < 0.05) rect(ctx, '#2a8f50', px + 5, py + 5, 3, 3); // a weed
+}
+
+/** Asphalt with a curb where the road ends and dashed lane marks along it. */
+function paintRoad(
+  ctx: CanvasRenderingContext2D,
+  theme: ThemePack,
+  px: number,
+  py: number,
+  rng: Rng,
+  connected: (dx: number, dy: number) => boolean,
+  isRoad: (dx: number, dy: number) => boolean,
+  x: number,
+  y: number,
+): void {
+  rect(ctx, theme.path.base, px, py, TILE, TILE);
+  speckle(ctx, rng, shade(theme.path.base, 0.12), px, py, 6);
+  speckle(ctx, rng, shade(theme.path.base, -0.15), px, py, 3);
+  const horizontal = isRoad(-1, 0) || isRoad(1, 0);
+  const vertical = isRoad(0, -1) || isRoad(0, 1);
+  if (horizontal && !vertical && x % 2 === 0) rect(ctx, '#e8d27a', px + 4, py + 7, 8, 2);
+  else if (vertical && !horizontal && y % 2 === 0) rect(ctx, '#e8d27a', px + 7, py + 4, 2, 8);
+  else if (horizontal && vertical) {
+    // crossing: zebra stripes
+    for (let i = 1; i < TILE; i += 4) rect(ctx, '#e9e6dc', px + i, py + 1, 2, 3);
+  }
+  if (rng() < 0.08) rect(ctx, '#23242b', px + 2 + Math.floor(rng() * 10), py + 2 + Math.floor(rng() * 10), 3, 2); // a pothole
+  if (!connected(0, -1)) rect(ctx, theme.path.edge, px, py, TILE, 2);
+  if (!connected(0, 1)) rect(ctx, theme.path.edge, px, py + TILE - 2, TILE, 2);
+  if (!connected(-1, 0)) rect(ctx, theme.path.edge, px, py, 2, TILE);
+  if (!connected(1, 0)) rect(ctx, theme.path.edge, px + TILE - 2, py, 2, TILE);
+}
+
+const NEON = ['#ff3fa4', '#3fe8ff', '#ffcd75', '#a7f070', '#b14fd6'];
+
+/** A city block seen from above: flat roof with rooftop clutter, a facade with a neon sign. */
+function paintCityBlock(ctx: CanvasRenderingContext2D, theme: ThemePack, z: Zone): void {
+  const b = z.body;
+  const x = b.x * TILE;
+  const y = b.y * TILE;
+  const w = b.w * TILE;
+  const h = b.h * TILE;
+  const style = buildingFor(theme, z.role);
+  const rng = createRng(z.name);
+  const neon = NEON[Math.floor(rng() * NEON.length)];
+  const roofH = Math.max(TILE + 6, Math.floor(h * 0.62));
+  const faceY = y + roofH;
+  const faceH = h - roofH;
+
+  rect(ctx, 'rgba(0,0,0,0.3)', x + 4, y + 5, w, h);
+  // facade
+  rect(ctx, style.wall, x, faceY, w, faceH);
+  for (let i = 3; i < faceH; i += 5) rect(ctx, shade(style.wall, -0.07), x, faceY + i, w, 1);
+  // flat roof with a parapet
+  rect(ctx, style.roof, x, y, w, roofH);
+  rect(ctx, shade(style.roof, 0.25), x, y, w, 2);
+  rect(ctx, shade(style.roof, 0.25), x, y, 2, roofH);
+  rect(ctx, shade(style.roof, -0.3), x + w - 2, y, 2, roofH);
+  rect(ctx, shade(style.roof, -0.35), x, y + roofH - 2, w, 2);
+  for (let i = 6; i < roofH - 3; i += 6) rect(ctx, shade(style.roof, -0.08), x + 3, y + i, w - 6, 1);
+  // rooftop clutter: AC units, a water tank, vents
+  const units = Math.max(1, Math.floor(w / 26));
+  for (let i = 0; i < units; i++) {
+    const ux = x + 5 + Math.floor(rng() * Math.max(1, w - 16));
+    const uy = y + 4 + Math.floor(rng() * Math.max(1, roofH - 14));
+    rect(ctx, P.ink, ux - 1, uy - 1, 10, 8);
+    rect(ctx, P.silver, ux, uy, 8, 6);
+    rect(ctx, P.slate, ux + 2, uy + 2, 4, 2);
+  }
+  if (w >= 40 && rng() < 0.7) {
+    const tx = x + w - 14;
+    const ty = y + 4;
+    rect(ctx, P.ink, tx - 1, ty - 1, 10, 10);
+    rect(ctx, P.brown, tx, ty, 8, 8);
+    rect(ctx, P.wood, tx + 1, ty + 1, 6, 2);
+  }
+  if (rng() < 0.6) rect(ctx, '#2b2d36', x + 4, y + roofH - 7, 3, 3);
+  frame(ctx, P.ink, x, y, w, roofH);
+  frame(ctx, P.ink, x, faceY, w, faceH);
+
+  // neon sign over the facade
+  const signW = Math.min(w - 8, 28);
+  const sx = x + Math.floor((w - signW) / 2);
+  rect(ctx, P.ink, sx - 1, faceY + 1, signW + 2, 5);
+  rect(ctx, neon, sx, faceY + 2, signW, 3);
+  rect(ctx, shade(neon, 0.4), sx + 1, faceY + 2, signW - 2, 1);
+
+  // door (a roller shutter for workshops and warehouses)
+  const door = z.doors[0];
+  const dx = door.x * TILE + 3;
+  const dh = Math.min(faceH - 7, 12);
+  const shutter = z.role === 'production' || z.role === 'storage' || z.role === 'engineering';
+  rect(ctx, P.ink, dx - 1, y + h - dh - 1, 12, dh + 1);
+  rect(ctx, shutter ? P.silver : '#2b2d36', dx, y + h - dh, 10, dh);
+  if (shutter) for (let i = 1; i < dh; i += 2) rect(ctx, P.slate, dx, y + h - dh + i, 10, 1);
+  else rect(ctx, P.cyan, dx + 1, y + h - dh + 1, 3, 3);
+
+  // shop windows, lit at random
+  const winY = faceY + 7;
+  for (let wx = x + 4; wx + 8 < x + w - 2; wx += 12) {
+    if (wx + 8 > dx - 3 && wx < dx + 13) continue;
+    if (winY + 5 > y + h - 1) break;
+    rect(ctx, P.ink, wx - 1, winY - 1, 9, Math.min(7, y + h - winY));
+    rect(ctx, rng() < 0.4 ? neon : P.sky, wx, winY, 7, Math.min(5, y + h - winY - 1));
+  }
+}
+
+/** A city park: lawn, palms and a basketball court. */
+function paintCityPark(ctx: CanvasRenderingContext2D, theme: ThemePack, x: number, y: number, w: number, h: number, name: string): void {
+  const rng = createRng(name);
+  rect(ctx, '#5cc46f', x, y, w, h);
+  for (let i = 0; i < w; i += 4) for (let j = 0; j < h; j += 4) if (rng() < 0.2) rect(ctx, '#4fb062', x + i, y + j, 2, 2);
+  frame(ctx, theme.path.edge, x, y, w, h);
+  // court
+  if (w >= 40 && h >= 30) {
+    const cx = x + Math.floor(w / 2) - 14;
+    const cy = y + Math.floor(h / 2) - 9;
+    rect(ctx, '#d9824a', cx, cy, 28, 18);
+    frame(ctx, P.white, cx, cy, 28, 18);
+    rect(ctx, P.white, cx + 13, cy, 1, 18);
+    rect(ctx, P.ink, cx + 1, cy + 7, 2, 4);
+    rect(ctx, P.ink, cx + 25, cy + 7, 2, 4);
+  }
+  // palms
+  const palms = Math.max(2, Math.floor((w * h) / 900));
+  for (let i = 0; i < palms; i++) {
+    const px = x + 4 + Math.floor(rng() * Math.max(1, w - 12));
+    const py = y + 8 + Math.floor(rng() * Math.max(1, h - 14));
+    rect(ctx, 'rgba(0,0,0,0.25)', px + 2, py + 6, 8, 3);
+    rect(ctx, P.brown, px + 3, py, 2, 8);
+    rect(ctx, '#1e6646', px - 1, py - 3, 10, 3);
+    rect(ctx, '#2a8f50', px, py - 4, 8, 2);
+    rect(ctx, '#1e6646', px + 2, py - 6, 4, 2);
+  }
+}
+
 function paintBuilding(ctx: CanvasRenderingContext2D, theme: ThemePack, z: Zone): void {
+  if (theme.urban) {
+    const b = z.body;
+    if (z.role === 'leisure' || z.role === 'agriculture')
+      return paintCityPark(ctx, theme, b.x * TILE, b.y * TILE, b.w * TILE, b.h * TILE, z.name);
+    return paintCityBlock(ctx, theme, z);
+  }
   const b = z.body;
   const x = b.x * TILE;
   const y = b.y * TILE;

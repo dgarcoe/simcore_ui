@@ -5,7 +5,7 @@ export const town: ThemePack = {
   id: 'town',
   label: 'Pueblo',
   layout: 'outdoor',
-  keywords: [/\btown\b|village|pueblo|aldea|vila|city|ciudad|cidade|neighbo|barrio|bairro/gi, /market|plaza|pra[cç]a|farm|granja|school|escuela|church|iglesia|igreja|clinic/gi],
+  keywords: [/\btown\b|village|pueblo|aldea|vila|neighbo/gi, /market|plaza|pra[cç]a|farm|granja|school|escuela|church|iglesia|igreja|clinic/gi],
   background: '#2f9e57',
   ground: { base: '#3aa760', alt: '#34995a', detail: '#5cc46f' },
   path: { base: P.tan, edge: '#b98551' },

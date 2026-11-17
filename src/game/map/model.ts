@@ -138,8 +138,25 @@ export function generateMap(env: Environment, layout: LayoutKind, seed: string, 
     if (path) map.links.push({ from: map.zones[a].name, to: map.zones[b].name, path });
   }
   if (layout === 'indoor') raiseWalls(map);
+  if (layout === 'outdoor' && hints.urban) gridStreets(map, nCols, nRows, slot);
   scatterProps(map, rng, hints);
   return map;
+}
+
+/** City themes: streets between all the blocks (along the slot borders), not only the links. */
+function gridStreets(map: MapModel, nCols: number, nRows: number, slot: { w: number; h: number }): void {
+  const top = MARGIN - 1;
+  const bottom = MARGIN + nRows * slot.h;
+  const left = MARGIN - 1;
+  const right = MARGIN + nCols * slot.w;
+  for (let k = 0; k <= nCols; k++) {
+    const x = Math.min(right, MARGIN + k * slot.w - (k === 0 ? 1 : 0));
+    for (let y = top; y <= bottom; y++) if (get(map, x, y) === 'ground') set(map, x, y, 'path');
+  }
+  for (let k = 0; k <= nRows; k++) {
+    const y = Math.min(bottom, MARGIN + k * slot.h - (k === 0 ? 1 : 0));
+    for (let x = left; x <= right; x++) if (get(map, x, y) === 'ground') set(map, x, y, 'path');
+  }
 }
 
 /**
@@ -354,7 +371,7 @@ function scatterProps(map: MapModel, rng: Rng, hints: MapHints): void {
         let clear = true;
         for (let dy = -1; dy <= 1 && clear; dy++)
           for (let dx = -1; dx <= 1 && clear; dx++) clear = (get(map, x + dx, y + dy) ?? 'ground') === 'ground';
-        if (clear && rng() < 0.11) map.props.push({ x, y, key: pick(rng, SCENERY) });
+        if (clear && rng() < 0.11) map.props.push({ x, y, key: pick(rng, hints.scenery?.length ? hints.scenery : SCENERY) });
       }
     return;
   }

@@ -44,7 +44,9 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
   return (
     <div className="panel-body">
       <SpawnForm />
-      {sim?.scores && sim.scores.ranking.length > 0 && <Scoreboard ranking={sim.scores.ranking} onPick={(n) => { selectAgent(n); bus.emit('focusAgent', n); }} />}
+      {sim?.scores && sim.scores.ranking.length > 0 && (
+        <Scoreboard ranking={sim.scores.ranking} groups={sim.scores.groups} territories={sim.territories} onPick={(n) => { selectAgent(n); bus.emit('focusAgent', n); }} />
+      )}
       <ul className="agent-list">
         {agents.map((a) => (
           <li key={a.id}>
@@ -293,9 +295,33 @@ function Sheet({ sheet, rolls }: { sheet: RpgSheet; rolls: DiceRoll[] }) {
 }
 
 /** Points ranking (scenarios with achievements). */
-function Scoreboard({ ranking, onPick }: { ranking: Array<{ agent: string; points: number }>; onPick: (name: string) => void }) {
+function Scoreboard({
+  ranking,
+  groups,
+  territories,
+  onPick,
+}: {
+  ranking: Array<{ agent: string; points: number }>;
+  groups?: Array<{ group: string; points: number }>;
+  territories?: Record<string, { owner: string; contested?: string[] }>;
+  onPick: (name: string) => void;
+}) {
+  const held = (g: string) => Object.values(territories ?? {}).filter((t) => t.owner === g && !t.contested).length;
   return (
     <div className="scoreboard" aria-label="Marcador">
+      {groups && groups.length > 0 && (
+        <>
+          <strong>🏴 Bandas</strong>
+          <ol>
+            {groups.slice(0, 8).map((g) => (
+              <li key={g.group}>
+                {g.group} <span className={g.points < 0 ? 'bad-text' : ''}>{g.points}</span>
+                {territories && <span className="dim"> · {held(g.group)} barrios</span>}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
       <strong>🏆 Marcador</strong>
       <ol>
         {ranking.slice(0, 8).map((r) => (

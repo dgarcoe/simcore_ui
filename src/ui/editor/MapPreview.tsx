@@ -32,7 +32,7 @@ export function MapPreview({ draft: liveDraft, onPickLocation }: Props) {
     });
     const hasZones = Object.values(env.locations).some((l) => !l.virtual);
     if (!hasZones) return { canvas: null, map: null, theme, source };
-    const map = generateMap(env, theme.layout, draft.simulation.name || 'preview', mapHints(draft));
+    const map = generateMap(env, theme.layout, draft.simulation.name || 'preview', { ...mapHints(draft), urban: theme.urban, scenery: theme.scenery });
     return { canvas: renderPreview(map, theme, draft), map, theme, source };
   }, [draft]);
 

@@ -203,6 +203,18 @@ export function LocationsTab({ selected, onSelect }: Props) {
                 placeholder="food: 2"
                 onChange={(r) => set((x) => void (Object.keys(r).length ? (x.produces = r) : delete x.produces))}
               />
+              <label className="toggle" title="Las bandas se lo disputan: es de la banda que esté aquí sin rivales, y da sus ingresos a su caja común">
+                <input type="checkbox" checked={!!l.territory} onChange={(e) => set((x) => void (e.target.checked ? (x.territory = true) : (delete x.territory, delete x.income)))} />
+                Territorio (barrio que se disputan los grupos)
+              </label>
+              {l.territory && (
+                <AmountsField
+                  label="Ingresos para la banda que lo controla"
+                  value={l.income}
+                  placeholder="dinero: 2"
+                  onChange={(r) => set((x) => void (Object.keys(r).length ? (x.income = r) : delete x.income))}
+                />
+              )}
             </div>
             <textarea
               className="input"

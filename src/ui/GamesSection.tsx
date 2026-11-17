@@ -12,6 +12,8 @@ import {
   type GameTemplate,
 } from '../api/games';
 import type { ScenarioRecord } from '../api/types';
+import { control } from '../api/client';
+import { ordersSummary } from '../player/OrdersForm';
 import { launchGameRun } from '../store/sources';
 import { SKILLS } from '../store/rpg';
 
@@ -19,6 +21,7 @@ const STATUS: Record<string, string> = {
   open: 'inscripciones abiertas',
   closed: 'inscripciones cerradas',
   running: 'en marcha',
+  intermission: 'entre jornadas',
   finished: 'terminada',
 };
 
@@ -172,6 +175,12 @@ function GameDetail({ game: g, demo, speed, act, onEdit }: { game: Game; demo: b
           )}
         </tbody>
       </table>
+      {g.status === 'intermission' && (
+        <div className="day-pause">
+          🌙 Fin de la jornada: cada jugador está leyendo su parte y puede cambiar sus órdenes.
+          <button className="btn btn-accent" onClick={() => act(() => control('resume'))}>▶ Empezar la siguiente jornada</button>
+        </div>
+      )}
       <div className="row wrap">
         <button className="btn" onClick={onEdit}>✎ Editar partida</button>
         {g.status === 'open' && <button className="btn" onClick={() => act(() => updateGame(g.id, { status: 'closed' }))}>Cerrar inscripciones</button>}
@@ -217,6 +226,8 @@ function AgentSummary({ agent: a }: { agent: Game['players'][number]['agent'] })
       {a.secrets?.length ? (<><dt>Secretos</dt><dd>{a.secrets.join(' · ')}</dd></>) : null}
       {a.attributes && (<><dt>Atributos</dt><dd>{Object.entries(a.attributes).map(([k, v]) => `${k.slice(0, 3)} ${v}`).join(' · ')} ({pointsSpent(a.attributes)} pts)</dd></>)}
       {a.skills?.length ? (<><dt>Habilidades</dt><dd>{a.skills.map((s) => SKILLS[s] ?? s).join(', ')}</dd></>) : null}
+      {a.faction && (<><dt>Banda</dt><dd>{a.faction}</dd></>)}
+      {a.orders && Object.keys(a.orders).length > 0 && (<><dt>Órdenes</dt><dd>{ordersSummary(a.orders)}</dd></>)}
     </dl>
   );
 }
@@ -227,6 +238,7 @@ function GameForm({ game, scenarios, onSave, onCancel }: { game: Partial<Game>; 
   const setT = (patch: Partial<Game['template']>) => setG({ ...g, template: { ...t, ...patch } });
   const scenario = scenarios.find((s) => s.id === g.scenario_id);
   const places: string[] = ((scenario?.data?.environment?.locations ?? []) as Array<{ name: string }>).map((l) => l.name);
+  const scenarioGroups = Object.keys((scenario?.data?.factions ?? {}) as Record<string, unknown>);
   const fixed = t.fixed ?? {};
   const setFixed = (key: string, value: unknown) => {
     const next = { ...fixed };
@@ -259,7 +271,7 @@ function GameForm({ game, scenarios, onSave, onCancel }: { game: Partial<Game>; 
         </label>
         <label>
           Plazas
-          <input className="input" type="number" min={1} max={50} value={g.max_players ?? 6} onChange={(e) => setG({ ...g, max_players: Number(e.target.value) })} />
+          <input className="input" type="number" min={1} max={100} value={g.max_players ?? 6} onChange={(e) => setG({ ...g, max_players: Number(e.target.value) })} />
         </label>
       </div>
       <label>
@@ -291,6 +303,24 @@ function GameForm({ game, scenarios, onSave, onCancel }: { game: Partial<Game>; 
             <label>
               Habilidades como máximo
               <input className="input" type="number" min={0} max={10} value={t.max_skills} onChange={(e) => setT({ max_skills: Number(e.target.value) })} />
+            </label>
+          )}
+          {t.editable.includes('faction') && (
+            <label>
+              Bandas que pueden elegir (vacío = cualquiera del escenario)
+              <span className="row wrap">
+                {scenarioGroups.map((f) => (
+                  <label key={f} className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={(t.factions ?? []).includes(f)}
+                      onChange={(e) => setT({ factions: e.target.checked ? [...(t.factions ?? []), f] : (t.factions ?? []).filter((x) => x !== f) })}
+                    />
+                    {f}
+                  </label>
+                ))}
+                {!scenarioGroups.length && <span className="dim small">El escenario no tiene grupos.</span>}
+              </span>
             </label>
           )}
           {t.editable.includes('profession') && (

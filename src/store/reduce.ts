@@ -53,7 +53,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote' | 'level';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote' | 'level' | 'territory' | 'day';
   text: string;
   location: string;
 }
@@ -147,7 +147,11 @@ export interface SimSnapshot {
   endMessage: string;
   /** Who won the run (an ending rule's {winner}), and the final points. */
   endWinner: string;
+  /** The best individual score besides the winning group ({mvp}). */
+  endMvp: string;
   finalScores: ScoresState | null;
+  /** Paused at the end of a day (pause_each_day), until the DM resumes. */
+  intermission: number | null;
   progress: TickProgress;
   /** Latest decision of each agent with its reasoning. */
   reasoning: Record<string, { tick: number; action: string; text: string }>;
@@ -192,7 +196,9 @@ export function initialSnapshot(): SimSnapshot {
     endReason: '',
     endMessage: '',
     endWinner: '',
+    endMvp: '',
     finalScores: null,
+    intermission: null,
     progress: { tick: 0, phase: 'idle', decided: [] },
     reasoning: {},
     seq: 0,
@@ -346,6 +352,7 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         endReason: String(e.data.reason ?? ''),
         endMessage: String(e.data.message ?? ''),
         endWinner: String(e.data.winner ?? ''),
+        endMvp: String(e.data.mvp ?? ''),
         finalScores: (e.data.scores as ScoresState | undefined) ?? null,
         banner: { id: seq, tick: e.tick, kind: 'end', text, location: '' },
         feed: pushFeed(next.feed, feedItem(seq, e, `■ ${text}`)),
@@ -442,6 +449,39 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const mine = [...(next.rolls[who] ?? []).slice(-(ROLL_LIMIT - 1)), d];
       return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who, dice: d }) };
     }
+    case 'territory_change': {
+      const d = e.data as { place: string; owner: string; previous: string; contested?: string[] };
+      if (d.contested) {
+        const text = `⚔ ${d.place} en disputa: ${d.contested.join(' contra ')}`;
+        return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }) };
+      }
+      const text = `🏴 ${d.owner} toma${d.previous ? ` ${d.place} (se lo quita a ${d.previous})` : ` ${d.place}`}`;
+      return {
+        ...next,
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }),
+        banner: { id: seq, tick: e.tick, kind: 'territory', text, location: d.place },
+      };
+    }
+    case 'agent_knockout': {
+      const d = e.data as { agent: string; location: string; to: string; cause?: string };
+      const text = `💫 queda K.O. en ${d.location}${d.to && d.to !== d.location ? ` y despierta en ${d.to}` : ''}${d.cause ? ` (${d.cause})` : ''}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: d.agent || e.source }) };
+    }
+    case 'orders': {
+      const d = e.data as { agent: string; kind: string; text: string };
+      const text = d.kind === 'red_line' ? `⛔ su línea roja le frena: no ${d.text}` : `📜 se activa su plan: ${d.text}`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: d.agent || e.source }) };
+    }
+    case 'intermission': {
+      const day = Number(e.data.day ?? 0);
+      const text = `🌙 Fin del día ${day}: la partida espera órdenes nuevas`;
+      return {
+        ...next,
+        intermission: day,
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }),
+        banner: { id: seq, tick: e.tick, kind: 'day', text, location: '' },
+      };
+    }
     case 'score_change': {
       const d = e.data as { agent: string; description: string; points: number; total: number };
       const sign = d.points >= 0 ? `+${d.points}` : String(d.points);
@@ -509,6 +549,7 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       return {
         ...next,
         status: 'running',
+        intermission: null,
         llm: { ...s.llm, tickDecisions: 0, tickErrors: 0, tickParseErrors: 0 },
         lastTick: s.lastTick < 0 ? s.lastTick : Math.max(s.lastTick, e.tick),
         progress: { tick: e.tick, phase: 'deciding', decided: [] },
@@ -605,6 +646,7 @@ export function attackText(d: Record<string, unknown>): string {
   const head = `ataca a ${target}${weapon}`;
   if (d.hit === undefined) return String(d.action ?? head);
   if (d.killed) return `${head} — ${target} muere`;
+  if (d.knocked_out) return `${head} — ${target} queda K.O.`;
   if (!d.hit) return `${head}: falla`;
   return `${head}: acierta (−${Math.round(Number(d.damage ?? 0) * 100)} % de salud)`;
 }

@@ -1826,3 +1826,62 @@ table.players td {
   font-weight: bold;
   color: var(--accent);
 }
+
+.banner-territory,
+.banner-day {
+  outline-color: var(--accent);
+}
+
+.banner-territory .banner-title,
+.banner-day .banner-title {
+  color: var(--accent);
+}
+
+/* Orders, days and gang games */
+.orders-form .priorities {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.orders-form .priorities li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.day-card {
+  outline: 2px solid var(--accent);
+}
+
+.day-pause {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  margin: 6px 0;
+  border: 2px solid var(--accent);
+}
+
+.orders-report {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.orders-form label.toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  margin-right: 10px;
+}

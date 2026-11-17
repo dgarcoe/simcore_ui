@@ -84,6 +84,50 @@ export function SocietyTab() {
         />
         Pertenecer a un grupo da ventajas (ayuda en tiradas, defensa mutua, almacén común)
       </label>
+      <label className="toggle" title="Nadie muere: quien caería queda K.O., con el estado elegido, y despierta en el lugar elegido">
+        <input
+          type="checkbox"
+          checked={society.lethal === false}
+          onChange={(e) =>
+            update((d) => {
+              const s = (d.society ??= {});
+              if (e.target.checked) s.lethal = false;
+              else {
+                delete s.lethal;
+                delete s.knockout;
+              }
+              if (!Object.keys(s).length) delete d.society;
+            })
+          }
+        />
+        Peleas sin muertes (K.O. en vez de morir)
+      </label>
+      {society.lethal === false && (
+        <div className="row wrap">
+          <label>
+            Estado al quedar K.O.
+            <select
+              className="select"
+              value={society.knockout?.condition ?? ''}
+              onChange={(e) => update((d) => void (d.society!.knockout = { ...d.society!.knockout, condition: e.target.value || undefined }))}
+            >
+              <option value="">(ninguno)</option>
+              {Object.keys(draft.conditions ?? {}).map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+          <label>
+            Dónde despierta
+            <select
+              className="select"
+              value={society.knockout?.place ?? ''}
+              onChange={(e) => update((d) => void (d.society!.knockout = { ...d.society!.knockout, place: e.target.value || undefined }))}
+            >
+              <option value="">(donde cayó)</option>
+              {draft.environment.locations.map((l) => <option key={l.name}>{l.name}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
       <form
         className="row"
         onSubmit={(e) => {

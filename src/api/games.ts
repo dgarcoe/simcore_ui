@@ -1,7 +1,7 @@
 // Games with players: dungeon masters (DM) create them from a scenario; players join with the
 // game's code and configure their own agent. Mirrors simcore/server/games.py.
 
-import type { AgentConfig, ScenarioConfig } from './scenario';
+import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
 import type { SimEvent } from './types';
 
 export const EDITABLE_FIELDS: Array<[string, string]> = [
@@ -14,6 +14,8 @@ export const EDITABLE_FIELDS: Array<[string, string]> = [
   ['secrets', 'Secretos'],
   ['attributes', 'Atributos (con presupuesto de puntos)'],
   ['skills', 'Habilidades'],
+  ['faction', 'Banda o grupo (de una lista)'],
+  ['orders', 'Órdenes para ganar (estilo, prioridades, líneas rojas, planes)'],
 ];
 
 export const FIXED_FIELDS: Record<string, string> = {
@@ -40,9 +42,11 @@ export interface GameTemplate {
   professions: string[];
   max_text: number;
   max_goals: number;
+  /** Groups a player may choose (with "faction" editable); empty = any of the scenario's. */
+  factions?: string[];
 }
 
-export type GameStatus = 'open' | 'closed' | 'running' | 'finished';
+export type GameStatus = 'open' | 'closed' | 'running' | 'intermission' | 'finished';
 export interface Publish {
   result: boolean;
   diary: boolean;
@@ -88,7 +92,18 @@ export interface PlayerResults {
   status: GameStatus;
   published: Publish;
   agent?: string;
-  result?: { message: string; reason: string; ticks: number; alive: boolean };
+  result?: {
+    message: string;
+    reason: string;
+    ticks: number;
+    alive: boolean;
+    winner?: string;
+    mvp?: string;
+    points?: number;
+    rank?: number;
+    players?: number;
+    groups?: Array<{ group: string; points: number }>;
+  };
   diary?: { scenario: { name?: string }; events: SimEvent[] };
   replay?: { scenario: { name?: string; description?: string }; config: ScenarioConfig; events: SimEvent[] };
 }
@@ -134,6 +149,22 @@ export const myAgent = (c: string, token: string) =>
 export const saveMyAgent = (c: string, token: string, agent: Partial<AgentConfig>, submitted?: boolean) =>
   call<{ agent: Partial<AgentConfig>; submitted: boolean }>(`/api/play/${code(c)}/me`, { method: 'PUT', token }, { agent, submitted });
 export const myResults = (c: string, token: string) => call<PlayerResults>(`/api/play/${code(c)}/results`, { token });
+
+/** Between days: what the player's agent lived that day, and how things stand. */
+export interface DayReport {
+  day: number;
+  agent: string;
+  orders: Orders;
+  points: number | null;
+  rank: number | null;
+  players: number;
+  groups: Array<{ group: string; points: number }>;
+  territories: Record<string, { owner: string; contested?: string[] }>;
+  diary: { scenario: { name?: string }; events: SimEvent[] };
+}
+export const dayReport = (c: string, token: string) => call<DayReport>(`/api/play/${code(c)}/report`, { token });
+export const saveOrders = (c: string, token: string, orders: Orders) =>
+  call<{ orders: Orders }>(`/api/play/${code(c)}/orders`, { method: 'PUT', token }, { orders });
 
 // ── Links and tokens ────────────────────────────────────────────────────
 

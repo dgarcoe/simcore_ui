@@ -100,6 +100,7 @@ npm run build          # typecheck + build de producción en dist/
 | Tema | Layout | Ejemplo |
 |---|---|---|
 | `town` | exterior: edificios, caminos, plazas | escenarios incluidos en Simcore |
+| `city` | exterior urbano estilo GTA: cuadrícula de calles con carriles, aceras, azoteas con neón, farolas, coches y palmeras | `scenarios/los-santos` |
 | `spaceship` | interior: salas, pasillos, puertas | `scenarios/spaceship` |
 | `warehouse` | interior | `scenarios/warehouse` |
 | `factory` | interior | `scenarios/factory` |
@@ -226,6 +227,12 @@ Para usarlo con un grupo (en el trabajo, un taller…): cada persona configura s
 5. **El DM** ve las fichas en «Gestionar» (puede quitar a alguien), cierra las inscripciones y **lanza**: el escenario más los agentes de los jugadores. La sigue en vivo y queda en «Simulaciones guardadas».
 6. **Al terminar, el DM decide qué publicar**: el resultado (el final y si su agente sigue en pie), el **diario de su agente** (solo lo que vivió: lo que hizo, lo que le dijeron, lo que pasó donde estaba y las noticias que llegaron a todos; sin pensamientos ajenos ni susurros entre otros) o la repetición completa.
 
+**Órdenes para ganar.** Si el DM marca «Órdenes para ganar» en lo que puede decidir cada jugador, cada uno da a su agente un **estilo** (agresivo, negociador, sigiloso, leal, oportunista, empresario), sus **prioridades** en orden, el **riesgo** que asume, **líneas rojas** (Simcore las hace cumplir: si el agente lo intenta, se le frena), **planes** («a partir del día 3, si mi banda va tercera o peor…», «si llevo el maletín…»), y lo que quiera en sus palabras. El agente las lee cada turno antes que nada. Con «Banda o grupo», cada jugador elige banda de la lista que deje el DM.
+
+**Jornadas.** Con «Parar al final de cada día» (General, en el editor), la partida se para cada noche: el estado pasa a «entre jornadas», cada jugador ve su **parte del día** (sus puntos y su puesto, las bandas, los barrios, lo que vivió su agente y cómo siguió sus órdenes) y puede **cambiar sus órdenes** para el día siguiente; el DM pulsa «▶ Empezar la siguiente jornada». Al final, cada jugador ve el ganador, su puesto y cómo siguió su agente sus órdenes.
+
+**Muchos jugadores** (hasta 100 por partida): pon `llm.max_concurrency` cerca de `OLLAMA_NUM_PARALLEL` (o más alto con un modelo en la nube), y prefiere ticks de 2 horas y pocos días. Con más de 15 personas, cada agente solo ve en su prompt a la gente de su lugar, de su grupo y con la que tiene relación.
+
 ### Simulaciones guardadas y reproductor
 
 Simcore guarda solo cada simulación que se lanza (en la Jetson o el PC, en el volumen `simcore-runs`, así que sobreviven a reconstruir; se conservan las 50 últimas, `SIMCORE_RUNS_KEEP`).
@@ -263,6 +270,7 @@ Con **«Modo rol»** (`simulation.rpg: true`) cada agente tiene una ficha:
 - **El asedio de San Lorenzo** (`scenarios/zombie-siege`, 5 días): cada noche llega una horda y de día los muertos se aletargan. Hay una radio que se repara juntando tres piezas repartidas por el pueblo y llevándolas a la torre, un generador que se queda sin gasolina, un antídoto por descubrir que todos ven quién lleva, armas que caen al suelo con quien muere, una mordedura escondida, la Guardia enfrentada a los del mercado, votaciones (el soldado mordido, una patrulla), rutinas, fichas de rol para todos y tres finales. Es la primera repetición de la lista.
 - **El Anillo de Valdemora** (`scenarios/valdemora-ring`, 3 días): muere el conde sin heredero claro y quien conserve su anillo doce horas seguidas será el señor. Solo puede ganar uno: hijos, un bastardo, el obispo, el capitán, una herbolaria y un mercenario lo roban, envenenan y matan por él. Con reglas de rol, grupos rivales, secretos y crónica. Añade logros con marcador, una segunda forma de ganar (seis horas en el trono con el anillo, o 40 puntos), una daga maldita que aparece en el bosque, desvalijar bolsillos y grupos con ventajas.
 - **Brote en Valdeoscuro** (`scenarios/zombie-outbreak`, 24 horas): la infección se contagia por la sangre, zombis con mente propia (sin habla ni recuerdos), fichas de rol y tiradas, curar y atacar integrados, una votación para atrancar la iglesia, rutinas, secretos y dos finales (amanecer o caída).
+- **Los Santos: guerra de barrios** (`scenarios/los-santos`, 3 días en ticks de 2 horas, tema `city`): una guerra de bandas estilo GTA pensada para partidas con jugadores (probada con 80 agentes). Ocho barrios que se toman estando allí sin rivales y dan ingresos a la caja de la banda, peleas sin muertos (K.O. y despertar en el hospital), una policía por reglas que detiene a quien está en busca y captura, atracos, palos, pintadas, encargos de mercancía, un maletín codiciado y una pistola maldita. Dos premios: la banda que manda (cinco barrios doce horas, o la de más respeto al final) y la Leyenda (la persona con más respeto), y un tercero para el que se corone en solitario con 60 puntos. Los pandilleros de ejemplo llevan órdenes con estilos distintos.
 - **Estación Kepler-7** (`scenarios/kepler-station`), detallado a continuación.
 
 ### Ejemplo avanzado: Estación Kepler-7

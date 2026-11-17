@@ -4,7 +4,7 @@ import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 import { prune } from './RulesWidgets';
 
-type Kind = 'action' | 'visited' | 'carries' | 'condition' | 'alive_at_end' | 'without';
+type Kind = 'action' | 'visited' | 'carries' | 'condition' | 'alive_at_end' | 'without' | 'captures' | 'in_territory';
 
 const KINDS: Array<[Kind, string]> = [
   ['action', 'Hacer una acción'],
@@ -13,10 +13,14 @@ const KINDS: Array<[Kind, string]> = [
   ['condition', 'Tener un estado'],
   ['alive_at_end', 'Seguir vivo al final'],
   ['without', 'Pasar tiempo sin hacer algo (penaliza)'],
+  ['captures', 'Tomar un territorio para su grupo'],
+  ['in_territory', 'Estar en un territorio de su grupo'],
 ];
 
 function kindOf(w: AchievementWhen): Kind {
   if (w.without) return 'without';
+  if (w.captures) return 'captures';
+  if (w.in_territory) return 'in_territory';
   if (w.visited !== undefined) return 'visited';
   if (w.carries) return 'carries';
   if (w.condition) return 'condition';
@@ -38,7 +42,7 @@ export function ScoresTab() {
     });
   const setKind = (key: string, kind: Kind) =>
     set(key, (a) => {
-      a.when = kind === 'action' ? { action: actions[0] ?? 'move' } : kind === 'visited' ? { visited: 'all' } : kind === 'carries' ? { carries: Object.keys(draft.items ?? {})[0] ?? '' } : kind === 'condition' ? { condition: Object.keys(draft.conditions ?? {})[0] ?? '' } : kind === 'alive_at_end' ? { alive_at_end: true } : { without: 'work', every: 24 };
+      a.when = kind === 'action' ? { action: actions[0] ?? 'move' } : kind === 'visited' ? { visited: 'all' } : kind === 'carries' ? { carries: Object.keys(draft.items ?? {})[0] ?? '' } : kind === 'condition' ? { condition: Object.keys(draft.conditions ?? {})[0] ?? '' } : kind === 'alive_at_end' ? { alive_at_end: true } : kind === 'captures' ? { captures: true } : kind === 'in_territory' ? { in_territory: true, every: 2 } : { without: 'work', every: 24 };
       if (kind === 'without' && (a.points ?? 1) > 0) a.points = -1;
     });
 
@@ -133,7 +137,7 @@ export function ScoresTab() {
                   {Object.keys(draft.conditions ?? {}).map((n) => <option key={n}>{n}</option>)}
                 </select>
               )}
-              {(kind === 'without' || ((kind === 'carries' || kind === 'condition') && a.repeat)) && (
+              {(kind === 'without' || ((kind === 'carries' || kind === 'condition' || kind === 'in_territory') && a.repeat)) && (
                 <label className="row nowrap">
                   cada
                   <input className="input" type="number" min={1} style={{ width: 60 }} value={w.every ?? 24} onChange={(e) => set(key, (x) => void (x.when.every = Number(e.target.value)))} />
