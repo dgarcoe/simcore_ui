@@ -100,6 +100,15 @@ export interface RuleWhen {
   place?: Record<string, { closed?: boolean; hazard?: boolean; occupants?: Compare }>;
   /** The same living agent has carried the item `ticks` ticks in a row; texts may say {holder}. */
   holds?: { item: string; ticks?: number; location?: string };
+  /** Some living agent's points pass the test ({winner} is the best of them). */
+  score?: Compare;
+  /** Any one of these sets of tests is enough (several ways to win in one rule). */
+  any?: RuleWhen[];
+}
+
+/** This set of tests and every alternative inside it. */
+export function allTests(w: RuleWhen | undefined): RuleWhen[] {
+  return w ? [w, ...(w.any ?? []).flatMap(allTests)] : [];
 }
 
 export interface RuleConfig {
@@ -124,6 +133,33 @@ export interface ItemConfig {
   visible?: boolean;
   /** Falls to the ground when its carrier dies or leaves. */
   drops?: boolean;
+  /** Cursed: a condition while carried; sticky ones can't be let go; broken by an item or action. */
+  curse?: { condition: string; sticky?: boolean; broken_by?: string[]; description?: string };
+}
+
+/** What earns (or loses) an achievement's points. */
+export interface AchievementWhen {
+  action?: string;
+  times?: number;
+  visited?: 'all' | string[];
+  carries?: string;
+  condition?: string;
+  alive_at_end?: boolean;
+  without?: string;
+  every?: number;
+}
+
+export interface Achievement {
+  description?: string;
+  points?: number;
+  when: AchievementWhen;
+  repeat?: boolean;
+}
+
+/** Points and achievements agents see and go for. */
+export interface ScoresConfig {
+  visible?: boolean;
+  achievements?: Record<string, Achievement>;
 }
 
 /** A group agents start in; others can be founded during the run. */
@@ -146,6 +182,8 @@ export interface VoteConfig {
 
 export interface SocietyConfig {
   spontaneous_groups?: boolean;
+  /** Belonging pays: allies' bonus, common stash, mutual defense (default true). */
+  group_perks?: boolean;
   healers?: string[];
   heal_removes?: string[];
 }
@@ -184,6 +222,9 @@ export interface Outcome {
   remove_conditions?: string[];
   items?: Record<string, number>;
   kill?: boolean;
+  /** on_target: the actor takes one item at random or everything. */
+  steal?: '' | 'one' | 'all';
+  steal_except?: string[];
 }
 
 /** Scenario condition (infected, zombie…). */
@@ -217,12 +258,21 @@ export interface MindConfig {
 export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; label: string }> {
   const out: Array<{ feature: string; label: string }> = [];
   const rules = cfg.rules ?? [];
-  if (rules.some((r) => r.when?.holds || r.when?.count?.item) || Object.values(cfg.items ?? {}).some((i) => i.visible || i.drops))
+  const tests = rules.flatMap((r) => allTests(r.when));
+  if (tests.some((w) => w.holds || w.count?.item) || Object.values(cfg.items ?? {}).some((i) => i.visible || i.drops))
     out.push({ feature: 'artifacts', label: 'objetos codiciados (quién lleva un objeto y durante cuánto)' });
   if (Object.values(cfg.conditions ?? {}).some((c) => c.contagion?.via === 'contact'))
     out.push({ feature: 'contact_contagion', label: 'contagio por sangre o heridas' });
   if (Object.values(cfg.actions ?? {}).some((a) => a.where?.length))
     out.push({ feature: 'recipes', label: 'acciones que solo se hacen en un lugar' });
+  const outcomes = Object.values(cfg.actions ?? {}).flatMap((a) => [a.on_target, a.on_self]);
+  if (
+    Object.keys(cfg.scores?.achievements ?? {}).length ||
+    tests.some((w) => w.any?.length || w.score) ||
+    Object.values(cfg.items ?? {}).some((i) => i.curse) ||
+    outcomes.some((o) => o?.steal || (o?.items && '*' in o.items))
+  )
+    out.push({ feature: 'game_systems', label: 'puntos y logros, varias victorias, objetos malditos o robos' });
   return out;
 }
 
@@ -300,6 +350,7 @@ export interface ScenarioConfig {
   votes?: Record<string, VoteConfig>;
   society?: SocietyConfig;
   routines?: Routines;
+  scores?: ScoresConfig;
 }
 
 export const LOCATION_TYPES = [
@@ -726,15 +777,36 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     const where = `La regla #${i + 1}`;
     effectIssues(r.then, where, `rules.${i}`);
     if (!r.then || !Object.keys(r.then).length) issues.push({ path: `rules.${i}`, message: `${where} no hace nada (añade consecuencias o un final).` });
-    const c = r.when?.count;
-    need([c?.condition ?? '', c?.not_condition ?? ''].filter(Boolean), where, `rules.${i}`);
-    if (c?.location && !places.has(c.location)) issues.push({ path: `rules.${i}`, message: `${where} cuenta en «${c.location}», que no existe.` });
-    const h = r.when?.holds;
-    for (const item of [h?.item ?? '', c?.item ?? ''].filter(Boolean))
-      if (!cfg.items?.[item]) issues.push({ path: `rules.${i}`, message: `${where} mira quién lleva «${item}», que no está en el catálogo de objetos.` });
-    if (h?.location && !places.has(h.location)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${h.location}», que no existe.` });
-    for (const p of Object.keys(r.when?.place ?? {})) if (!places.has(p)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${p}», que no existe.` });
+    for (const w of allTests(r.when)) {
+      const c = w.count;
+      need([c?.condition ?? '', c?.not_condition ?? ''].filter(Boolean), where, `rules.${i}`);
+      if (c?.location && !places.has(c.location)) issues.push({ path: `rules.${i}`, message: `${where} cuenta en «${c.location}», que no existe.` });
+      const h = w.holds;
+      for (const item of [h?.item ?? '', c?.item ?? ''].filter(Boolean))
+        if (!cfg.items?.[item]) issues.push({ path: `rules.${i}`, message: `${where} mira quién lleva «${item}», que no está en el catálogo de objetos.` });
+      if (h?.location && !places.has(h.location)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${h.location}», que no existe.` });
+      for (const p of Object.keys(w.place ?? {})) if (!places.has(p)) issues.push({ path: `rules.${i}`, message: `${where} mira el lugar «${p}», que no existe.` });
+      if (w.score && !Object.keys(cfg.scores?.achievements ?? {}).length)
+        issues.push({ path: `rules.${i}`, message: `${where} mira los puntos, pero el escenario no tiene logros (scores.achievements).` });
+    }
   });
+  for (const [k, it] of Object.entries(cfg.items ?? {})) {
+    if (!it.curse) continue;
+    need([it.curse.condition], `La maldición de ${k}`, `items.${k}`);
+    for (const b of it.curse.broken_by ?? [])
+      if (!cfg.items?.[b] && !acts[b]) issues.push({ path: `items.${k}`, message: `La maldición de ${k} se rompe con «${b}», que no es un objeto ni una acción.` });
+  }
+  for (const [k, a] of Object.entries(cfg.scores?.achievements ?? {})) {
+    const w = a.when ?? {};
+    const where = `El logro ${k}`;
+    for (const act of [w.action, w.without].filter(Boolean) as string[])
+      if (!BUILTIN_ACTIONS.includes(act) && !acts[act]) issues.push({ path: `scores.${k}`, message: `${where} usa la acción «${act}», que no existe.` });
+    if (Array.isArray(w.visited)) for (const p of w.visited) if (!places.has(p)) issues.push({ path: `scores.${k}`, message: `${where} visita «${p}», que no existe.` });
+    if (w.carries && !cfg.items?.[w.carries]) issues.push({ path: `scores.${k}`, message: `${where} mira «${w.carries}», que no está en el catálogo de objetos.` });
+    if (w.condition) need([w.condition], where, `scores.${k}`);
+    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without)
+      issues.push({ path: `scores.${k}`, message: `${where} no dice qué lo consigue (when).` });
+  }
   const agentNames = new Set(cfg.agents.map((a) => a.name));
   cfg.agents.forEach((a, i) => {
     for (const n of Object.keys(a.relationships ?? {}))

@@ -10,6 +10,8 @@ export function EndCard() {
   const mode = useSim((s) => s.mode);
   const reason = useSim((s) => s.endReason);
   const message = useSim((s) => s.endMessage);
+  const winner = useSim((s) => s.endWinner);
+  const scores = useSim((s) => s.finalScores ?? s.sim?.scores ?? null);
   const sim = useSim((s) => s.sim);
   const scenarioName = useSim((s) => s.scenarioName);
   const [replayError, setReplayError] = useState<string | null>(null);
@@ -49,6 +51,16 @@ export function EndCard() {
       <h2>Fin de la simulación</h2>
       {reason === 'no_agents_left' && <p>No queda nadie con vida en el escenario.</p>}
       {message && <p className="end-message">{message}</p>}
+      {winner && !message.includes(winner) && <p className="end-winner">👑 Gana: {winner}</p>}
+      {scores && scores.ranking.length > 0 && (
+        <ol className="end-scores">
+          {scores.ranking.slice(0, 5).map((r) => (
+            <li key={r.agent}>
+              {r.agent} <strong>{r.points}</strong> pts
+            </li>
+          ))}
+        </ol>
+      )}
       {fallen.length > 0 && <p className="dim">✝ {fallen.join(', ')}</p>}
       {mode === 'live' && !text && (
         <button className="btn btn-accent" disabled={loading} onClick={chronicle}>

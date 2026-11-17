@@ -44,6 +44,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
   return (
     <div className="panel-body">
       <SpawnForm />
+      {sim?.scores && sim.scores.ranking.length > 0 && <Scoreboard ranking={sim.scores.ranking} onPick={(n) => { selectAgent(n); bus.emit('focusAgent', n); }} />}
       <ul className="agent-list">
         {agents.map((a) => (
           <li key={a.id}>
@@ -59,6 +60,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
                 <strong>
                   {Object.values(sim?.holders ?? {}).some((h) => h.agent === a.name) ? '👑 ' : ''}
                   {a.name}
+                  {sim?.scores && <span className="points"> · {sim.scores.ranking.find((r) => r.agent === a.name)?.points ?? 0} pts</span>}
                 </strong>
                 <span className="dim">
                   {statusLabel(a) ? `${statusLabel(a)} · ` : ''}
@@ -286,6 +288,22 @@ function Sheet({ sheet, rolls }: { sheet: RpgSheet; rolls: DiceRoll[] }) {
             ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Points ranking (scenarios with achievements). */
+function Scoreboard({ ranking, onPick }: { ranking: Array<{ agent: string; points: number }>; onPick: (name: string) => void }) {
+  return (
+    <div className="scoreboard" aria-label="Marcador">
+      <strong>🏆 Marcador</strong>
+      <ol>
+        {ranking.slice(0, 8).map((r) => (
+          <li key={r.agent}>
+            <button className="link" onClick={() => onPick(r.agent)}>{r.agent}</button> <span className={r.points < 0 ? 'bad-text' : ''}>{r.points}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

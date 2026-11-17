@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { requiredFeatures, cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, referenceIssues, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
+import { allTests, requiredFeatures, cleanScenario, configToEnvironment, emptyScenario, mapHints, professions, effectsToForm, formToEffects, itemsUsed, referenceIssues, scenarioWarnings, setModel, targetLabel, uniqueName, validateScenario, type ScenarioConfig } from './scenario';
 
 const ship: ScenarioConfig = JSON.parse(
   readFileSync(new URL('../../public/fixtures/spaceship.json', import.meta.url), 'utf8'),
@@ -423,14 +423,47 @@ describe('coveted items', () => {
     expect(validateScenario(cfg)).toEqual([]);
     expect(scenarioWarnings(cfg)).toEqual([]);
     expect(cfg.items?.anillo).toMatchObject({ visible: true, drops: true });
-    const win = cfg.rules?.find((r) => r.when?.holds?.ticks === 12);
+    // Two ways to win with the ring (any: twelve hours, or six on the throne) and one with points.
+    const win = cfg.rules?.find((r) => allTests(r.when).some((w) => w.holds?.ticks === 12));
     expect(String((win?.then as { end?: string })?.end)).toContain('{holder}');
+    expect(win?.when?.any?.[1]?.holds).toEqual({ item: 'anillo', ticks: 6, location: 'Salón del Trono' });
+    expect(cfg.rules?.some((r) => r.when?.score && String((r.then as { end?: string }).end).includes('{winner}'))).toBe(true);
     expect(cfg.agents.filter((a) => !a.attributes).map((a) => a.name)).toEqual([]);
+    // game systems: achievements, a cursed dagger that turns up, pickpocketing
+    expect(Object.keys(cfg.scores?.achievements ?? {})).toContain('castillo');
+    expect(cfg.items?.daga_negra.curse).toMatchObject({ condition: 'sed_de_sangre', sticky: true, broken_by: ['agua_bendita', 'exorcizar'] });
+    expect(cfg.actions?.desvalijar.on_target?.steal).toBe('one');
     // an older Simcore would ignore `holds` and end the run at once: the UI must refuse it
-    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts']);
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'game_systems']);
     expect(requiredFeatures(emptyScenario())).toEqual([]);
     const forge = { ...emptyScenario(), actions: { reparar: { target: 'none' as const, where: ['Faro'] } } };
     expect(requiredFeatures(forge).map((f) => f.feature)).toEqual(['recipes']);
     expect(validateScenario(forge).map((i) => i.message)).toContain('La acción reparar se hace en «Faro», que no existe.');
   });
 });
+
+describe('game systems in the editor and validation', () => {
+  it('validates curses, achievements and point tests', () => {
+    const cfg: ScenarioConfig = {
+      ...emptyScenario(),
+      environment: { ...emptyScenario().environment, locations: [{ name: 'Plaza' }] as ScenarioConfig['environment']['locations'] },
+      items: { anillo: { curse: { condition: 'loco', broken_by: ['sal'] } } },
+      scores: { achievements: { x: { when: { action: 'volar' } }, y: { when: { visited: ['Luna'] } }, z: { when: {} } } },
+      rules: [{ when: { any: [{ holds: { item: 'cetro' } }] }, then: { end: '{winner}' } }],
+    };
+    const msgs = validateScenario(cfg).map((i) => i.message).join('\n');
+    expect(msgs).toContain('La maldición de anillo se rompe con «sal», que no es un objeto ni una acción.');
+    expect(msgs).toContain('El logro x usa la acción «volar», que no existe.');
+    expect(msgs).toContain('El logro y visita «Luna», que no existe.');
+    expect(msgs).toContain('El logro z no dice qué lo consigue (when).');
+    expect(msgs).toContain('«cetro», que no está en el catálogo de objetos.'); // checked inside `any` too
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toContain('game_systems');
+  });
+
+  it('keeps the achievements when a scenario is imported into the editor', async () => {
+    const { normalize } = await import('../ui/editor/draft');
+    const scores = { achievements: { explorador: { points: 10, when: { visited: 'all' as const } } } };
+    expect(normalize({ ...emptyScenario(), scores }).scores).toEqual(scores);
+  });
+});
+

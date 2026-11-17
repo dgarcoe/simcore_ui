@@ -4,7 +4,11 @@
 # dies, so the heirs scheme, steal, poison, buy swords and kill for it.
 # Uses: coveted items (visible, drops) and a `holds` rule naming the winner ({holder}), role-playing
 # rules (steal and poison are opposed rolls), weapons and armor, rival groups, secrets, false beliefs,
-# rumors, a chronicle. Full YAML reference:
+# rumors, a chronicle.
+# Also: points and achievements the heirs see and go for, a second way to win (the ring six hours
+# on the throne, or 40 points: `when.any` / `score`, `{winner}`), a cursed dagger that turns up in
+# the forest (sticky, broken by holy water or an exorcism), pickpocketing one item at random
+# (`steal: one`), and groups worth belonging to (`group_perks`). Full YAML reference:
 # https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
 simulation:
   name: El Anillo de Valdemora
@@ -13,7 +17,7 @@ simulation:
     puede ganar uno.
   time_step: 1 hour
   duration: 72 hours
-  seed: 13
+  seed: 4
   language: es
   rpg: true
   story: true
@@ -34,7 +38,7 @@ environment:
     heraldo: false
   locations:
     - {name: Salón del Trono, type: government, position: [6, 3], capacity: 20}
-    - {name: Capilla, type: religious, position: [9, 2], capacity: 12, stock: {triaca: 1}}
+    - {name: Capilla, type: religious, position: [9, 2], capacity: 12, stock: {triaca: 1, agua_bendita: 1}}
     - {name: Cocinas, type: commercial, position: [3, 4], capacity: 8, stock: {comida: 12, veneno: 1}}
     - {name: Cuartel, type: military, position: [2, 8], capacity: 10, stock: {espada: 1, virotes: 6, cota: 1},
        access: {professions: [capitán, mercenari, soldad]}}
@@ -54,6 +58,15 @@ items:
   veneno: {description: frasco de belladona}
   triaca: {description: triaca, el antídoto de los boticarios, cures: [envenenado], on_use: {health: 0.1}}
   comida: {description: pan y cecina, on_use: {energy: 0.3}}
+  daga_negra:
+    description: una daga de hoja negra que nadie recuerda haber forjado
+    consumable: false
+    visible: true
+    drops: true
+    weapon: {damage: 0.5, chance: 0.7}
+    curse: {condition: sed_de_sangre, sticky: true, broken_by: [agua_bendita, exorcizar],
+            description: "la hoja te susurra que el anillo debería ser tuyo, a cualquier precio"}
+  agua_bendita: {description: agua bendita de la capilla}
 
 conditions:
   envenenado:
@@ -67,6 +80,13 @@ conditions:
     appearance: sangra
     per_tick: {health: -0.02}
     color: "#b13e53"
+  sed_de_sangre:
+    description: la daga negra te pide sangre; solo piensas en el anillo
+    appearance: ojos inyectados en sangre
+    per_tick: {mood: -0.05}
+    color: "#5d275d"
+    mind:
+      goals: [Conseguir el anillo con la daga negra, Que nadie te quite la daga]
   encadenado:
     description: estás encadenado en las mazmorras
     appearance: encadenado
@@ -97,6 +117,22 @@ actions:
     on_target: {add_conditions: [envenenado]}
     message: vierte algo en la copa de {target}
     fail_message: intenta envenenar a {target}, pero le pillan con el frasco en la mano
+  desvalijar:
+    description: registrarle los bolsillos a alguien de aquí y quedarse con algo (nunca el anillo)
+    who: {not_conditions: [encadenado]}
+    chance: 0.4
+    check: {attribute: dexterity, skill: sleight_of_hand, against: wisdom, against_skill: perception}
+    on_target: {steal: one, steal_except: [anillo, daga_negra], mood: -0.1}
+    message: le registra los bolsillos a {target} y se queda con algo
+    fail_message: intenta registrarle los bolsillos a {target}, que se da cuenta
+  exorcizar:
+    description: rezar sobre alguien de aquí para romper una maldición (solo el obispo)
+    who: {professions: [obisp], not_conditions: [encadenado]}
+    target_requires: {conditions: [sed_de_sangre]}
+    chance: 0.6
+    check: {attribute: wisdom, skill: insight, dc: 12}
+    message: reza sobre {target} y rompe la maldición de la daga
+    fail_message: reza sobre {target}, pero la daga no suelta su presa
   encadenar:
     description: llevar a alguien a las mazmorras y encadenarlo seis horas (solo la guardia)
     who: {professions: [capitán, soldad], not_conditions: [encadenado]}
@@ -111,6 +147,17 @@ society:
   healers: [boticari, herbolari, obisp, médic]
   heal_removes: [herido]
 
+# Puntos y logros: los herederos ven su marcador y qué da prestigio.
+scores:
+  achievements:
+    castillo: {description: "Recorrer todo el castillo y el pueblo", points: 5, when: {visited: all}}
+    anillo: {description: "Cada tres horas con el anillo", points: 3, repeat: true, when: {carries: anillo, every: 3}}
+    rateria: {description: "Cada bolsillo desvalijado", points: 1, repeat: true, when: {action: desvalijar}}
+    caridad: {description: "Curar a dos heridos", points: 4, when: {action: heal, times: 2}}
+    exorcismo: {description: "Romper la maldición de la daga", points: 8, when: {action: exorcizar}}
+    superviviente: {description: "Seguir vivo cuando todo acabe", points: 5, when: {alive_at_end: true}}
+    callado: {description: "Doce horas sin hablar con nadie", points: -2, when: {without: speak, every: 12}}
+
 factions:
   Partido de Elvira: {goal: "Que Elvira herede el condado", leader: Doña Elvira, members: [Doña Elvira, Inés], rivals: [Partido de Rodrigo], color: "#41a6f6"}
   Partido de Rodrigo: {goal: "Que Rodrigo herede el condado", leader: Don Rodrigo, members: [Don Rodrigo], rivals: [Partido de Elvira], color: "#b13e53"}
@@ -124,10 +171,19 @@ rules:
     when: {holds: {item: anillo, ticks: 6}}
     once: true
     then: {rumor: {all: "{holder} tiene el anillo y no lo suelta"}}
-  - description: "{holder} conserva el anillo doce horas seguidas. Las campanas tocan a gloria."
-    when: {holds: {item: anillo, ticks: 12}}
+  # Dos maneras de ganar con el anillo: doce horas seguidas, o seis en el Salón del Trono (any).
+  - description: "{holder} conserva el anillo del conde. Las campanas tocan a gloria."
+    when:
+      any:
+        - {holds: {item: anillo, ticks: 12}}
+        - {holds: {item: anillo, ticks: 6, location: Salón del Trono}}
     once: true
-    then: {end: "{holder} conserva el anillo del conde doce horas seguidas y es proclamado señor de Valdemora."}
+    then: {end: "{holder} conserva el anillo del conde y es proclamado señor de Valdemora."}
+  # O sin anillo: 40 puntos de prestigio (score), y {winner} dice quién.
+  - description: La corte entera aclama a quien más méritos ha hecho.
+    when: {score: {gte: 40}}
+    once: true
+    then: {end: "{winner} ha ganado tanto prestigio que la corte lo aclama señor de Valdemora sin esperar al anillo."}
   - description: Solo queda uno en pie en todo el castillo.
     when: {from: 2, alive: {lte: 1}}
     once: true
@@ -135,7 +191,7 @@ rules:
   - description: Llega el senescal del rey.
     when: {at: 71}
     once: true
-    then: {end: "Nadie logró conservar el anillo. El senescal del rey toma Valdemora en nombre de la Corona."}
+    then: {end: "Nadie logró conservar el anillo. El senescal del rey toma Valdemora en nombre de la Corona y deja como alcaide a {winner}, quien más méritos hizo."}
 
 events:
   scheduled:
@@ -155,6 +211,11 @@ events:
       type: weather
       description: Una tormenta corta los caminos; nadie entra ni sale del castillo.
       effects: {luto: false}
+    - tick: 30
+      type: omen
+      description: Un leñador jura haber visto una daga negra clavada en un tocón del bosque.
+      effects:
+        items: {"location:Bosque": {daga_negra: 1}}
 
 agents:
   - name: Mayordomo Tobías

@@ -43,7 +43,8 @@ export type EventType =
   | 'vote_result'
   // Role-playing rules: d20 checks and level ups.
   | 'dice_roll'
-  | 'level_up';
+  | 'level_up'
+  | 'score_change';
 
 export interface Belief {
   text: string;
@@ -204,6 +205,13 @@ export interface SimState {
   society?: SocietyState;
   /** Who carries each coveted item and for how many ticks in a row. */
   holders?: Record<string, { agent: string; since: number; ticks: number }>;
+  /** Points and achievements (scenarios with scores). */
+  scores?: ScoresState;
+}
+
+export interface ScoresState {
+  ranking: Array<{ agent: string; points: number }>;
+  earned: Record<string, Record<string, number>>;
 }
 
 export interface ScenarioMeta {

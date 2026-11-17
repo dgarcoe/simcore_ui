@@ -425,9 +425,12 @@ describe('rolls tied to what caused them', () => {
   const replay = JSON.parse(readFileSync(new URL('../../public/fixtures/valdemora-ring.json', import.meta.url), 'utf8')) as { events: SimEvent[] };
   let s = initialSnapshot();
   let chatRolls = 0;
+  let attackWithRoll = false; // the feed keeps the latest 400 lines: look as they come
   for (const e of replay.events) {
     s = reduce(s, e) ?? s;
     chatRolls = Math.max(chatRolls, s.conversations.flatMap((c) => c.lines).filter((l) => l.rolls?.length).length);
+    const last = s.feed.at(-1);
+    attackWithRoll ||= !!last && last.type === 'agent_action' && /^ataca a /.test(last.text) && last.rolls?.[0]?.check === 'attack';
   }
 
   it('links every roll to the action, speech or search of the same agent', () => {
@@ -440,7 +443,7 @@ describe('rolls tied to what caused them', () => {
       expect(cause?.rolls?.length).toBeGreaterThan(0);
       expect(f.text).toContain(' · por «');
     }
-    expect(s.feed.some((f) => f.type === 'agent_action' && /^ataca a /.test(f.text) && f.rolls?.[0]?.check === 'attack')).toBe(true);
+    expect(attackWithRoll).toBe(true);
     expect(Object.keys(s.pendingRolls)).toEqual([]);
   });
 
@@ -449,5 +452,23 @@ describe('rolls tied to what caused them', () => {
     expect(sheets.length).toBeGreaterThan(0);
     expect(sheets.every((r) => r.for)).toBe(true);
     expect(chatRolls).toBeGreaterThan(0);
+  });
+});
+
+describe('points, winner and theft', () => {
+  it('shows achievements, the winner and the final points, and theft as a line', () => {
+    let s = initialSnapshot();
+    const step = (type: string, data: Record<string, unknown>, tick = 1, source = '') =>
+      (s = reduce(s, { type, tick, source, data } as SimEvent) ?? s);
+    step('score_change', { agent: 'Ana', achievement: 'explorador', description: 'Visitar todos los lugares', points: 10, total: 25 }, 3, 'Ana');
+    expect(s.feed.at(-1)).toMatchObject({ source: 'Ana', text: '🏆 «Visitar todos los lugares» +10 (25 en total)' });
+    step('score_change', { agent: 'Bob', achievement: 'vago', description: 'Un día sin trabajar', points: -3, total: -3 }, 4, 'Bob');
+    expect(s.feed.at(-1)?.text).toBe('⚠ «Un día sin trabajar» -3 (-3 en total)');
+    step('item_transfer', { kind: 'steal', item: 'oro', amount: 2, from: 'Bob', to: 'Ana', location: 'Plaza' }, 5);
+    expect(s.feed.at(-1)?.text).toBe('Ana le quita 2 oro a Bob');
+    const ranking = [{ agent: 'Ana', points: 25 }, { agent: 'Bob', points: -3 }];
+    step('simulation_end', { reason: 'rule', message: 'Ana gana la feria', winner: 'Ana', scores: { ranking, earned: {} } }, 6);
+    expect(s.endWinner).toBe('Ana');
+    expect(s.finalScores?.ranking).toEqual(ranking);
   });
 });

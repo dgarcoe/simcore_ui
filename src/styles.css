@@ -1803,3 +1803,26 @@ table.players td {
 .health-advice p {
   margin: 6px 0 0;
 }
+
+/* Points and achievements */
+.scoreboard {
+  border: 2px solid var(--line);
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.scoreboard ol,
+.end-scores {
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.agent-row .points {
+  color: var(--accent);
+  font-weight: normal;
+}
+
+.end-winner {
+  font-weight: bold;
+  color: var(--accent);
+}

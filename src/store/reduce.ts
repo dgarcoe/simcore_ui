@@ -5,7 +5,7 @@ import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../
 import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
 import { addDecision, closeTick, initialHealth, type LlmHealth } from './llmHealth';
 import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
-import type { Agent, EventType, SimEvent, SimState } from '../api/types';
+import type { Agent, EventType, SimEvent, SimState, ScoresState } from '../api/types';
 
 export interface FeedItem {
   id: number;
@@ -145,6 +145,9 @@ export interface SimSnapshot {
   endReason: string;
   /** Text of the rule that ended the run, if any. */
   endMessage: string;
+  /** Who won the run (an ending rule's {winner}), and the final points. */
+  endWinner: string;
+  finalScores: ScoresState | null;
   progress: TickProgress;
   /** Latest decision of each agent with its reasoning. */
   reasoning: Record<string, { tick: number; action: string; text: string }>;
@@ -188,6 +191,8 @@ export function initialSnapshot(): SimSnapshot {
     stopRequested: false,
     endReason: '',
     endMessage: '',
+    endWinner: '',
+    finalScores: null,
     progress: { tick: 0, phase: 'idle', decided: [] },
     reasoning: {},
     seq: 0,
@@ -340,6 +345,8 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         status: 'ended',
         endReason: String(e.data.reason ?? ''),
         endMessage: String(e.data.message ?? ''),
+        endWinner: String(e.data.winner ?? ''),
+        finalScores: (e.data.scores as ScoresState | undefined) ?? null,
         banner: { id: seq, tick: e.tick, kind: 'end', text, location: '' },
         feed: pushFeed(next.feed, feedItem(seq, e, `■ ${text}`)),
       };
@@ -434,6 +441,12 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       const who = d.agent || e.source;
       const mine = [...(next.rolls[who] ?? []).slice(-(ROLL_LIMIT - 1)), d];
       return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who, dice: d }) };
+    }
+    case 'score_change': {
+      const d = e.data as { agent: string; description: string; points: number; total: number };
+      const sign = d.points >= 0 ? `+${d.points}` : String(d.points);
+      const text = `${d.points >= 0 ? '🏆' : '⚠'} «${d.description}» ${sign} (${d.total} en total)`;
+      return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: d.agent || e.source }) };
     }
     case 'level_up': {
       const d = e.data as unknown as LevelUp;
@@ -644,6 +657,7 @@ export function transferText(d: Record<string, any>): string {
   const place = (s: string) => (s.startsWith('location:') ? s.slice('location:'.length) : s);
   if (d.kind === 'produce') return `${d.to} produce ${what} en ${d.location || place(String(d.from))}`;
   if (d.kind === 'dropped') return `${d.item} cae de las manos de ${d.from} en ${d.location}`;
+  if (d.kind === 'steal') return `${d.to} le quita ${what} a ${d.from}`;
   if (d.kind === 'holder') return d.to ? `👑 ${d.to} se hace con ${d.item}${d.from ? ` (se lo quita a ${d.from})` : ''}` : `👑 ${d.item} se queda sin dueño`;
   if (d.kind !== 'effect') return '';
   if (d.to) return `${place(String(d.to))} recibe ${what}`;

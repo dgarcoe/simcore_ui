@@ -69,6 +69,21 @@ export function SocietyTab() {
         />
         Los agentes pueden fundar grupos por su cuenta
       </label>
+      <label className="toggle" title="Cada miembro presente suma +1 (hasta +2) a las tiradas y a la defensa, se defienden entre ellos y comparten un almacén común">
+        <input
+          type="checkbox"
+          checked={society.group_perks !== false}
+          onChange={(e) =>
+            update((d) => {
+              const s = (d.society ??= {});
+              if (e.target.checked) delete s.group_perks;
+              else s.group_perks = false;
+              if (!Object.keys(s).length) delete d.society;
+            })
+          }
+        />
+        Pertenecer a un grupo da ventajas (ayuda en tiradas, defensa mutua, almacén común)
+      </label>
       <form
         className="row"
         onSubmit={(e) => {

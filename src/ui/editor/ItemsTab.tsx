@@ -124,6 +124,41 @@ export function ItemsTab() {
               </label>
             </div>
           </div>
+          <div className="fx-row">
+            <span className="fx-label">Maldición</span>
+            <div className="fx-items">
+              <label className="toggle" title="Quien lo lleve tendrá este estado mientras lo lleve (daño por turno, una mente cambiada…)">
+                <select
+                  className="select"
+                  value={it.curse?.condition ?? ''}
+                  onChange={(e) =>
+                    setItem(key, (x) => void (e.target.value ? (x.curse = { ...(x.curse ?? {}), condition: e.target.value }) : delete x.curse))
+                  }
+                >
+                  <option value="">(no está maldito)</option>
+                  {Object.keys(draft.conditions ?? {}).map((c) => <option key={c} value={c}>da el estado «{c}»</option>)}
+                </select>
+              </label>
+              {it.curse && (
+                <>
+                  <label className="toggle" title="No se puede dar, soltar ni intercambiar (sí robar)">
+                    <input type="checkbox" checked={!!it.curse.sticky} onChange={(e) => setItem(key, (x) => void (x.curse = prune({ ...x.curse!, sticky: e.target.checked || undefined }) as ItemConfig['curse']))} />
+                    No se puede soltar
+                  </label>
+                  <span className="toggle" title="Usar este objeto sobre quien lo lleva, o hacerle esta acción, rompe la maldición">
+                    Se rompe con:
+                    <ChipPicker
+                      options={[...Object.keys(catalog).filter((k) => k !== key), ...Object.keys(draft.actions ?? {})]}
+                      value={it.curse.broken_by}
+                      placeholder="+ objeto o acción"
+                      onChange={(v) => setItem(key, (x) => void (x.curse = prune({ ...x.curse!, broken_by: v.length ? v : undefined }) as ItemConfig['curse']))}
+                    />
+                  </span>
+                  <input className="input" placeholder="Qué siente quien lo coge («susurra tu nombre»)" value={it.curse.description ?? ''} onChange={(e) => setItem(key, (x) => void (x.curse = prune({ ...x.curse!, description: e.target.value || undefined }) as ItemConfig['curse']))} />
+                </>
+              )}
+            </div>
+          </div>
           <label className="fx-row" title="Modo rol: suma a la defensa de quien lo lleva (10 + DES + armadura)">
             <span className="fx-label">Armadura</span>
             <input className="input" type="number" min={0} max={10} value={it.armor ?? 0} onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.armor = Math.min(10, Number(e.target.value))) : delete x.armor))} />

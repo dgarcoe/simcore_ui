@@ -107,6 +107,18 @@ export function ActionsTab() {
               <details open>
                 <summary>Efecto en el objetivo</summary>
                 <OutcomeEditor conditions={conditions} value={a.on_target} onChange={(o) => set(key, (x) => void (x.on_target = o))} />
+                <label className="row" title="Lo que se lleva quien hace la acción (un objeto al azar o todo lo que lleve el objetivo)">
+                  <span className="trait-label">Robo</span>
+                  <select
+                    className="select"
+                    value={a.on_target?.steal ?? ''}
+                    onChange={(e) => set(key, (x) => void (x.on_target = prune({ ...(x.on_target ?? {}), steal: (e.target.value || undefined) as 'one' | 'all' | undefined })))}
+                  >
+                    <option value="">no roba nada</option>
+                    <option value="one">se lleva un objeto al azar</option>
+                    <option value="all">se lo lleva todo</option>
+                  </select>
+                </label>
               </details>
             </>
           )}

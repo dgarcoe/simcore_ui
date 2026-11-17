@@ -1,7 +1,7 @@
 # Generar un escenario con un LLM
 
 Simcore tiene una referencia completa de su YAML pensada para pasársela a un LLM:
-[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/541cc8e4d5ce584c04f52fd590dae206804d23a5/docs/scenario-reference.md).
+[scenario-reference.md](https://github.com/dgarcoe/simcore/blob/0f0b49432739723737f0dbf6a995988857bc9bb2/docs/scenario-reference.md).
 
 El enlace apunta a la versión de Simcore que usa esta UI (`SIMCORE_REF`). La referencia incluye:
 - todas las claves, con su tipo, valor por defecto y rango;
@@ -39,8 +39,10 @@ Duration: <e.g. 3 days>, time step: <e.g. 1 hour>
 Cast: <e.g. 8 agents>; give them conflicting goals, relationships, at least one secret and one false belief.
 Systems to use: <e.g. conditions with contagion, needs, items, recipes (actions that need items
   gathered from several places and are done at one place), scenario actions, world rules,
-  factions, a vote, routines, rpg, story>
-Endings: at least <2> rules that end the run (one good, one bad), reachable within the duration.
+  factions, a vote, routines, rpg, story, scores (achievements agents go for), cursed items,
+  stealing (steal: one | all)>
+Endings: at least <2> rules that end the run (one good, one bad), reachable within the duration;
+  use "{winner}" in an ending's text to name who won, and when.any for several ways to win.
 Map theme: <town | spaceship | warehouse | factory | space-battle>
 
 Before answering, check every cross-reference (places, conditions, actions, needs, agents, groups)
@@ -71,5 +73,12 @@ El mapa se genera a partir del escenario, así que conviene que el LLM:
 Para algo que haya que **construir o reparar juntando piezas** («crafteo»), pide una acción con `who.items` y `cost` (las piezas), `where` (el lugar donde se hace) y `world` u `on_self.items` (lo que se consigue), con las piezas repartidas entre lugares y personajes (patrón «Crafting / recipes» de la referencia). A los agentes se les dice qué les falta y dónde está. La radio de `zombie-siege` es el ejemplo.
 
 Para un escenario en el que **solo puede ganar uno**, pide un objeto `visible` y `drops` y una regla `holds` con `{holder}` en el final (patrón «King of the hill» de la referencia); `valdemora-ring` es el ejemplo.
+
+Otros sistemas que se le pueden pedir (todos en la referencia; `valdemora-ring` los usa):
+- **Puntos y logros** (`scores`): puntos por hacer acciones, visitar lugares, llevar un objeto o seguir vivo, y en contra por pasar tiempo sin hacer algo. Los agentes ven su marcador y van a por ellos; una regla puede acabar al llegar a unos puntos (`when: {score: {gte: 40}}`).
+- **Varias maneras de ganar** en una regla (`when: {any: [...]}`) y `{winner}` en el texto del final para nombrar al ganador (quien guarda el objeto, quien llega a los puntos, el último en pie o el que más puntos tenga).
+- **Objetos malditos** (`curse`): un estado mientras se lleva (daño por turno o una mente cambiada), `sticky` para que no se pueda soltar, y `broken_by` con el objeto o la acción que rompe la maldición.
+- **Robos** (`on_target: {steal: one | all}`) y objetos que aparecen con un suceso (`items: {"location:X": {objeto: 1}}`), que se anuncian a quien está allí, y a todos si el objeto es `visible`.
+- **Grupos con ventajas** (`society.group_perks`, activado por defecto): ayuda en las tiradas, defensa mutua y un almacén común.
 
 Los escenarios de `scenarios/` sirven de modelo: `zombie-siege`, `kepler-station`, `zombie-outbreak` y `last-night`.
