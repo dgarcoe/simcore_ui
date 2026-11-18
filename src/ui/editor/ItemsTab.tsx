@@ -159,6 +159,29 @@ export function ItemsTab() {
               )}
             </div>
           </div>
+          <div className="fx-row">
+            <span className="fx-label">Mecha</span>
+            <div className="fx-items">
+              <label className="toggle" title="Se enciende cuando alguien lo coge y estalla al cabo de estos ticks, esté donde esté (si lo pasa o lo suelta, la mecha sigue). Vacío: no tiene mecha">
+                Estalla a los
+                <input className="input" type="number" min={0} style={{ width: 56 }} value={it.fuse?.ticks ?? ''} placeholder="—" onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.fuse = { ...(x.fuse ?? { on_holder: { health: -0.5 }, on_others: { health: -0.2 } }), ticks: Number(e.target.value) }) : delete x.fuse))} />
+                ticks de cogerlo
+              </label>
+              {it.fuse && (
+                <>
+                  <label className="toggle" title="Salud que pierde quien lo lleva al estallar">
+                    A quien lo lleva
+                    <input className="input" type="number" step={0.05} min={-1} max={0} style={{ width: 64 }} value={it.fuse.on_holder?.health ?? 0} onChange={(e) => setItem(key, (x) => void (x.fuse = { ...x.fuse!, on_holder: { ...(x.fuse!.on_holder ?? {}), health: Number(e.target.value) } }))} />
+                  </label>
+                  <label className="toggle" title="Salud que pierden los demás que estén allí">
+                    A los de alrededor
+                    <input className="input" type="number" step={0.05} min={-1} max={0} style={{ width: 64 }} value={it.fuse.on_others?.health ?? 0} onChange={(e) => setItem(key, (x) => void (x.fuse = { ...x.fuse!, on_others: { ...(x.fuse!.on_others ?? {}), health: Number(e.target.value) } }))} />
+                  </label>
+                  <input className="input" placeholder="Lo que se oye («¡BOOM! Estalla en {place}»)" value={it.fuse.message ?? ''} onChange={(e) => setItem(key, (x) => void (x.fuse = prune({ ...x.fuse!, message: e.target.value || undefined }) as ItemConfig['fuse']))} />
+                </>
+              )}
+            </div>
+          </div>
           <label className="fx-row" title="Modo rol: suma a la defensa de quien lo lleva (10 + DES + armadura)">
             <span className="fx-label">Armadura</span>
             <input className="input" type="number" min={0} max={10} value={it.armor ?? 0} onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.armor = Math.min(10, Number(e.target.value))) : delete x.armor))} />

@@ -1,13 +1,68 @@
 [
-  {"file": "zombie-siege.json", "name": "El asedio de San Lorenzo", "theme": "Pueblo", "description": "Ejemplo largo (5 días): cada noche llega una horda y de día los muertos se aletargan; una radio que se repara juntando piezas, generador sin gasolina, un antídoto por descubrir que todos ven quién lleva, armas que caen con quien muere, una mordedura escondida, la Guardia frente a los del mercado, votaciones, fichas de rol y tres finales posibles."},
-  {"file": "los-santos.json", "name": "Los Santos: guerra de barrios", "theme": "Ciudad", "description": "Guerra de bandas en una ciudad estilo GTA, pensada para partidas con jugadores (hasta 80): ocho barrios que se toman y dan ingresos, peleas sin muertos (K.O. y hospital), policía que detiene a quien está en busca y captura, un maletín y una pistola maldita. Cada pandillero sigue las órdenes de su jugador. Dos premios: la banda que manda en la ciudad y la Leyenda (la persona con más respeto)."},
-  {"file": "valdemora-ring.json", "name": "El Anillo de Valdemora", "theme": "Pueblo", "description": "Solo puede ganar uno: muere el conde y quien conserve su anillo doce horas (o seis en el trono) será el señor. Logros con marcador, una daga maldita que aparece en el bosque, bolsillos desvalijados, venenos y espadas; si nadie lo logra, el senescal nombra al de más méritos."},
-  {"file": "kepler-station.json", "name": "Estación Kepler-7", "theme": "Nave espacial", "description": "Ejemplo avanzado con todo: esporas que convierten a la tripulación, oxígeno que se agota, reparaciones, un laboratorio sellado, una fuga, secretos, rumores, una madre y su hijo, y la nave de rescate."},
-  {"file": "epidemic.json", "name": "Outbreak", "theme": "Pueblo", "description": "Una enfermedad misteriosa se propaga por un pueblo (escenario incluido en Simcore)."},
-  {"file": "spaceship.json", "name": "Derelict Signal", "theme": "Nave espacial", "description": "La tripulación de una nave recibe una señal de socorro de un pecio."},
-  {"file": "warehouse.json", "name": "Peak Season", "theme": "Almacén", "description": "Un almacén logístico en plena campaña de Navidad."},
-  {"file": "factory.json", "name": "The Strike", "theme": "Fábrica", "description": "Rumores de despidos y una posible huelga en una fábrica."},
-  {"file": "space-battle.json", "name": "Battle of Kepler Belt", "theme": "Batalla espacial", "description": "Dos flotas se enfrentan en un cinturón de asteroides."},
-  {"file": "last-night.json", "name": "La noche más larga", "theme": "Pueblo", "description": "Algo ataca las granjas de noche: planes del día, rumores falsos, secretos, hermanos que se lloran, objetos que cambian de manos y la llegada del ejército."},
-  {"file": "zombie-outbreak.json", "name": "Brote en Valdeoscuro", "theme": "Pueblo", "description": "Ejemplo corto (24 horas): una mordedura se convierte en epidemia que se contagia por la sangre; zombis que siguen pensando con el LLM, fichas de rol y tiradas, hambre y sueño, el monte en llamas, una votación para atrancar la iglesia y dos finales."}
+ {
+  "file": "zombie-siege.json",
+  "name": "El asedio de San Lorenzo",
+  "theme": "Pueblo",
+  "description": "Ejemplo largo (5 días): cada noche llega una horda y de día los muertos se aletargan; una radio que se repara juntando piezas, generador sin gasolina, un antídoto por descubrir que todos ven quién lleva, armas que caen con quien muere, una mordedura escondida, la Guardia frente a los del mercado, votaciones, fichas de rol y tres finales posibles."
+ },
+ {
+  "file": "los-santos.json",
+  "name": "Los Santos: guerra de barrios",
+  "theme": "Ciudad",
+  "description": "Guerra de bandas en una ciudad estilo GTA, pensada para partidas con jugadores (hasta 80): ocho barrios que se toman por mayoría y dan ingresos, peleas sin muertos con puñetazos que duelen (K.O. y hospital), policía que detiene a quien está en busca y captura, dinamita con mecha que hay que pasarle a otro a tiempo, sucesos que sueltan chalecos, botiquines o billetes, un maletín y una pistola maldita. Cada pandillero tiene su historia y sigue las órdenes de su jugador. Dos premios: la banda que manda en la ciudad y la Leyenda."
+ },
+ {
+  "file": "valdemora-ring.json",
+  "name": "El Anillo de Valdemora",
+  "theme": "Pueblo",
+  "description": "Solo puede ganar uno: muere el conde y quien conserve su anillo doce horas (o seis en el trono) será el señor. Logros con marcador, una daga maldita que aparece en el bosque, bolsillos desvalijados, venenos y espadas; si nadie lo logra, el senescal nombra al de más méritos."
+ },
+ {
+  "file": "kepler-station.json",
+  "name": "Estación Kepler-7",
+  "theme": "Nave espacial",
+  "description": "Ejemplo avanzado con todo: esporas que convierten a la tripulación, oxígeno que se agota, reparaciones, un laboratorio sellado, una fuga, secretos, rumores, una madre y su hijo, y la nave de rescate."
+ },
+ {
+  "file": "epidemic.json",
+  "name": "Outbreak",
+  "theme": "Pueblo",
+  "description": "Una enfermedad misteriosa se propaga por un pueblo (escenario incluido en Simcore)."
+ },
+ {
+  "file": "spaceship.json",
+  "name": "Derelict Signal",
+  "theme": "Nave espacial",
+  "description": "La tripulación de una nave recibe una señal de socorro de un pecio."
+ },
+ {
+  "file": "warehouse.json",
+  "name": "Peak Season",
+  "theme": "Almacén",
+  "description": "Un almacén logístico en plena campaña de Navidad."
+ },
+ {
+  "file": "factory.json",
+  "name": "The Strike",
+  "theme": "Fábrica",
+  "description": "Rumores de despidos y una posible huelga en una fábrica."
+ },
+ {
+  "file": "space-battle.json",
+  "name": "Battle of Kepler Belt",
+  "theme": "Batalla espacial",
+  "description": "Dos flotas se enfrentan en un cinturón de asteroides."
+ },
+ {
+  "file": "last-night.json",
+  "name": "La noche más larga",
+  "theme": "Pueblo",
+  "description": "Algo ataca las granjas de noche: planes del día, rumores falsos, secretos, hermanos que se lloran, objetos que cambian de manos y la llegada del ejército."
+ },
+ {
+  "file": "zombie-outbreak.json",
+  "name": "Brote en Valdeoscuro",
+  "theme": "Pueblo",
+  "description": "Ejemplo corto (24 horas): una mordedura se convierte en epidemia que se contagia por la sangre; zombis que siguen pensando con el LLM, fichas de rol y tiradas, hambre y sueño, el monte en llamas, una votación para atrancar la iglesia y dos finales."
+ }
 ]

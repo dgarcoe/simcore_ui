@@ -11,6 +11,7 @@ simulation:
   duration: 18 hours
   seed: 2
   language: es
+  exhaustion_place: Consultorio   # quien cae rendido de cansancio despierta aquí
   planning: true
   plan_every: 8
 llm:

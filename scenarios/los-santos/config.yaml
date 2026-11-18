@@ -6,7 +6,10 @@
 # of deaths (`society.lethal: false`), a winning group and person (`winner: group`, `{winner}`,
 # `{mvp}`), points and achievements, groups with perks (allies' bonus, common stash, mutual
 # defense), police driven by rules, stealing (`steal: one`), a coveted briefcase (`visible`,
-# `drops`), a cursed gun, recipes (`where`), orders for the demo cast. For a game with players,
+# `drops`), a cursed gun, dynamite with a fuse (`fuse`: lit when picked up, it goes off 3 ticks
+# later wherever it is: pass it on!), fists that hurt (`society.fists`), the exhausted waking up
+# in the hospital (`exhaustion_place`), points for knockouts and for giving things, recipes
+# (`where`), backstories and orders for the demo cast. For a game with players,
 # turn on `simulation.pause_each_day` so they get a report and change orders each night.
 # Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
 simulation:
@@ -25,6 +28,7 @@ simulation:
   plan_every: 12
   awareness: local
   pause_each_day: false   # true en partidas con jugadores: parte y órdenes nuevas cada noche
+  exhaustion_place: Hospital   # quien cae rendido de cansancio despierta en el hospital
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
@@ -65,6 +69,16 @@ items:
   comida: {description: tacos y refrescos, on_use: {energy: 0.3}}
   botiquin: {description: botiquín, on_use: {health: 0.3}}
   bate: {description: bate de béisbol, consumable: false, weapon: {damage: 0.35, chance: 0.7}}
+  chaleco: {description: chaleco antibalas de segunda mano, consumable: false, armor: 2}
+  bebida_energetica: {description: lata de bebida energética, on_use: {energy: 0.6, mood: 0.05}}
+  dinamita:
+    description: cartucho de dinamita; la mecha se enciende al cogerlo y estalla a las seis horas
+    consumable: false
+    fuse:
+      ticks: 3
+      on_holder: {health: -0.55}
+      on_others: {health: -0.25}
+      message: "¡BOOM! Estalla un cartucho de dinamita en {place}"
   maletin: {description: un maletín con el dinero del viejo jefe, consumable: false, visible: true, drops: true}
   pistola_del_jefe:
     description: la pistola chapada en oro del viejo jefe
@@ -173,6 +187,7 @@ actions:
 society:
   lethal: false
   knockout: {condition: noqueado, place: Hospital, health: 0.4}
+  fists: {damage: 0.2, chance: 0.65}   # un puñetazo duele
   healers: [médic, enfermer, sanitari]
   heal_removes: [noqueado]
 
@@ -203,6 +218,11 @@ scores:
     superviviente: {description: "Seguir en la calle al final", points: 3, when: {alive_at_end: true}}
     chivato: {description: "Dar un chivatazo", points: -3, repeat: true, when: {action: chivarse}}
     parado: {description: "Un día entero sin moverte", points: -2, when: {without: move, every: 12}}
+    tumbar: {description: "Tumbar a un rival en una pelea", points: 3, repeat: true, when: {knocks_out: true}}
+    mano: {description: "Dar tres cosas a otros (echar una mano o pasar la dinamita)", points: 3, when: {action: give, times: 3}}
+    enfermero: {description: "Curar a alguien", points: 2, repeat: true, when: {action: heal}}
+    blindado: {description: "Llevar un chaleco puesto", points: 1, when: {carries: chaleco}}
+    libre: {description: "Salir de la comisaría pagando", points: 1, repeat: true, when: {action: sobornar}}
 
 rules:
   - description: Amanece en Los Santos. El viejo jefe ha caído y las bandas salen a la calle.
@@ -224,9 +244,9 @@ rules:
     when: {territories: {gte: 5, ticks: 6}}
     once: true
     then: {end: "{winner} se quedan con Los Santos. La Leyenda de la ciudad es {mvp}."}
-  # O alguien llega a 60 de respeto y se corona.
-  - description: "{winner} llega a 60 de respeto. Ya nadie discute quién manda."
-    when: {score: {gte: 60}}
+  # O alguien llega a 80 de respeto y se corona.
+  - description: "{winner} llega a 80 de respeto. Ya nadie discute quién manda."
+    when: {score: {gte: 80}}
     once: true
     then: {end: "{winner} se proclama rey de Los Santos, aunque su banda no lo haya conseguido."}
   # Si no, al final del tercer día gana la banda con más respeto.
@@ -242,6 +262,11 @@ rules:
 
 events:
   scheduled:
+    - tick: 3
+      type: dynamite
+      description: Un furgón de obras pierde una caja de dinamita en El Polígono. Quien coja un cartucho tendrá seis horas.
+      effects:
+        items: {"location:El Polígono": {dinamita: 2}}
     - tick: 5
       type: delivery
       description: Un camión con contrabando atraca de noche en El Puerto.
@@ -252,25 +277,61 @@ events:
       description: Alguien jura haber visto la pistola del viejo jefe en El Polígono.
       effects:
         items: {"location:El Polígono": {pistola_del_jefe: 1}}
+    - tick: 10
+      type: sale
+      description: Liquidación en una tienda de El Mercado. Chalecos antibalas a precio de saldo, o gratis si nadie mira.
+      effects:
+        items: {"location:El Mercado": {chaleco: 3}}
     - tick: 13
       type: rumor
       description: Corre la voz de que hay un chivato en una de las bandas.
       effects:
         rumor: {all: {text: Uno de los del Puerto habla con la policía, true: false}}
+    - tick: 15
+      type: truck
+      description: Vuelca un camión de bebidas energéticas en El Paseo. Latas por todo el suelo.
+      effects:
+        items: {"location:El Paseo": {bebida_energetica: 6}}
     - tick: 17
       type: briefcase
       description: El maletín con el dinero del viejo jefe aparece en Las Afueras.
       effects:
         items: {"location:Las Afueras": {maletin: 1}}
+    - tick: 20
+      type: supplies
+      description: Llega un cargamento de botiquines al Hospital.
+      effects:
+        items: {"location:Hospital": {botiquin: 4}}
+    - tick: 22
+      type: bag
+      description: Alguien ha dejado una mochila sospechosa en El Club. Dentro, un cartucho de dinamita.
+      effects:
+        items: {"location:El Club": {dinamita: 1}}
+    - tick: 25
+      type: armored
+      description: Un furgón blindado se estrella en Las Afueras y deja billetes por la cuneta.
+      effects:
+        items: {"location:Las Afueras": {dinero: 10}}
     - tick: 28
       type: raid
       description: Redada policial. Cierran El Club durante cuatro horas.
       effects: {locations: {El Club: {closed: true}}, redada: true}
+    - tick: 30
+      type: workshop
+      description: El Taller recibe un pedido de piezas y bates nuevos. Nadie ha preguntado quién lo paga.
+      effects:
+        items: {"location:El Taller": {bate: 2, piezas: 3}}
+    - tick: 33
+      type: dynamite
+      description: Última noche. Alguien reparte dinamita en Las Torres para acabar la guerra a lo grande.
+      effects:
+        items: {"location:Las Torres": {dinamita: 2}}
 
 agents:
   # Los Motoristas
   - {name: Toro, age: 41, profession: mecánico, starting_location: El Taller, faction: Los Motoristas,
-     goals: [Que Los Motoristas manden en la ciudad, Quedarse con El Polígono],
+     backstory: "Fue mecánico de motos de carreras hasta que una apuesta amañada le costó la licencia y le dejó una cicatriz en la ceja. Montó Los Motoristas con los chavales del taller y les enseñó que en Los Santos solo se respeta a quien no se echa atrás. El viejo jefe le prometió El Polígono y nunca cumplió: ahora piensa cobrárselo.",
+     goals: [Que Los Motoristas manden en la ciudad, Quedarse con El Polígono y su desguace, Que nadie vuelva a tomarle el pelo],
      attributes: {strength: 15, dexterity: 11, constitution: 14, intelligence: 9, wisdom: 10, charisma: 13},
      skills: [athletics, intimidation], resources: {bate: 1, dinero: 2},
      personality: {extraversion: 0.7, agreeableness: 0.3, neuroticism: 0.4},
@@ -278,85 +339,100 @@ agents:
               red_lines: [{action: attack, target: my_group}, {action: leave}],
               plans: [{when: {group_territories: {lte: 1}}, then: "Reúne a la banda y tomad El Polígono"}]}}
   - {name: Chispa, age: 24, profession: mecánica, starting_location: El Taller, faction: Los Motoristas,
-     goals: [Ser la leyenda de Los Santos, Que nadie toque su moto],
+     backstory: "Se crio entre motores y sabe arrancar cualquier coche en diez segundos. Es la más rápida de la banda y la que menos habla. Quiere que su nombre se cuente en los bares antes que el de Toro, aunque nunca se lo diría a la cara.",
+     goals: [Ser la leyenda de Los Santos, Que nadie toque su moto, Encontrar el maletín antes que nadie y desaparecer con él un día entero],
      attributes: {strength: 11, dexterity: 15, constitution: 11, intelligence: 12, wisdom: 10, charisma: 11},
      skills: [stealth, sleight_of_hand], resources: {dinero: 1},
      orders: {style: sigiloso, priorities: [ser la leyenda, que gane mi banda], risk: careful,
               plans: [{when: {carries: maletin}, then: "Escóndete en Las Torres con el maletín"}]}}
   - {name: Grasa, age: 33, profession: conductor, starting_location: El Puerto, faction: Los Motoristas,
-     goals: [Ganar dinero, Que Toro le haga su mano derecha],
+     backstory: "Conductor de grúa de día y de lo que haga falta de noche. Lleva diez años haciendo los trabajos sucios de Toro sin quejarse y está harto de ser el segundón. Cuenta cada billete y sabe a quién le debe cuánto.",
+     goals: [Ganar dinero con los encargos de mercancía, Que Toro le haga su mano derecha, Retirarse antes de los cuarenta],
      attributes: {strength: 12, dexterity: 12, constitution: 13, intelligence: 11, wisdom: 11, charisma: 10},
      skills: [athletics, perception],
      orders: {style: empresario, priorities: [ganar dinero, que gane mi banda], risk: careful}}
   - {name: Lupe, age: 29, profession: sanitaria, starting_location: Las Torres, faction: Los Motoristas,
-     goals: [Que nadie de su banda se quede tirado, Ser respetada],
+     backstory: "Sanitaria del turno de noche del Hospital, conoce a todos los heridos de la ciudad por su nombre. Entró en Los Motoristas por su hermano pequeño y se quedó para que nadie de la banda se desangrara en una esquina. Lleva siempre un botiquín y odia a los chivatos.",
+     goals: [Que nadie de su banda se quede tirado, Ser respetada sin tener que pegar a nadie, Sacar a su hermano de la calle cuando acabe la guerra],
      attributes: {strength: 10, dexterity: 11, constitution: 12, intelligence: 13, wisdom: 14, charisma: 11},
      skills: [medicine, insight], resources: {botiquin: 1},
      orders: {style: leal, priorities: [que gane mi banda, no caer nunca], risk: careful,
               red_lines: [{action: chivarse}]}}
   # Los del Puerto
   - {name: Marea, age: 45, profession: estibadora, starting_location: El Puerto, faction: Los del Puerto,
-     goals: [Que todo lo que entra por mar pase por ella, Que Los del Puerto ganen],
+     backstory: "Lleva veinte años descargando barcos y sabe qué contenedor viene vacío y cuál no. Es la que manda en El Puerto desde que el viejo jefe se jubiló, aunque nadie lo haya firmado. Habla poco, paga a tiempo y no perdona una traición.",
+     goals: [Que todo lo que entra por mar pase por ella, Que Los del Puerto ganen la guerra, Descubrir quién de los suyos habla con la policía],
      attributes: {strength: 14, dexterity: 10, constitution: 14, intelligence: 12, wisdom: 12, charisma: 13},
      skills: [intimidation, athletics], resources: {bate: 1, mercancia: 2},
      orders: {style: leal, priorities: [que gane mi banda], risk: bold, red_lines: [{action: leave}]}}
   - {name: Ancla, age: 38, profession: estibador, starting_location: El Puerto, faction: Los del Puerto,
-     goals: [Proteger El Puerto, Vengarse de Toro],
+     backstory: "Estibador con brazos como amarras y paciencia corta. Hace años Toro le rompió la nariz en una pelea por una carga de piezas y todavía respira mal. Es leal a Marea hasta la muerte, pero su guerra es personal.",
+     goals: [Proteger El Puerto de cualquiera que se acerque, Vengarse de Toro y tumbarlo delante de su banda, Que Marea le confíe el próximo cargamento],
      attributes: {strength: 16, dexterity: 9, constitution: 15, intelligence: 9, wisdom: 10, charisma: 9},
      skills: [athletics, intimidation],
      relationships: {Toro: {type: enemigo, sentiment: -0.6}},
      orders: {style: agresivo, priorities: [que gane mi banda], risk: reckless}}
   - {name: Rata, age: 22, profession: ratero, starting_location: El Mercado, faction: Los del Puerto,
-     goals: [Ser la leyenda de Los Santos, No volver a la comisaría],
+     backstory: "Ratero desde los doce años, rápido de manos y de lengua. La policía le pilló hace meses y desde entonces les pasa información para que le dejen en paz; si su banda se entera, está acabado. Sobrevive cambiando de amigos según sople el viento.",
+     goals: [Ser la leyenda de Los Santos sin que nadie sepa cómo, No volver a pisar la comisaría, Que nunca se descubra su secreto],
      attributes: {strength: 9, dexterity: 16, constitution: 10, intelligence: 13, wisdom: 12, charisma: 10},
      skills: [sleight_of_hand, stealth], secrets: [Habla con la policía a cambio de que le dejen en paz],
      orders: {style: oportunista, priorities: [ser la leyenda, no caer nunca], risk: careful,
               plans: [{when: {day: 3, group_rank: {gte: 3}}, then: "Deja a Los del Puerto y únete a la banda que vaya primera"}]}}
   - {name: Sirena, age: 31, profession: contrabandista, starting_location: Las Afueras, faction: Los del Puerto,
-     goals: [Hacer el negocio de su vida, Que Marea confíe en ella],
+     backstory: "Contrabandista de guante blanco: mueve cajas entre el puerto y Las Afueras y nunca se mancha las manos. Sueña con un último gran negocio que la saque de la ciudad. Cree que Marea la subestima y quiere demostrarle lo contrario.",
+     goals: [Hacer el negocio de su vida en Las Afueras, Que Marea confíe en ella, Tener más dinero que nadie de su banda],
      attributes: {strength: 10, dexterity: 13, constitution: 11, intelligence: 14, wisdom: 12, charisma: 14},
      skills: [persuasion, deception],
      orders: {style: negociador, priorities: [ganar dinero, que gane mi banda], risk: careful}}
   # La Familia
   - {name: Don Paco, age: 62, profession: dueño de un bar, starting_location: El Mercado, faction: La Familia,
-     goals: [Que La Familia vuelva a mandar, Encontrar a quien tumbó al viejo jefe],
+     backstory: "Dueño del bar del Mercado y mano derecha del viejo jefe durante treinta años. Sabe dónde está enterrado cada secreto de la ciudad, a veces literalmente. Está convencido de que a su amigo lo tumbó alguien de dentro y no descansará hasta saber quién.",
+     goals: [Que La Familia vuelva a mandar como antes, Encontrar a quien tumbó al viejo jefe, Mantener la paz en El Mercado pase lo que pase],
      attributes: {strength: 9, dexterity: 9, constitution: 10, intelligence: 15, wisdom: 15, charisma: 16},
      skills: [persuasion, insight], resources: {dinero: 6},
      orders: {style: negociador, priorities: [que gane mi banda], risk: careful, red_lines: [{action: chivarse}]}}
   - {name: Nena, age: 27, profession: camarera, starting_location: El Club, faction: La Familia,
-     goals: [Ser la leyenda de Los Santos, Que Don Paco la respete],
+     backstory: "Camarera en El Club y ahijada de Don Paco. Escucha todo lo que se dice en la barra y lo apunta en una libreta. Está cansada de que la vean como la niña de la Familia y quiere un nombre propio.",
+     goals: [Ser la leyenda de Los Santos, Que Don Paco la respete como a una igual, Robarle algo a cada banda sin que se den cuenta],
      attributes: {strength: 11, dexterity: 14, constitution: 11, intelligence: 12, wisdom: 11, charisma: 13},
      skills: [stealth, deception],
      orders: {style: sigiloso, priorities: [ser la leyenda], risk: bold}}
   - {name: Tito, age: 35, profession: portero de discoteca, starting_location: El Club, faction: La Familia,
-     goals: [Que nadie entre en El Club sin permiso, Ganar respeto],
+     backstory: "Portero de El Club desde que tiene memoria. No deja pasar a nadie sin permiso y ha tumbado a más gente de la que puede contar. Le debe la vida a Abuela Rosa, que le sacó de un lío de deudas, y haría cualquier cosa por La Familia.",
+     goals: [Que nadie entre en El Club sin permiso, Ganar respeto tumbando a quien amenace a la Familia, Proteger a Abuela Rosa],
      attributes: {strength: 15, dexterity: 10, constitution: 15, intelligence: 9, wisdom: 11, charisma: 10},
      skills: [athletics, intimidation], resources: {bate: 1},
      orders: {style: leal, priorities: [que gane mi banda], risk: bold, red_lines: [{action: attack, target: my_group}]}}
   - {name: Abuela Rosa, age: 74, profession: prestamista, starting_location: Las Torres, faction: La Familia,
-     goals: [Que todo el barrio le deba dinero, Que La Familia gane],
+     backstory: "Presta dinero en Las Torres desde antes de que existieran las bandas. Media ciudad le debe algo y la otra media le debe algo a alguien que le debe algo a ella. Parece una abuelita inofensiva, y precisamente por eso nadie la ve venir.",
+     goals: [Que todo el barrio le deba dinero, Que La Familia gane sin manchar su nombre, Cobrar las deudas del viejo jefe antes que nadie],
      attributes: {strength: 7, dexterity: 9, constitution: 9, intelligence: 16, wisdom: 16, charisma: 14},
      skills: [insight, persuasion], resources: {dinero: 8},
      orders: {style: empresario, priorities: [ganar dinero, que gane mi banda], risk: careful}}
   # Los Niños Bien
   - {name: Borja, age: 26, profession: heredero, starting_location: El Paseo, faction: Los Niños Bien,
-     goals: [Comprar la ciudad, Que papá esté orgulloso],
+     backstory: "Heredero de una constructora que quiere levantar torres de lujo donde hoy están los barrios. Su padre le dio un año para demostrar que vale; él ha decidido demostrarlo comprando la ciudad a billetazos. Cree que todo tiene precio, incluidos los enemigos.",
+     goals: [Comprar la ciudad barrio a barrio, Que papá esté orgulloso, Sobornar a quien haga falta antes de pelear],
      attributes: {strength: 10, dexterity: 11, constitution: 11, intelligence: 12, wisdom: 9, charisma: 15},
      skills: [persuasion, intimidation], resources: {dinero: 10},
      orders: {style: negociador, priorities: [que gane mi banda, ser la leyenda], risk: bold}}
   - {name: Cayetana, age: 24, profession: influencer, starting_location: El Paseo, faction: Los Niños Bien,
-     goals: [Ser la leyenda de Los Santos, Grabarlo todo],
+     backstory: "Influencer con un millón de seguidores que ha descubierto que la guerra de bandas da muchas visitas. Lo graba todo, sobre todo lo que no debería. Quiere ser la cara de Los Santos y no le importa de qué banda sea al final.",
+     goals: [Ser la leyenda de Los Santos, Grabarlo todo y hacerse viral, Estar donde estalle la próxima bronca],
      attributes: {strength: 9, dexterity: 13, constitution: 10, intelligence: 13, wisdom: 12, charisma: 16},
      skills: [deception, persuasion],
      orders: {style: oportunista, priorities: [ser la leyenda], risk: bold,
               plans: [{when: {my_rank: {lte: 3}}, then: "Haz pintadas en todos los barrios y que se vea"}]}}
   - {name: Íñigo, age: 28, profession: boxeador amateur, starting_location: El Paseo, faction: Los Niños Bien,
-     goals: [Demostrar que no es solo un niño bien, Que Los Niños Bien ganen],
+     backstory: "Boxeador amateur que dejó la universidad para entrenar. Harto de que le llamen niño bien en el gimnasio, quiere que la calle le respete a puñetazos. Es el músculo de su banda y lo sabe.",
+     goals: [Demostrar que no es solo un niño bien, Que Los Niños Bien ganen, Tumbar a Ancla en una pelea limpia],
      attributes: {strength: 15, dexterity: 13, constitution: 13, intelligence: 10, wisdom: 9, charisma: 11},
      skills: [athletics, intimidation],
      orders: {style: agresivo, priorities: [que gane mi banda], risk: reckless}}
   - {name: Pipo, age: 23, profession: estudiante, starting_location: El Club, faction: Los Niños Bien,
-     goals: [Que no se entere su madre, Ganar dinero rápido],
+     backstory: "Estudiante de Económicas que vende lo que haga falta en las fiestas del Club. Se metió en Los Niños Bien por un favor a Borja y ahora no sabe cómo salir. Su madre cree que está en la biblioteca.",
+     goals: [Que no se entere su madre, Ganar dinero rápido y pagar la matrícula, Salir de la guerra sin un rasguño],
      attributes: {strength: 9, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 11, charisma: 12},
      skills: [stealth, investigation],
      orders: {style: empresario, priorities: [ganar dinero, no caer nunca], risk: careful}}

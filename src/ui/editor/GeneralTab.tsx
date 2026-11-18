@@ -71,6 +71,15 @@ export function GeneralTab() {
           <input type="checkbox" checked={sim.exhaustion !== false} onChange={(e) => update((d) => void (e.target.checked ? delete d.simulation.exhaustion : (d.simulation.exhaustion = false)))} />
           Agotamiento (sin energía, a descansar)
         </label>
+        {sim.exhaustion !== false && (
+          <label title="Quien cae rendido despierta allí con energía (un hospital, su casa). Vacío: descansa donde cayó">
+            Quien cae rendido despierta en
+            <select className="select" value={sim.exhaustion_place ?? ''} onChange={(e) => update((d) => void (e.target.value ? (d.simulation.exhaustion_place = e.target.value) : delete d.simulation.exhaustion_place))}>
+              <option value="">(donde cayó)</option>
+              {draft.environment.locations.map((l) => <option key={l.name}>{l.name}</option>)}
+            </select>
+          </label>
+        )}
         <label className="toggle" title="Guarda en la grabación lo que el modelo vio y respondió en cada decisión, para revisarlo en la ficha del agente al ver la repetición. Ocupa mucho: para depurar.">
           <input type="checkbox" checked={!!draft.llm?.record_prompts} onChange={(e) => update((d) => void (e.target.checked ? ((d.llm ??= {}).record_prompts = true) : delete d.llm?.record_prompts))} />
           Guardar los prompts (depuración)

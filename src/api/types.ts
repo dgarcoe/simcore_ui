@@ -47,6 +47,7 @@ export type EventType =
   | 'score_change'
   | 'territory_change'
   | 'decision_trace'
+  | 'item_fuse'
   | 'agent_knockout'
   | 'orders'
   | 'intermission';

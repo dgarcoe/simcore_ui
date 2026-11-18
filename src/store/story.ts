@@ -103,6 +103,10 @@ export function scoreEvent(e: SimEvent): Moment | null {
     case 'territory_change':
       if (d.contested || d.owner === d.previous || !d.owner) return null;
       return m(0.6, `${str(d.owner)} toma ${str(d.place)}${d.previous ? ` (era de ${str(d.previous)})` : ''}`, [], str(d.place));
+    case 'item_fuse': {
+      const hurt = Array.isArray(d.hurt) ? (d.hurt as unknown[]).map(str) : [];
+      return m(0.8, `💥 ${str(d.message) || `${str(d.item)} estalla`}${hurt.length ? ` (${hurt.join(', ')})` : ''}`, [str(d.agent), ...hurt], str(d.location));
+    }
     case 'agent_knockout': {
       const who = str(d.agent ?? e.source);
       return m(0.5, `${who} queda K.O.${d.cause ? ` (${str(d.cause)})` : ''}`, [who]);

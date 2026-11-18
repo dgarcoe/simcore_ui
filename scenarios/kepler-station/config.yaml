@@ -15,6 +15,7 @@ simulation:
   duration: 36 hours
   seed: 2
   language: es
+  exhaustion_place: Camarotes   # quien cae rendido de cansancio despierta aquí
   story: true
   chapter_every: 8
   planning: true
@@ -123,6 +124,11 @@ actions:
     message: ordena sellar el laboratorio
 
 items:
+  celula_inestable:
+    description: célula de combustible agrietada; al moverla se activa y revienta a las cuatro horas
+    consumable: false
+    fuse: {ticks: 4, on_holder: {health: -0.5}, on_others: {health: -0.2},
+           message: "La célula de combustible revienta en {place}"}
   racion: {description: ración de comida, on_use: {energy: 0.3, mood: 0.05}}
   medkit: {description: botiquín, on_use: {health: 0.4}, cures: [herido]}
   sedante: {description: sedante, on_use: {mood: 0.2}, cures: [en_panico]}
@@ -263,6 +269,11 @@ agents:
 
 events:
   scheduled:
+    - tick: 20
+      type: hazard
+      description: En la sala de máquinas aparece una célula de combustible agrietada. Si alguien la toca, cuenta atrás.
+      effects:
+        items: {"location:Sala de máquinas": {celula_inestable: 1}}
     - tick: 4
       type: rumor
       description: En el comedor alguien comenta lo que vio en el laboratorio.

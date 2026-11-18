@@ -801,6 +801,12 @@ export class WorldScene extends Phaser.Scene {
         else this.map.zones.forEach((z) => this.flashZone(z, 0xb13e53, 2));
         break;
       }
+      case 'item_fuse': {
+        this.cameras.main.shake(450, 0.009);
+        const zone = this.zones.get(String(e.data.location ?? ''));
+        if (zone) this.flashZone(zone, 0xffcd75, 4);
+        break;
+      }
       case 'simulation_start':
         this.resetAgents();
         break;

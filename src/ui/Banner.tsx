@@ -15,7 +15,7 @@ export function Banner() {
   }, [banner]);
 
   if (!banner || visible !== banner.id) return null;
-  const title = { injected: '¡ÚLTIMA HORA!', end: 'FIN', death: 'BAJA', arrival: 'LLEGADA', scheduled: 'SUCESO', transform: 'TRANSFORMACIÓN', vote: 'VOTACIÓN', level: 'EXPERIENCIA', territory: w.territory.toUpperCase(), day: 'FIN DE LA JORNADA' }[banner.kind];
+  const title = { injected: '¡ÚLTIMA HORA!', end: 'FIN', death: 'BAJA', arrival: 'LLEGADA', scheduled: 'SUCESO', transform: 'TRANSFORMACIÓN', vote: 'VOTACIÓN', level: 'EXPERIENCIA', territory: w.territory.toUpperCase(), day: 'FIN DE LA JORNADA', explosion: '¡EXPLOSIÓN!' }[banner.kind];
   return (
     <div className={`banner banner-${banner.kind}`} role="status" onClick={() => setVisible(null)}>
       <span className="banner-title">{title}</span>

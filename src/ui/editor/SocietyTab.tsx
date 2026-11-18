@@ -128,6 +128,16 @@ export function SocietyTab() {
           </label>
         </div>
       )}
+      <div className="row wrap" title="Atacar sin arma: cuánta salud quita un puñetazo y qué probabilidad tiene de entrar">
+        <label>
+          Daño de un puñetazo
+          <input className="input" type="number" step={0.05} min={0} max={1} style={{ width: 70 }} value={society.fists?.damage ?? 0.1} onChange={(e) => update((d) => void ((d.society ??= {}).fists = { ...d.society!.fists, damage: Number(e.target.value) }))} />
+        </label>
+        <label>
+          Probabilidad de acertar
+          <input className="input" type="number" step={0.05} min={0} max={1} style={{ width: 70 }} value={society.fists?.chance ?? 0.6} onChange={(e) => update((d) => void ((d.society ??= {}).fists = { ...d.society!.fists, chance: Number(e.target.value) }))} />
+        </label>
+      </div>
       <form
         className="row"
         onSubmit={(e) => {

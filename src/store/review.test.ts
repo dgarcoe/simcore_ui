@@ -62,7 +62,8 @@ describe('reviewing Los Santos', () => {
 
   it('sums a run up to compare it with another', () => {
     const s = summarizeRun('Los Santos', events, file.config);
-    expect(s.winner).toBe('Los Niños Bien');
+    expect(s.winner).toBe(file.events.at(-1).data.winner);
+    expect(s.winner).toBeTruthy();
     expect(s.ticks).toBe(36);
     expect(s.useful).toBeLessThanOrEqual(s.decisions);
     expect(Object.keys(s.styles).length).toBeGreaterThan(2);

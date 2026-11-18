@@ -167,6 +167,8 @@ export interface ItemConfig {
   drops?: boolean;
   /** Cursed: a condition while carried; sticky ones can't be let go; broken by an item or action. */
   curse?: { condition: string; sticky?: boolean; broken_by?: string[]; description?: string };
+  /** Lit when someone picks it up; goes off `ticks` later wherever it is (dynamite). */
+  fuse?: { ticks?: number; on_holder?: Outcome; on_others?: Outcome; message?: string };
 }
 
 /** What earns (or loses) an achievement's points. */
@@ -181,6 +183,8 @@ export interface AchievementWhen {
   every?: number;
   /** Being there when your group takes a territory. */
   captures?: boolean;
+  /** Knocking someone out (or killing them) in a fight. */
+  knocks_out?: boolean;
   /** Being in a territory your group holds (with repeat: each `every` ticks). */
   in_territory?: boolean;
 }
@@ -223,6 +227,8 @@ export interface SocietyConfig {
   /** false: nobody dies; whoever would die is knocked out (see knockout). */
   lethal?: boolean;
   knockout?: { condition?: string; place?: string; health?: number };
+  /** Attacking without a weapon: health it takes and chance of landing it. */
+  fists?: { damage?: number; chance?: number };
   healers?: string[];
   heal_removes?: string[];
 }
@@ -322,6 +328,8 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'gangs', label: 'territorios, peleas sin muertes o banda y persona ganadoras' });
   if (cfg.agents.some((a) => a.orders) || cfg.simulation.pause_each_day)
     out.push({ feature: 'orders', label: 'órdenes de los jugadores o jornadas con pausa' });
+  if (Object.values(cfg.items ?? {}).some((i) => i.fuse) || cfg.society?.fists || cfg.simulation.exhaustion_place || Object.values(cfg.scores?.achievements ?? {}).some((a) => a.when?.knocks_out))
+    out.push({ feature: 'fuses', label: 'objetos con mecha, puñetazos, puntos por tumbar o lugar al agotarse' });
   if (cfg.llm?.record_prompts) out.push({ feature: 'review', label: 'guardar los prompts de cada decisión' });
   return out;
 }
@@ -385,6 +393,8 @@ export interface ScenarioConfig {
     pause_each_day?: boolean;
     /** false: an agent with no energy left may go on acting (only a warning). */
     exhaustion?: boolean;
+    /** Where a collapsed agent wakes up with energy back (a hospital); empty: where it fell. */
+    exhaustion_place?: string;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {
@@ -860,6 +870,8 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
   const ko = cfg.society?.knockout;
   if (ko?.condition) need([ko.condition], 'El K.O.', 'society');
   if (ko?.place && !places.has(ko.place)) issues.push({ path: 'society', message: `Tras un K.O. se despierta en «${ko.place}», que no existe.` });
+  const tired = cfg.simulation.exhaustion_place;
+  if (tired && !places.has(tired)) issues.push({ path: 'simulation.exhaustion_place', message: `Quien cae rendido despierta en «${tired}», que no existe.` });
   if ((cfg.rules ?? []).some((r) => allTests(r.when).some((w) => w.territories)) && !cfg.environment.locations.some((l) => l.territory))
     issues.push({ path: 'rules', message: 'Una regla cuenta territorios, pero ningún lugar es territorio.' });
   for (const [k, it] of Object.entries(cfg.items ?? {})) {
@@ -876,7 +888,7 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     if (Array.isArray(w.visited)) for (const p of w.visited) if (!places.has(p)) issues.push({ path: `scores.${k}`, message: `${where} visita «${p}», que no existe.` });
     if (w.carries && !cfg.items?.[w.carries]) issues.push({ path: `scores.${k}`, message: `${where} mira «${w.carries}», que no está en el catálogo de objetos.` });
     if (w.condition) need([w.condition], where, `scores.${k}`);
-    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without && !w.captures && !w.in_territory)
+    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without && !w.captures && !w.in_territory && !w.knocks_out)
       issues.push({ path: `scores.${k}`, message: `${where} no dice qué lo consigue (when).` });
   }
   const agentNames = new Set(cfg.agents.map((a) => a.name));

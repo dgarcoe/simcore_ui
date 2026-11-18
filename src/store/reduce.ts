@@ -54,7 +54,7 @@ export interface Post {
 export interface Banner {
   id: number;
   tick: number;
-  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote' | 'level' | 'territory' | 'day';
+  kind: 'scheduled' | 'injected' | 'end' | 'death' | 'arrival' | 'transform' | 'vote' | 'level' | 'territory' | 'day' | 'explosion';
   text: string;
   location: string;
 }
@@ -645,6 +645,16 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         next = { ...next, posts: [...next.posts.slice(-100), { tick: e.tick, author: e.source, text: action.content }] };
       }
       return next;
+    }
+    case 'item_fuse': {
+      const d = e.data as { item: string; agent: string; location: string; hurt?: string[]; message?: string };
+      const hurt = (d.hurt ?? []).filter(Boolean);
+      const text = `💥 ${d.message || `${d.item} estalla en ${d.location}`}${hurt.length ? ` — alcanza a ${hurt.join(', ')}` : ''}`;
+      return {
+        ...next,
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: d.agent || '' }),
+        banner: { id: seq, tick: e.tick, kind: 'explosion', text, location: d.location },
+      };
     }
     case 'decision_trace':
       return next; // reviewed in the agent's record, not in the feed

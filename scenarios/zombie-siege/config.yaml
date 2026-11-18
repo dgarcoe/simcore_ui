@@ -30,6 +30,7 @@ simulation:
   duration: 120 hours
   seed: 22
   language: es
+  exhaustion_place: Hospital   # quien cae rendido de cansancio despierta aquí
   story: true
   rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
   chapter_every: 24
@@ -192,6 +193,11 @@ actions:
     message: rocía de gasolina las fosas y les prende fuego
 
 items:
+  dinamita:
+    description: cartucho de dinamita de la mina; la mecha se enciende al cogerlo y estalla a las tres horas
+    consumable: false
+    fuse: {ticks: 3, on_holder: {health: -0.6}, on_others: {health: -0.4},
+           message: "¡BOOM! La dinamita estalla en {place}"}
   comida: {description: comida en conserva, on_use: {energy: 0.3, mood: 0.05}}
   medicina: {description: botiquín, on_use: {health: 0.35}, cures: [herido]}
   calmante: {description: calmantes, on_use: {mood: 0.2}, cures: [en_panico]}
@@ -572,6 +578,11 @@ agents:
 
 events:
   scheduled:
+    - tick: 40
+      type: supplies
+      description: La Guardia encuentra en su cuartel dos cartuchos de dinamita de la mina. Llevarlos donde esté la horda puede salvar el pueblo, o volarlo.
+      effects:
+        items: {"location:Cuartel de la Guardia": {dinamita: 2}}
     - tick: 3
       type: rumor
       description: En el mercado se habla del cementerio.

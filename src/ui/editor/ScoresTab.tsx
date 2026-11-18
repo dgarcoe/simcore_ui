@@ -4,7 +4,7 @@ import { ChipPicker } from './ChipPicker';
 import { useDraft } from './draft';
 import { prune } from './RulesWidgets';
 
-type Kind = 'action' | 'visited' | 'carries' | 'condition' | 'alive_at_end' | 'without' | 'captures' | 'in_territory';
+type Kind = 'action' | 'visited' | 'carries' | 'condition' | 'alive_at_end' | 'without' | 'captures' | 'in_territory' | 'knocks_out';
 
 const KINDS: Array<[Kind, string]> = [
   ['action', 'Hacer una acción'],
@@ -14,12 +14,14 @@ const KINDS: Array<[Kind, string]> = [
   ['alive_at_end', 'Seguir vivo al final'],
   ['without', 'Pasar tiempo sin hacer algo (penaliza)'],
   ['captures', 'Tomar un territorio para su grupo'],
+  ['knocks_out', 'Tumbar a alguien en una pelea'],
   ['in_territory', 'Estar en un territorio de su grupo'],
 ];
 
 function kindOf(w: AchievementWhen): Kind {
   if (w.without) return 'without';
   if (w.captures) return 'captures';
+  if (w.knocks_out) return 'knocks_out';
   if (w.in_territory) return 'in_territory';
   if (w.visited !== undefined) return 'visited';
   if (w.carries) return 'carries';
@@ -42,7 +44,7 @@ export function ScoresTab() {
     });
   const setKind = (key: string, kind: Kind) =>
     set(key, (a) => {
-      a.when = kind === 'action' ? { action: actions[0] ?? 'move' } : kind === 'visited' ? { visited: 'all' } : kind === 'carries' ? { carries: Object.keys(draft.items ?? {})[0] ?? '' } : kind === 'condition' ? { condition: Object.keys(draft.conditions ?? {})[0] ?? '' } : kind === 'alive_at_end' ? { alive_at_end: true } : kind === 'captures' ? { captures: true } : kind === 'in_territory' ? { in_territory: true, every: 2 } : { without: 'work', every: 24 };
+      a.when = kind === 'action' ? { action: actions[0] ?? 'move' } : kind === 'visited' ? { visited: 'all' } : kind === 'carries' ? { carries: Object.keys(draft.items ?? {})[0] ?? '' } : kind === 'condition' ? { condition: Object.keys(draft.conditions ?? {})[0] ?? '' } : kind === 'alive_at_end' ? { alive_at_end: true } : kind === 'captures' ? { captures: true } : kind === 'knocks_out' ? { knocks_out: true } : kind === 'in_territory' ? { in_territory: true, every: 2 } : { without: 'work', every: 24 };
       if (kind === 'without' && (a.points ?? 1) > 0) a.points = -1;
     });
 

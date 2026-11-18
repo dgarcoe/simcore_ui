@@ -159,6 +159,7 @@ export function categoryOf(m: Moment, hostile: Set<string> = new Set()): string 
       return 'deaths';
     case 'agent_knockout':
     case 'dice_roll':
+    case 'item_fuse':
       return 'fights';
     case 'agent_action':
       return (m.action && hostile.has(m.action)) || / ataca a /.test(m.text) ? 'fights' : 'story';

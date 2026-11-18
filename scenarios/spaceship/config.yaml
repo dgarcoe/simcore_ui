@@ -8,6 +8,7 @@ simulation:
   duration: 2 days
   seed: 11
   language: en
+  exhaustion_place: Crew Quarters   # where an exhausted agent wakes up
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b

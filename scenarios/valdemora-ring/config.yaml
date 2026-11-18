@@ -19,6 +19,7 @@ simulation:
   duration: 72 hours
   seed: 4
   language: es
+  exhaustion_place: Taberna del pueblo   # quien cae rendido de cansancio despierta aquí
   rpg: true
   story: true
   chapter_every: 12
@@ -48,6 +49,11 @@ environment:
     - {name: Bosque, type: outdoor, position: [10, 11], capacity: 20, stock: {veneno: 1}}
 
 items:
+  barril_polvora:
+    description: barril de pólvora con la mecha corta; quien lo mueva la enciende y estalla a las tres horas
+    consumable: false
+    fuse: {ticks: 3, on_holder: {health: -0.6}, on_others: {health: -0.3},
+           message: "¡Un barril de pólvora revienta en {place}!"}
   anillo: {description: el anillo de plata del conde; quien lo conserve doce horas será el señor, consumable: false, visible: true, drops: true}
   oro: {description: monedas de oro}
   espada: {description: espada, consumable: false, weapon: {damage: 0.5, chance: 0.6}}
@@ -150,6 +156,7 @@ society:
 # Puntos y logros: los herederos ven su marcador y qué da prestigio.
 scores:
   achievements:
+    duelo: {description: "Derribar a alguien en combate", points: 2, repeat: true, when: {knocks_out: true}}
     castillo: {description: "Recorrer todo el castillo y el pueblo", points: 5, when: {visited: all}}
     anillo: {description: "Cada tres horas con el anillo", points: 3, repeat: true, when: {carries: anillo, every: 3}}
     rateria: {description: "Cada bolsillo desvalijado", points: 1, repeat: true, when: {action: desvalijar}}
@@ -195,6 +202,11 @@ rules:
 
 events:
   scheduled:
+    - tick: 30
+      type: hazard
+      description: Un contrabandista esconde un barril de pólvora en las mazmorras. Quien lo mueva encenderá la mecha.
+      effects:
+        items: {"location:Mazmorras": {barril_polvora: 1}}
     - tick: 6
       type: rumor
       description: En las cocinas se cuchichea sobre el mayordomo.
