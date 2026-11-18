@@ -79,6 +79,7 @@ export function LocationsTab({ selected, onSelect }: Props) {
           + Lugar
         </button>
       </div>
+      {locs.some((l) => l.territory) && <TerritoryRules />}
       {locs.map((l, i) => {
         const role = roleOf(l);
         const set = (fn: (x: typeof l, d: ScenarioConfig) => void) => update((d) => fn(d.environment.locations[i], d));
@@ -203,7 +204,7 @@ export function LocationsTab({ selected, onSelect }: Props) {
                 placeholder="food: 2"
                 onChange={(r) => set((x) => void (Object.keys(r).length ? (x.produces = r) : delete x.produces))}
               />
-              <label className="toggle" title="Las bandas se lo disputan: es de la banda que esté aquí sin rivales, y da sus ingresos a su caja común">
+              <label className="toggle" title="Las bandas se lo disputan: vacío o sin defensores es de la banda con más gente aquí; con defensores hay que superarlos en número varios turnos seguidos. Da sus ingresos a la caja común de la banda que lo controla">
                 <input type="checkbox" checked={!!l.territory} onChange={(e) => set((x) => void (e.target.checked ? (x.territory = true) : (delete x.territory, delete x.income)))} />
                 Territorio (barrio que se disputan los grupos)
               </label>
@@ -226,6 +227,33 @@ export function LocationsTab({ selected, onSelect }: Props) {
           </article>
         );
       })}
+    </div>
+  );
+}
+
+/** How territories are taken and what they pay (shown once any place is a territory). */
+function TerritoryRules() {
+  const [draft, update] = useDraft();
+  const t = draft.territories ?? {};
+  const set = (k: keyof NonNullable<ScenarioConfig['territories']>, v: number) => update((d) => void ((d.territories ??= {})[k] = v));
+  return (
+    <div className="ed-grid">
+      <label title="Turnos seguidos que una banda rival tiene que superar en número a los defensores para quitarles el barrio (un empate lo conserva el dueño)">
+        Turnos de asedio para tomar un barrio defendido
+        <input className="input" type="number" min={1} value={t.siege ?? 2} onChange={(e) => set('siege', Math.max(1, Number(e.target.value) || 1))} />
+      </label>
+      <label title="Parte de sus ingresos que paga un barrio mientras hay rivales dentro">
+        Ingresos en disputa (%)
+        <input className="input" type="number" min={0} max={100} value={Math.round((t.contested_income ?? 0.5) * 100)} onChange={(e) => set('contested_income', Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100)} />
+      </label>
+      <label title="Cada cuántos turnos pagan los barrios">
+        Turnos entre ingresos
+        <input className="input" type="number" min={1} value={t.every ?? 4} onChange={(e) => set('every', Math.max(1, Number(e.target.value) || 1))} />
+      </label>
+      <label title="Puntos que suma a su banda cada barrio que controla">
+        Puntos por barrio para la banda
+        <input className="input" type="number" value={t.group_points ?? 0} onChange={(e) => set('group_points', Number(e.target.value) || 0)} />
+      </label>
     </div>
   );
 }

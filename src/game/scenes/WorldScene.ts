@@ -472,7 +472,7 @@ export class WorldScene extends Phaser.Scene {
     for (const z of this.map.zones) {
       const t = owners[z.name];
       const color = t?.owner ? groups[t.owner]?.color || '#f4f4f4' : '';
-      const sig = t ? `${t.owner}|${color}|${(t.contested ?? []).join(',')}` : '';
+      const sig = t ? `${t.owner}|${color}|${(t.contested ?? []).join(',')}|${t.siege ? `${t.siege.by}${t.siege.progress}` : ''}` : '';
       const current = this.territoryMarks.get(z.name);
       if (current?.sig === sig) continue;
       current?.parts.forEach((p) => p.destroy());
@@ -504,7 +504,7 @@ export class WorldScene extends Phaser.Scene {
         parts.push(veil);
         parts.push(
           this.add
-            .text(x + w - 3, y + h - 3, 'EN DISPUTA', { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#ffcd75', backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
+            .text(x + w - 3, y + h - 3, t.siege ? `ASEDIO DE ${t.siege.by.toUpperCase()} ${t.siege.progress}/${t.siege.needed}` : 'EN DISPUTA', { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#ffcd75', backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
             .setResolution(4)
             .setOrigin(1, 1)
             .setDepth(100001),

@@ -402,7 +402,7 @@ export interface ScenarioConfig {
   society?: SocietyConfig;
   routines?: Routines;
   scores?: ScoresConfig;
-  territories?: { every?: number; group_points?: number };
+  territories?: { every?: number; group_points?: number; siege?: number; contested_income?: number };
 }
 
 export const LOCATION_TYPES = [

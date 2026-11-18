@@ -2,7 +2,7 @@
 // game's code and configure their own agent. Mirrors simcore/server/games.py.
 
 import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
-import type { SimEvent } from './types';
+import type { SimEvent, TerritoryState } from './types';
 
 export const EDITABLE_FIELDS: Array<[string, string]> = [
   ['name', 'Nombre'],
@@ -159,7 +159,7 @@ export interface DayReport {
   rank: number | null;
   players: number;
   groups: Array<{ group: string; points: number }>;
-  territories: Record<string, { owner: string; contested?: string[] }>;
+  territories: Record<string, TerritoryState>;
   diary: { scenario: { name?: string }; events: SimEvent[] };
 }
 export const dayReport = (c: string, token: string) => call<DayReport>(`/api/play/${code(c)}/report`, { token });

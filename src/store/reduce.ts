@@ -5,7 +5,7 @@ import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../
 import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
 import { addDecision, closeTick, initialHealth, type LlmHealth } from './llmHealth';
 import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
-import type { Agent, EventType, SimEvent, SimState, ScoresState } from '../api/types';
+import type { Agent, EventType, SimEvent, SimState, ScoresState, TerritoryState } from '../api/types';
 
 export interface FeedItem {
   id: number;
@@ -450,9 +450,13 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       return { ...next, rolls: { ...next.rolls, [who]: mine }, feed: pushFeed(next.feed, { ...feedItem(seq, e, diceText(d)), source: who, dice: d }) };
     }
     case 'territory_change': {
-      const d = e.data as { place: string; owner: string; previous: string; contested?: string[] };
-      if (d.contested) {
-        const text = `⚔ ${d.place} en disputa: ${d.contested.join(' contra ')}`;
+      const d = e.data as { place: string; owner: string; previous: string } & Omit<TerritoryState, 'owner'>;
+      if (d.contested || d.owner === d.previous) {
+        const text = d.siege
+          ? `⚔ ${d.siege.by} asedia ${d.place}${d.owner ? ` (de ${d.owner})` : ''}: ${d.siege.progress}/${d.siege.needed}`
+          : d.contested
+            ? `⚔ ${d.place} en disputa: ${d.contested.join(' contra ')}`
+            : `🕊 ${d.place} ya no está en disputa${d.owner ? `: sigue siendo de ${d.owner}` : ''}`;
         return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, text), source: '' }) };
       }
       const text = `🏴 ${d.owner} toma${d.previous ? ` ${d.place} (se lo quita a ${d.previous})` : ` ${d.place}`}`;

@@ -43,6 +43,7 @@ export function normalize(raw: Partial<ScenarioConfig> | Record<string, any>): S
     ...(cfg.society && Object.keys(cfg.society).length ? { society: structuredClone(cfg.society) } : {}),
     ...(cfg.routines && Object.keys(cfg.routines).length ? { routines: structuredClone(cfg.routines) } : {}),
     ...(cfg.scores && Object.keys(cfg.scores.achievements ?? {}).length ? { scores: structuredClone(cfg.scores) } : {}),
+    ...(cfg.territories && Object.keys(cfg.territories).length ? { territories: { ...cfg.territories } } : {}),
   };
 }
 

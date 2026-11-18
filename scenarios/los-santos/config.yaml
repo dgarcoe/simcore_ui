@@ -175,7 +175,7 @@ society:
   healers: [médic, enfermer, sanitari]
   heal_removes: [noqueado]
 
-territories: {every: 2, group_points: 3}
+territories: {every: 2, group_points: 3, siege: 2, contested_income: 0.5}
 
 factions:
   Los Motoristas: {goal: "Que la ciudad se mueva sobre nuestras ruedas", leader: Toro, members: [Toro, Chispa, Grasa, Lupe],

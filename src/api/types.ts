@@ -212,7 +212,14 @@ export interface SimState {
   /** Points and achievements (scenarios with scores). */
   scores?: ScoresState;
   /** Who holds each territory (scenarios with territories). */
-  territories?: Record<string, { owner: string; contested?: string[] }>;
+  territories?: Record<string, TerritoryState>;
+}
+
+/** Who holds a territory; rival groups in it, and one outnumbering the owner's members there. */
+export interface TerritoryState {
+  owner: string;
+  contested?: string[];
+  siege?: { by: string; progress: number; needed: number };
 }
 
 export interface ScoresState {

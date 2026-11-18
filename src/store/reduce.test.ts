@@ -483,6 +483,11 @@ describe('gang wars', () => {
     expect(s.banner).toMatchObject({ kind: 'territory', location: 'El Puerto' });
     step('territory_change', { place: 'El Club', owner: '', previous: '', contested: ['A', 'B'] }, 3);
     expect(s.feed.at(-1)?.text).toBe('⚔ El Club en disputa: A contra B');
+    step('territory_change', { place: 'El Puerto', owner: 'Motoristas', previous: 'Motoristas', contested: ['Motoristas', 'Puerto'], siege: { by: 'Puerto', progress: 1, needed: 2 } }, 3);
+    expect(s.feed.at(-1)?.text).toBe('⚔ Puerto asedia El Puerto (de Motoristas): 1/2');
+    expect(s.banner).toMatchObject({ kind: 'territory', location: 'El Puerto' }); // no new banner for a siege step
+    step('territory_change', { place: 'El Puerto', owner: 'Motoristas', previous: 'Motoristas' }, 4);
+    expect(s.feed.at(-1)?.text).toBe('🕊 El Puerto ya no está en disputa: sigue siendo de Motoristas');
     step('agent_knockout', { agent: 'Rata', location: 'El Club', to: 'Hospital', cause: 'Toro' }, 4, 'Rata');
     expect(s.feed.at(-1)).toMatchObject({ source: 'Rata', text: '💫 queda K.O. en El Club y despierta en Hospital (Toro)' });
     step('orders', { agent: 'Rata', kind: 'plan', text: 'Escóndete' }, 5, 'Rata');

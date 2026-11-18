@@ -286,7 +286,7 @@ function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: bo
       )}
       {Object.keys(report.territories).length > 0 && (
         <p className="small">
-          Barrios: {Object.entries(report.territories).map(([p, t]) => `${p}: ${t.contested ? 'en disputa' : t.owner || 'de nadie'}`).join(' · ')}
+          Barrios: {Object.entries(report.territories).map(([p, t]) => `${p}: ${t.owner || 'de nadie'}${t.siege ? ` (asedio de ${t.siege.by} ${t.siege.progress}/${t.siege.needed})` : t.contested ? ' (en disputa)' : ''}`).join(' · ')}
         </p>
       )}
       <details>

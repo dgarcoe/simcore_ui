@@ -464,6 +464,7 @@ describe('game systems in the editor and validation', () => {
     const { normalize } = await import('../ui/editor/draft');
     const scores = { achievements: { explorador: { points: 10, when: { visited: 'all' as const } } } };
     expect(normalize({ ...emptyScenario(), scores }).scores).toEqual(scores);
+    expect(normalize({ ...emptyScenario(), territories: { every: 2, siege: 3 } }).territories).toEqual({ every: 2, siege: 3 });
   });
 });
 

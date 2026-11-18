@@ -1,4 +1,4 @@
-import type { Agent, SocietyState } from '../api/types';
+import type { Agent, SocietyState, TerritoryState } from '../api/types';
 import { bus } from '../store/bus';
 import { isAlive } from '../store/reduce';
 import { ATTRIBUTES, SKILLS, diceText, modifier, signed, xpProgress, type DiceRoll, type RpgSheet } from '../store/rpg';
@@ -303,10 +303,10 @@ function Scoreboard({
 }: {
   ranking: Array<{ agent: string; points: number }>;
   groups?: Array<{ group: string; points: number }>;
-  territories?: Record<string, { owner: string; contested?: string[] }>;
+  territories?: Record<string, TerritoryState>;
   onPick: (name: string) => void;
 }) {
-  const held = (g: string) => Object.values(territories ?? {}).filter((t) => t.owner === g && !t.contested).length;
+  const held = (g: string) => Object.values(territories ?? {}).filter((t) => t.owner === g).length;
   return (
     <div className="scoreboard" aria-label="Marcador">
       {groups && groups.length > 0 && (
