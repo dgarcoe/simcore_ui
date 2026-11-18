@@ -116,7 +116,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
     if (!results?.replay) return;
     const { playReplay } = await import('../store/sources');
     setWatching(true);
-    playReplay(results.replay);
+    playReplay({ ...results.replay, player: results.agent });
   };
 
   if (!game) {
@@ -351,7 +351,10 @@ function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => 
         </>
       )}
       {results.replay && (
-        <button className="btn btn-accent" onClick={onWatch}>▶ Ver la repetición</button>
+        <>
+          <button className="btn btn-accent" onClick={onWatch}>▶ Ver la repetición siguiendo a {results.agent}</button>
+          <p className="dim small">Con la ficha de tu agente (lo que hizo y por qué, sus puntos y tus órdenes), la gráfica de la partida y el parte de cada día. Las órdenes de los demás no se ven.</p>
+        </>
       )}
       {results.diary && (
         <>

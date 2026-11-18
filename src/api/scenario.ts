@@ -322,6 +322,7 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'gangs', label: 'territorios, peleas sin muertes o banda y persona ganadoras' });
   if (cfg.agents.some((a) => a.orders) || cfg.simulation.pause_each_day)
     out.push({ feature: 'orders', label: 'órdenes de los jugadores o jornadas con pausa' });
+  if (cfg.llm?.record_prompts) out.push({ feature: 'review', label: 'guardar los prompts de cada decisión' });
   return out;
 }
 

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { parseAction, targetsOf } from '../../api/parse';
 import type { SimEvent, SimState } from '../../api/types';
 import { bus } from '../../store/bus';
+import { fightHeat, pathOf } from '../../store/review';
 import { useSim } from '../../store/simStore';
 import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
@@ -104,6 +105,8 @@ export class WorldScene extends Phaser.Scene {
   /** Padlock / fire markers and overlays for closed or dangerous places. */
   private placeMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
   private territoryMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
+  private layerGfx?: Phaser.GameObjects.Graphics;
+  private layerTexts: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super('world');
@@ -119,6 +122,8 @@ export class WorldScene extends Phaser.Scene {
     this.stockBadges = new Map();
     this.labels = new Map();
     this.placeMarks = new Map();
+    this.layerGfx = undefined;
+    this.layerTexts = [];
   }
 
   create(): void {
@@ -153,6 +158,7 @@ export class WorldScene extends Phaser.Scene {
     const sim = useSim.getState().sim;
     if (sim) this.reconcile(sim, true);
     this.syncSelection();
+    this.updateLayers();
 
     this.unsubs.push(
       bus.on('event', (e) => this.onEvent(e)),
@@ -168,6 +174,8 @@ export class WorldScene extends Phaser.Scene {
       bus.on('zoom', (z) => this.zoomStep(z)),
       useSim.subscribe((s, prev) => {
         if (s.selectedAgent !== prev.selectedAgent || s.follow !== prev.follow) this.syncSelection();
+        if (s.layers !== prev.layers || s.selectedAgent !== prev.selectedAgent || s.sim?.clock.tick !== prev.sim?.clock.tick || s.replayEvents !== prev.replayEvents)
+          this.updateLayers();
       }),
     );
     const teardown = () => {
@@ -511,6 +519,70 @@ export class WorldScene extends Phaser.Scene {
         );
       }
       this.territoryMarks.set(z.name, { sig, parts });
+    }
+  }
+
+  /** Review layers: the selected agent's path so far and where the fights were. */
+  private updateLayers(): void {
+    const { layers, selectedAgent, replayEvents, sim } = useSim.getState();
+    const tick = sim?.clock.tick ?? 0;
+    this.layerGfx?.destroy();
+    this.layerGfx = undefined;
+    this.layerTexts.forEach((t) => t.destroy());
+    this.layerTexts = [];
+    if (!replayEvents || (!layers.heat && !(layers.trail && selectedAgent))) return;
+    const g = this.add.graphics().setDepth(99995);
+    this.layerGfx = g;
+    const centre = (place: string) => {
+      const z = this.zones.get(place);
+      if (!z) return null;
+      const s = z.spots[0] ?? { x: z.body.x + z.body.w / 2, y: z.body.y + z.body.h };
+      return { x: s.x * TILE + TILE / 2, y: s.y * TILE + TILE / 2 };
+    };
+    if (layers.heat) {
+      const heat = fightHeat(replayEvents, tick);
+      const max = Math.max(1, ...Object.values(heat));
+      for (const [place, n] of Object.entries(heat)) {
+        const c = centre(place);
+        if (!c) continue;
+        const r = 24 + (n / max) * 72;
+        for (let k = 3; k >= 1; k--) {
+          g.fillStyle(k === 1 ? 0xffcd75 : k === 2 ? 0xef7d57 : 0xb13e53, 0.22 + 0.1 * (3 - k));
+          g.fillCircle(c.x, c.y, (r * k) / 3);
+        }
+        this.layerTexts.push(
+          this.add
+            .text(c.x, c.y - r - 2, `🔥 ${n}`, { fontFamily: PIXEL_FONT, fontSize: '8px', color: '#ffcd75', backgroundColor: '#1a1c2c', padding: { x: 2, y: 1 } })
+            .setResolution(4)
+            .setOrigin(0.5, 1)
+            .setDepth(100002),
+        );
+      }
+    }
+    if (layers.trail && selectedAgent) {
+      const path = pathOf(replayEvents, selectedAgent, tick);
+      const pts = path.map(centre).filter((p): p is { x: number; y: number } => !!p);
+      pts.forEach((p, i) => {
+        const next = pts[i + 1];
+        const alpha = 0.35 + (0.6 * (i + 1)) / pts.length;
+        if (next) {
+          // walk along the streets' grid: first across, then down
+          g.lineStyle(6, 0x1a1c2c, alpha * 0.8);
+          g.lineBetween(p.x, p.y, next.x, p.y);
+          g.lineBetween(next.x, p.y, next.x, next.y);
+          g.lineStyle(4, 0xff3fa4, alpha);
+          g.lineBetween(p.x, p.y, next.x, p.y);
+          g.lineBetween(next.x, p.y, next.x, next.y);
+        }
+        g.fillStyle(0xff3fa4, alpha);
+        g.fillCircle(p.x, p.y, 6);
+        this.layerTexts.push(
+          this.add
+            .text(p.x + 5, p.y - 5, String(i + 1), { fontFamily: PIXEL_FONT, fontSize: '7px', color: '#f4f4f4', backgroundColor: '#ff3fa4', padding: { x: 1, y: 0 } })
+            .setResolution(4)
+            .setDepth(100002),
+        );
+      });
     }
   }
 

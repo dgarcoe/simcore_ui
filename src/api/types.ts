@@ -46,6 +46,7 @@ export type EventType =
   | 'level_up'
   | 'score_change'
   | 'territory_change'
+  | 'decision_trace'
   | 'agent_knockout'
   | 'orders'
   | 'intermission';

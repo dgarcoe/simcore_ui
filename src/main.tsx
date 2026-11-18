@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parsePlayHash } from './api/games';
+import { parseReplayHash } from './store/review';
 import { DmGate } from './ui/DmGate';
 import './styles.css';
 
@@ -37,8 +38,23 @@ void fontsReady().then(async () => {
       </StrictMode>,
     );
   }
+  // A link to a moment of a replay (#replay=…&t=13&agente=Toro): open it there.
+  const openLink = async () => {
+    const link = parseReplayHash(location.hash);
+    if (!link) return;
+    const { startReplay, startRun } = await import('./store/sources');
+    const at = { tick: link.tick, agent: link.agent };
+    try {
+      if (link.file) await startReplay(link.file, at);
+      else if (link.run) await startRun(link.run, at);
+    } catch (e) {
+      console.warn('No se pudo abrir el enlace a la repetición', e);
+    }
+  };
+  if (!play) void openLink();
   // Switching between a game link and the DM's screen needs a fresh start.
   window.addEventListener('hashchange', () => {
     if (!!parsePlayHash(location.hash) !== !!play) location.reload();
+    else if (!play) void openLink();
   });
 });

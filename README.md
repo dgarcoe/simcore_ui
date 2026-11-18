@@ -240,6 +240,15 @@ Simcore guarda solo cada simulación que se lanza (en la Jetson o el PC, en el v
 - **Al terminar:** «▶ Ver la repetición» en la tarjeta de fin.
 - **Barra de tiempo** (en cualquier repetición): deslizador por ticks con la hora, marcas de colores en los momentos clave (muertes, transformaciones, el anillo cambia de manos, votaciones, críticos…; al pasar el ratón se leen y al hacer clic se salta), ⏮ inicio, momento clave anterior/siguiente, tick anterior/siguiente, reproducir/pausa y velocidad. Saltar es instantáneo: el mapa y los paneles quedan como estaban en ese tick.
 - **Historia:** en una repetición muestra todos los momentos de la partida (los que aún no han llegado, atenuados) y los capítulos; clic para ir a ese momento. En **Sucesos**, clic en «t34» para volver a ese tick.
+- **Filtros de la línea de tiempo:** marcas por tipo (⚔ peleas, 💀 muertes, 🏴 barrios, 💰 objetos, 👥 grupos, 📖 historia), solo las del agente elegido (👤) o las de una banda. Los saltos entre momentos clave respetan el filtro.
+- **📈 Gráfica:** barrios por banda, puntos por banda o puntos del top 5 a lo largo de la partida. Al pulsar se salta a ese tick.
+- **Días:** «Día 1 / 2 / 3» salta al principio de cada día y 📋 abre su **parte**: bandas con puntos ganados y barrios, quién más subió, lo más sonado y cuántos barrios cambiaron de manos.
+- **📼 Ficha del agente** (pestaña Agentes, con un agente elegido): todo lo que hizo turno a turno con su razonamiento, tiradas, puntos ganados o perdidos, robos, K.O., planes activados y líneas rojas que le frenaron, más una gráfica de sus puntos. Clic en «t12» para ir allí. Si el escenario se lanzó con **«Guardar los prompts»** (General; `llm.record_prompts`), 🧠 muestra lo que el modelo vio y respondió en cada decisión.
+- **Capas del mapa:** 👣 el camino del agente elegido hasta ahora y 🔥 dónde ha habido peleas.
+- **🔗 Enlace:** copia un enlace a ese momento y agente (`#replay=…&t=13&agente=Toro` o `#run=…`) para compartirlo.
+- **Crónica:** en la tarjeta de fin de una repetición, «Generar crónica» pide al LLM del escenario un relato de la partida a partir de sus momentos clave (se guarda con la simulación).
+- **⚖ Comparar dos partidas** (inicio): ganador, modelo, % de decisiones útiles, acciones más usadas, barrios, K.O., bandas, top 5 y media de puntos por estilo de órdenes.
+- **Jugadores:** si el DM publica la repetición, cada jugador la abre siguiendo a su agente, con su ficha y sus órdenes; las de los demás no se ven.
 
 ### Historia de la simulación
 

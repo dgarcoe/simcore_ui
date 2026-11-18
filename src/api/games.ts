@@ -105,7 +105,7 @@ export interface PlayerResults {
     groups?: Array<{ group: string; points: number }>;
   };
   diary?: { scenario: { name?: string }; events: SimEvent[] };
-  replay?: { scenario: { name?: string; description?: string }; config: ScenarioConfig; events: SimEvent[] };
+  replay?: { scenario: { name?: string; description?: string }; config: ScenarioConfig; events: SimEvent[]; player?: string };
 }
 
 async function call<T>(path: string, init?: RequestInit & { token?: string; body?: BodyInit | null }, payload?: unknown): Promise<T> {

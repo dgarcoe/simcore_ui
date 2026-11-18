@@ -3,6 +3,7 @@ import * as api from '../api/client';
 import type { ScenarioRecord } from '../api/types';
 import { runScenario, startLive, startReplay, startRun } from '../store/sources';
 import { useDemoPref } from './demoPref';
+import { CompareSection } from './CompareSection';
 import { GamesSection } from './GamesSection';
 import { openEditor } from './editor/draft';
 
@@ -206,6 +207,8 @@ export function StartScreen() {
             ))}
           </ul>
         </section>
+
+        <CompareSection fixtures={fixtures} runs={runs} />
       </div>
     </main>
   );

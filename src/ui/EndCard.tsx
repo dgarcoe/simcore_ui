@@ -15,6 +15,7 @@ export function EndCard() {
   const scores = useSim((s) => s.finalScores ?? s.sim?.scores ?? null);
   const sim = useSim((s) => s.sim);
   const scenarioName = useSim((s) => s.scenarioName);
+  const player = useSim((s) => s.replayMeta?.player);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
   const [text, setText] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export function EndCard() {
   const chronicle = async () => {
     setLoading(true);
     try {
-      const narrative = await api.postmortem();
+      const narrative = mode === 'replay' ? await replayChronicle() : await api.postmortem();
       setText(narrative);
       useSim.getState().set({ epilogue: narrative });
     } catch (e) {
@@ -33,6 +34,24 @@ export function EndCard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const replayChronicle = () => {
+    const { replayTimeline, replayMeta, scenarioConfig } = useSim.getState();
+    const moments = [...(replayTimeline?.moments ?? [])]
+      .sort((a, b) => b.importance - a.importance)
+      .slice(0, 30)
+      .sort((a, b) => a.tick - b.tick)
+      .map((m) => ({ tick: m.tick, text: m.text, agents: m.agents }));
+    return api.narrative({
+      run_id: replayMeta?.runId,
+      model: replayMeta?.model || String(scenarioConfig?.llm?.model ?? ''),
+      demo: replayMeta?.demo,
+      ticks: replayTimeline?.ticks ?? 0,
+      ending: message,
+      moments,
+      language: String(scenarioConfig?.simulation?.language ?? 'es'),
+    });
   };
 
   const watchAgain = async () => {
@@ -73,7 +92,7 @@ export function EndCard() {
         </ol>
       )}
       {fallen.length > 0 && <p className="dim">✝ {fallen.join(', ')}</p>}
-      {mode === 'live' && !text && (
+      {(mode === 'live' || (mode === 'replay' && !player)) && !text && (
         <button className="btn btn-accent" disabled={loading} onClick={chronicle}>
           {loading ? 'Escribiendo…' : 'Generar crónica'}
         </button>

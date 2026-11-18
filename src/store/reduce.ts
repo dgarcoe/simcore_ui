@@ -638,6 +638,8 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       }
       return next;
     }
+    case 'decision_trace':
+      return next; // reviewed in the agent's record, not in the feed
     default:
       return { ...next, feed: pushFeed(next.feed, feedItem(seq, e, JSON.stringify(e.data))) };
   }

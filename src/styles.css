@@ -1885,3 +1885,147 @@ table.players td {
   gap: 4px;
   margin-right: 10px;
 }
+
+/* ── Reviewing a replay ─────────────────────────────────────────────── */
+
+.replaybar {
+  flex-wrap: wrap;
+}
+
+.replay-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  width: 100%;
+  align-items: center;
+}
+
+.replay-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.select.small {
+  padding: 1px 4px;
+  font-size: 15px;
+}
+
+.replay-chart {
+  width: 100%;
+}
+
+.replay-chart svg {
+  display: block;
+  width: 100%;
+  height: 84px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.replay-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 15px;
+}
+
+.replay-chart-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--ink);
+}
+
+.day-recap {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 4px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--line);
+}
+
+.day-recap h3 {
+  margin: 0 0 6px;
+}
+
+.day-recap ol,
+.day-recap ul {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+
+.trail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trail > li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.trail > li.now {
+  background: rgba(255, 63, 164, 0.08);
+}
+
+.trail .trail-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 15px;
+}
+
+.trail .why {
+  display: block;
+  padding-left: 22px;
+  font-size: 15px;
+}
+
+.trail .good-text {
+  color: #a7f070;
+}
+
+.trace {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 13px;
+  background: var(--ink);
+  padding: 6px;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 36px;
+}
+
+.compare {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.compare table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compare th,
+.compare td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}

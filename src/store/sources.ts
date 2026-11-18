@@ -7,6 +7,7 @@ import type { SimEvent, SimState } from '../api/types';
 import { bus } from './bus';
 import { useSim } from './simStore';
 import { scoreEvent, type Moment } from './story';
+import { daysOf, filterMoments, replayHash, seriesOf, type Day, type Series } from './review';
 
 let stopCurrent: (() => void) | null = null;
 let replay: Replay | null = null;
@@ -142,18 +143,30 @@ export interface ReplayFile {
   events: SimEvent[];
   /** Runs recorded by Simcore: how it went (model, ending, survivors…). */
   meta?: api.RunMeta;
+  /** A player's replay of their game: their agent. */
+  player?: string;
 }
 
-export async function startReplay(url: string): Promise<void> {
-  playReplay((await (await fetch(url)).json()) as ReplayFile);
+export async function startReplay(url: string, at?: { tick?: number; agent?: string }): Promise<void> {
+  playReplay((await (await fetch(url)).json()) as ReplayFile, at);
+  const meta = useSim.getState().replayMeta;
+  useSim.getState().set({ replayMeta: { ...meta, file: url } });
 }
 
 /** Watch a run Simcore recorded. */
-export async function startRun(id: string): Promise<void> {
-  playReplay((await api.fetchRun(id)) as unknown as ReplayFile);
+export async function startRun(id: string, at?: { tick?: number; agent?: string }): Promise<void> {
+  const file = (await api.fetchRun(id)) as unknown as ReplayFile;
+  playReplay({ ...file, meta: { ...(file.meta ?? ({} as api.RunMeta)), id } }, at);
 }
 
-export function playReplay(file: ReplayFile): void {
+/** A link to the moment being watched (the tick and the selected agent). */
+export function momentLink(): string {
+  const { replayMeta, selectedAgent } = useSim.getState();
+  const hash = replayHash({ file: replayMeta?.runId ? undefined : replayMeta?.file, run: replayMeta?.runId, tick: replay?.at ?? 0, agent: selectedAgent ?? undefined });
+  return `${location.origin}${location.pathname}${hash}`;
+}
+
+export function playReplay(file: ReplayFile, at?: { tick?: number; agent?: string }): void {
   stop();
   const store = useSim.getState();
   store.reset();
@@ -162,11 +175,21 @@ export function playReplay(file: ReplayFile): void {
     connected: true,
     scenarioDescription: file.scenario?.description ?? '',
     replayTimeline: timelineOf(file.events),
+    replayEvents: file.events,
+    replayMeta: { player: file.player, model: file.meta?.model, runId: file.meta?.id, demo: file.meta?.demo },
   });
   store.setScenarioConfig(file.config ?? null);
   replay = new Replay(file.events, file.config ?? null);
   stopCurrent = () => replay?.dispose();
   replay.start();
+  // A link to a moment, or a player's own game: open there, following the agent.
+  const agent = at?.agent ?? file.player;
+  if (at?.tick !== undefined) {
+    replay.seek(at.tick);
+    replay.pause();
+    store.set({ paused: true });
+  }
+  if (agent) useSim.getState().set({ selectedAgent: agent, follow: true, });
 }
 
 export async function control(action: 'pause' | 'resume' | 'stop'): Promise<void> {
@@ -200,11 +223,24 @@ export function stepReplay(delta: number): void {
   replay.seek(Math.max(0, replay.at + delta));
 }
 
+/** Key moments shown on the timeline (its filters applied). */
+export function shownMoments(): Moment[] {
+  const { replayTimeline: timeline, momentFilter, sim } = useSim.getState();
+  if (!timeline) return [];
+  const members = momentFilter.group ? (sim?.society?.factions?.[momentFilter.group]?.members ?? []) : [];
+  return filterMoments(timeline.moments, momentFilter, members);
+}
+
+/** Current tick of the replay. */
+export function replayTick(): number {
+  return replay?.at ?? 0;
+}
+
 /** Jump to the next (or previous) key moment. */
 export function jumpMoment(direction: 1 | -1): void {
   const timeline = useSim.getState().replayTimeline;
   if (!replay || !timeline) return;
-  const ticks = [...new Set(timeline.moments.map((m) => m.tick))].sort((x, y) => x - y);
+  const ticks = [...new Set(shownMoments().map((m) => m.tick))].sort((x, y) => x - y);
   const at = replay.at;
   const target = direction > 0 ? ticks.find((t) => t > at) : [...ticks].reverse().find((t) => t < at);
   if (target !== undefined) replay.seek(target);
@@ -217,6 +253,9 @@ export interface Timeline {
   moments: Moment[];
   /** Clock text at each tick ("Day 2, 14:00"). */
   times: Record<number, string>;
+  /** Territories and points over time. */
+  series: Series;
+  days: Day[];
 }
 
 export function timelineOf(events: SimEvent[]): Timeline {
@@ -232,7 +271,7 @@ export function timelineOf(events: SimEvent[]): Timeline {
     const m = scoreEvent(e);
     if (m && m.importance >= 0.5) moments.push(m);
   }
-  return { ticks, moments, times };
+  return { ticks, moments, times, series: seriesOf(events), days: daysOf(times) };
 }
 
 /**

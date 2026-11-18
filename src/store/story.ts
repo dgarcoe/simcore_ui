@@ -98,6 +98,13 @@ export function scoreEvent(e: SimEvent): Moment | null {
       if (d.change === 'rival') return m(0.5, `«${str(d.faction)}» y «${str(d.other)}» se enfrentan`, [str(d.agent)]);
       if (d.change === 'expelled') return m(0.5, `${str(d.agent)} es expulsado de «${str(d.faction)}»`, [str(d.agent)]);
       return null;
+    case 'territory_change':
+      if (d.contested || d.owner === d.previous || !d.owner) return null;
+      return m(0.6, `${str(d.owner)} toma ${str(d.place)}${d.previous ? ` (era de ${str(d.previous)})` : ''}`, [], str(d.place));
+    case 'agent_knockout': {
+      const who = str(d.agent ?? e.source);
+      return m(0.5, `${who} queda K.O.${d.cause ? ` (${str(d.cause)})` : ''}`, [who]);
+    }
     case 'level_up':
       return m(0.6, `${str(d.agent ?? e.source)} sube a nivel ${str(d.level)}`, [str(d.agent ?? e.source)]);
     case 'dice_roll': {

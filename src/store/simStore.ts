@@ -3,6 +3,7 @@ import { professions, type ScenarioConfig } from '../api/scenario';
 import type { SimEvent } from '../api/types';
 import { bus } from './bus';
 import { initialSnapshot, reduce, type SimSnapshot } from './reduce';
+import type { MomentFilter } from './review';
 import type { Timeline } from './sources';
 
 export type SourceMode = 'none' | 'live' | 'replay' | 'editor';
@@ -28,6 +29,16 @@ export interface UIState extends SimSnapshot {
 
   /** Replay only: the whole run at a glance (ticks, key moments, clock). */
   replayTimeline: Timeline | null;
+  /** Replay only: all its events (reviewing an agent, map layers). */
+  replayEvents: SimEvent[] | null;
+  /** Replay only: where it came from (a player's game, a recorded run). */
+  replayMeta: { player?: string; model?: string; runId?: string; demo?: boolean; file?: string } | null;
+  /** Timeline filters: hidden categories, one agent or group. */
+  momentFilter: MomentFilter;
+  /** The day whose summary is shown over the map (replays). */
+  dayRecap: number | null;
+  /** Map layers while reviewing: the selected agent's path, where the fights were. */
+  layers: { trail: boolean; heat: boolean };
 
   /** silent: update state without animating it (history catch-up). */
   ingest: (e: SimEvent, silent?: boolean) => void;
@@ -81,6 +92,11 @@ export const useSim = create<UIState>()((set, get) => ({
   follow: false,
   themeChoice: 'auto',
   replayTimeline: null,
+  replayEvents: null,
+  replayMeta: null,
+  momentFilter: { hidden: [] },
+  dayRecap: null,
+  layers: { trail: false, heat: false },
 
   ingest: (e, silent = false) => {
     const patch = applyEvent(get(), e);
@@ -99,7 +115,7 @@ export const useSim = create<UIState>()((set, get) => ({
   },
 
   reset: () => {
-    set({ ...initialSnapshot(), selectedAgent: null, follow: false, paused: false, scenarioConfig: null, professions: {} });
+    set({ ...initialSnapshot(), selectedAgent: null, follow: false, paused: false, scenarioConfig: null, professions: {}, replayEvents: null, replayMeta: null, dayRecap: null, momentFilter: { hidden: [] } });
     bus.emit('reset');
   },
 

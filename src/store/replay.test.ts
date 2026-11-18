@@ -69,7 +69,7 @@ describe('replay player', () => {
       { type: 'tick_end', tick: 1, data: { clock: { time: 'Day 1, 01:00' } }, source: '' } as unknown as SimEvent,
       { type: 'agent_death', tick: 2, data: { agent: 'Ana' }, source: 'Ana' },
     ];
-    expect(timelineOf(events)).toEqual({
+    expect(timelineOf(events)).toMatchObject({
       ticks: 2,
       times: { 1: 'Day 1, 01:00' },
       moments: [expect.objectContaining({ tick: 2, text: 'Ana muere', kind: 'agent_death' })],

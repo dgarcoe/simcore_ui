@@ -4,6 +4,7 @@ import { isAlive } from '../store/reduce';
 import { ATTRIBUTES, SKILLS, diceText, modifier, signed, xpProgress, type DiceRoll, type RpgSheet } from '../store/rpg';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
+import { AgentRecord } from './AgentRecord';
 import { AgentActions, Conditions, Inventory, Mind, Needs, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
 
@@ -37,6 +38,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
   const reflections = useSim((s) => s.reflections);
   const lastWhy = useSim((s) => s.reasoning);
   const rolls = useSim((s) => s.rolls);
+  const mode = useSim((s) => s.mode);
   const { selectAgent, set } = useSim.getState();
   const agents = sim ? Object.values(sim.agents).sort((a, b) => a.name.localeCompare(b.name)) : [];
   const agent = agents.find((a) => a.name === selected);
@@ -92,6 +94,7 @@ export function AgentsPanel({ theme }: { theme: ThemePack }) {
             </div>
           </div>
           {statusLabel(agent) && <p className="bad-text">{statusLabel(agent)}</p>}
+          {mode === 'replay' && <AgentRecord name={agent.name} />}
           <Conditions agent={agent} />
           {agent.mind && isAlive(agent) && (
             <div className="mind-shift">

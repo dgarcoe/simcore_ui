@@ -2,6 +2,7 @@ import { PhaserGame } from './game/PhaserGame';
 import { useWorld } from './game/useWorld';
 import { useSim } from './store/simStore';
 import { Banner } from './ui/Banner';
+import { DayRecapCard } from './ui/DayRecapCard';
 import { EndCard } from './ui/EndCard';
 import { LlmAlert } from './ui/LlmStatus';
 import { ReplayBar } from './ui/ReplayBar';
@@ -29,6 +30,7 @@ export function App() {
           <Banner />
           <LlmAlert />
           <EndCard />
+          {mode === 'replay' && <DayRecapCard />}
           <div className="hint">Arrastra para mover · rueda para zoom · clic en un agente</div>
         </section>
         <Sidebar theme={theme} />

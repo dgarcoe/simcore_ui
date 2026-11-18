@@ -110,6 +110,23 @@ export async function postmortem(): Promise<string> {
   return res.narrative ?? '';
 }
 
+/** A chronicle of a recorded run or a replay, written by the LLM from its key moments. */
+export async function narrative(body: {
+  run_id?: string;
+  model?: string;
+  demo?: boolean;
+  ticks: number;
+  ending: string;
+  moments: Array<{ tick: number; text: string; agents: string[] }>;
+  language?: string;
+}): Promise<string> {
+  const res = await post('/api/narrative', body);
+  if (res.status === 404 || res.status === 405) throw new Error('Este Simcore no escribe crónicas de repeticiones (actualízalo con ./scripts/simcore-up.sh).');
+  const data = (await res.json().catch(() => ({}))) as { narrative?: string; detail?: string };
+  if (!res.ok) throw new Error(data.detail ?? `${res.status} ${res.statusText}`);
+  return data.narrative ?? '';
+}
+
 /** Simcore could not be reached at all (as opposed to answering with an error). */
 export class NetworkError extends Error {}
 
