@@ -105,3 +105,14 @@ describe('following an item', () => {
     expect(itemTrail(events, 'maletin', 0).steps).toEqual([]);
   });
 });
+
+describe('money', () => {
+  it('follows how much each group and the richest have', () => {
+    const s = seriesOf(events, 'dinero');
+    expect(Object.keys(s.groupWealth)).toContain('Los Motoristas');
+    expect(s.groupWealth['Los Motoristas']).toHaveLength(s.ticks.length);
+    expect(Object.keys(s.richest).length).toBeGreaterThan(0);
+    const trades = events.filter((e) => e.type === 'market_trade');
+    expect(trades.length).toBeGreaterThan(0);
+  });
+});

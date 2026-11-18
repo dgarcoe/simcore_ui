@@ -23,15 +23,20 @@ export interface Series {
   groups: Record<string, GroupSeries>;
   /** Points of the agents who ended in the top places, by tick. */
   agents: Record<string, number[]>;
+  /** Money (economy.currency) of each group (members + common stash) and of the richest at the end. */
+  groupWealth: Record<string, number[]>;
+  richest: Record<string, number[]>;
 }
 
 const TOP_AGENTS = 5;
 
-export function seriesOf(events: SimEvent[]): Series {
+export function seriesOf(events: SimEvent[], currency = 'dinero'): Series {
   const ends = events.filter((e) => e.type === 'tick_end');
   const ticks = ends.map((e) => e.tick);
   const groups: Record<string, GroupSeries> = {};
   const points: Array<Record<string, number>> = [];
+  const money: Array<Record<string, number>> = [];
+  const groupWealth: Record<string, number[]> = {};
   ends.forEach((e, i) => {
     const d = end(e);
     const factions = d.society?.factions ?? {};
@@ -45,6 +50,16 @@ export function seriesOf(events: SimEvent[]): Series {
       g.points[i] = gp[name] ?? 0;
     }
     points.push(Object.fromEntries((d.scores?.ranking ?? []).map((r) => [r.agent, r.points])));
+    const cash: Record<string, number> = {};
+    for (const a of Object.values(d.agents ?? {})) {
+      const n = Number((a.state?.resources ?? (a as unknown as { resources?: Record<string, number> }).resources ?? {})[currency] ?? 0);
+      if (n) cash[a.name] = n;
+    }
+    money.push(cash);
+    for (const [g, f] of Object.entries(factions)) {
+      const total = (f.members ?? []).reduce((sum, m) => sum + (cash[m] ?? 0), 0) + Number((f.stash ?? {})[currency] ?? 0);
+      (groupWealth[g] ??= new Array(ends.length).fill(0))[i] = Math.round(total);
+    }
   });
   const last = points.at(-1) ?? {};
   const top = Object.entries(last)
@@ -52,7 +67,13 @@ export function seriesOf(events: SimEvent[]): Series {
     .slice(0, TOP_AGENTS)
     .map(([n]) => n);
   const agents = Object.fromEntries(top.map((n) => [n, points.map((p) => p[n] ?? 0)]));
-  return { ticks, groups, agents };
+  const lastMoney = money.at(-1) ?? {};
+  const rich = Object.entries(lastMoney)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOP_AGENTS)
+    .map(([n]) => n);
+  const richest = Object.fromEntries(rich.map((n) => [n, money.map((m) => Math.round(m[n] ?? 0))]));
+  return { ticks, groups, agents, groupWealth: Object.values(groupWealth).some((v) => v.some(Boolean)) ? groupWealth : {}, richest };
 }
 
 // ── Days ─────────────────────────────────────────────────────────────────
@@ -454,8 +475,8 @@ export interface ItemStep {
   place: string;
 }
 
-const where = (s: string) => s.replace(/^(location|place):/, '');
-const isPlace = (s: string) => /^(location|place):/.test(s);
+const where = (s: string) => s.replace(/^(location|place|market):/, '');
+const isPlace = (s: string) => /^(location|place|market):/.test(s);
 
 /** An item's life in the run (up to a tick): where it appeared, who took, gave, stole, used or
  * lost it, and the places it went through, also while someone carried it around. */
@@ -493,7 +514,9 @@ export function itemTrail(events: SimEvent[], item: string, upTo = Infinity): { 
     const loc = str(d.location) || (isPlace(to) ? where(to) : isPlace(from) ? where(from) : '');
     const n = amount === 1 ? '' : ` (${amount})`;
     let text = '';
-    if (kind === 'take') text = `${to} lo coge${isPlace(from) ? ` en ${where(from)}` : ''}${n}`;
+    if (kind === 'buy') text = `${to} lo compra en ${where(from)}${n}`;
+    else if (kind === 'sell') text = `${from} lo vende en ${where(to)}${n}`;
+    else if (kind === 'take') text = `${to} lo coge${isPlace(from) ? ` en ${where(from)}` : ''}${n}`;
     else if (kind === 'give') text = `${from} se lo da a ${to}${n}`;
     else if (kind === 'steal') text = `${to} se lo roba a ${from}${n}`;
     else if (kind === 'use') text = `${from} lo usa${to && to !== from ? ` con ${to}` : ''}`;

@@ -44,6 +44,7 @@ export function normalize(raw: Partial<ScenarioConfig> | Record<string, any>): S
     ...(cfg.routines && Object.keys(cfg.routines).length ? { routines: structuredClone(cfg.routines) } : {}),
     ...(cfg.scores && Object.keys(cfg.scores.achievements ?? {}).length ? { scores: structuredClone(cfg.scores) } : {}),
     ...(cfg.territories && Object.keys(cfg.territories).length ? { territories: { ...cfg.territories } } : {}),
+    ...(cfg.economy && Object.keys(cfg.economy).length ? { economy: { ...cfg.economy } } : {}),
   };
 }
 

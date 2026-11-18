@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cap, DEFAULT_WORDS, type Words } from '../lib/words';
 import type { Series } from '../store/review';
 
-export type ChartMode = 'turf' | 'groups' | 'people';
+export type ChartMode = 'turf' | 'groups' | 'people' | 'wealth' | 'rich';
 
 const PEOPLE = ['#ffcd75', '#3fe8ff', '#ff3fa4', '#a7f070', '#b14fd6'];
 const W = 1000;
@@ -15,6 +15,8 @@ export function chartModes(series: Series, w: Words = DEFAULT_WORDS): Array<[Cha
   if (groups.some((g) => g.territories.some((n) => n > 0))) out.push(['turf', `${cap(w.territories)} por ${w.group}`]);
   if (groups.some((g) => g.points.some((n) => n !== 0))) out.push(['groups', `Puntos por ${w.group}`]);
   if (Object.keys(series.agents).length) out.push(['people', 'Puntos del top 5']);
+  if (Object.keys(series.groupWealth ?? {}).length) out.push(['wealth', `Dinero por ${w.group}`]);
+  if (Object.keys(series.richest ?? {}).length) out.push(['rich', 'Los 5 más ricos']);
   return out;
 }
 
@@ -24,9 +26,11 @@ export function ReplayChart({ series, ticks, tick, mode, onSeek }: { series: Ser
   const x = (t: number) => (Math.min(ticks, Math.max(0, t)) / Math.max(1, ticks)) * W;
   const groups = Object.entries(series.groups);
   const lines: Array<{ name: string; color: string; values: number[] }> =
-    mode === 'people'
-      ? Object.entries(series.agents).map(([name, values], i) => ({ name, color: PEOPLE[i % PEOPLE.length], values }))
-      : groups.map(([name, g], i) => ({ name, color: g.color || PEOPLE[i % PEOPLE.length], values: mode === 'turf' ? g.territories : g.points }));
+    mode === 'people' || mode === 'rich'
+      ? Object.entries(mode === 'rich' ? series.richest : series.agents).map(([name, values], i) => ({ name, color: PEOPLE[i % PEOPLE.length], values }))
+      : mode === 'wealth'
+        ? Object.entries(series.groupWealth).map(([name, values], i) => ({ name, color: series.groups[name]?.color || PEOPLE[i % PEOPLE.length], values }))
+        : groups.map(([name, g], i) => ({ name, color: g.color || PEOPLE[i % PEOPLE.length], values: mode === 'turf' ? g.territories : g.points }));
   const idx = (t: number) => {
     let best = 0;
     series.ticks.forEach((s, i) => {

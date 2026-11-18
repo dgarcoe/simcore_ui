@@ -9,7 +9,9 @@
 # `drops`), a cursed gun, dynamite with a fuse (`fuse`: lit when picked up, it goes off 3 ticks
 # later wherever it is: pass it on!), fists that hurt (`society.fists`), the exhausted waking up
 # in the hospital (`exhaustion_place`), points for knockouts and for giving things, recipes
-# (`where`), backstories and orders for the demo cast. For a game with players,
+# (`where`), markets with moving prices (a black market only at night), protection rackets
+# (`who.own_territory`), loans with a deadline, fines, wealth points (`when.wealth`,
+# `economy.group_wealth_points`), backstories and orders for the demo cast. For a game with players,
 # turn on `simulation.pause_each_day` so they get a report and change orders each night.
 # Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
 simulation:
@@ -47,12 +49,18 @@ environment:
     redada: false
   locations:
     - {name: El Puerto, type: industrial, position: [2, 2], capacity: 30, territory: true, income: {mercancia: 2},
-       stock: {mercancia: 2}}
+       stock: {mercancia: 2},
+       # mercado negro: solo de noche, paga bien el contrabando y vende dinamita
+       market: {sells: {dinamita: 4}, buys: {mercancia: 6, piezas: 3}, stock: {dinamita: 2}, hours: [20, 4]}}
     - {name: El Taller, type: industrial, position: [6, 2], capacity: 30, territory: true, income: {piezas: 2},
-       stock: {bate: 2, piezas: 2}}
-    - {name: El Club, type: commercial, position: [10, 2], capacity: 30, territory: true, income: {dinero: 3}}
+       stock: {bate: 2, piezas: 2},
+       market: {sells: {bate: 3}, buys: {piezas: 2}, stock: {bate: 3}}}
+    - {name: El Club, type: commercial, position: [10, 2], capacity: 30, territory: true, income: {dinero: 3},
+       market: {sells: {bebida_energetica: 2}}}
     - {name: El Mercado, type: commercial, position: [2, 6], capacity: 30, territory: true, income: {dinero: 2, comida: 2},
-       stock: {comida: 6}}
+       stock: {comida: 6},
+       market: {sells: {chaleco: 5, botiquin: 2, bebida_energetica: 1, comida: 1}, buys: {mercancia: 3, piezas: 2},
+                stock: {chaleco: 3, botiquin: 4}}}
     - {name: El Polígono, type: industrial, position: [10, 6], capacity: 30, territory: true, income: {bate: 1},
        stock: {bate: 1}}
     - {name: Las Torres, type: residential, position: [2, 10], capacity: 40, territory: true, income: {comida: 1},
@@ -60,7 +68,8 @@ environment:
     - {name: El Paseo, type: public, position: [6, 10], capacity: 40, territory: true, income: {dinero: 3}}
     - {name: Las Afueras, type: outdoor, position: [10, 10], capacity: 30, territory: true, income: {mercancia: 2}}
     - {name: Comisaría, type: government, position: [6, 6], capacity: 30}
-    - {name: Hospital, type: healthcare, position: [13, 13], capacity: 40, stock: {botiquin: 4}}
+    - {name: Hospital, type: healthcare, position: [13, 13], capacity: 40, stock: {botiquin: 4},
+       market: {sells: {botiquin: 3}}}
 
 items:
   dinero: {description: billetes arrugados}
@@ -125,6 +134,17 @@ conditions:
     color: "#5d275d"
     mind:
       goals: [Que nadie te quite la pistola, Desconfiar de todos, incluida tu banda]
+  deudor:
+    description: le debes 7 billetes a la prestamista; devuélveselos antes de un día
+    appearance: con prisas por pagar
+    duration: 12
+    becomes: moroso
+    color: "#c2a14a"
+  moroso:
+    description: no has devuelto el préstamo y la Familia lo sabe
+    appearance: moroso de la Abuela Rosa
+    per_tick: {mood: -0.03}
+    color: "#a0522d"
   policia:
     description: eres policía de Los Santos
     appearance: uniforme azul
@@ -166,38 +186,6 @@ actions:
     where: [Las Afueras]
     on_self: {items: {dinero: 4}}
     message: entrega la mercancía y cobra
-  comprar_chaleco:
-    description: comprar un chaleco antibalas por 5 billetes en El Mercado
-    target: none
-    who: {items: {dinero: 5}, not_conditions: [detenido, noqueado, policia]}
-    where: [El Mercado]
-    cost: {dinero: 5}
-    on_self: {items: {chaleco: 1}}
-    message: compra un chaleco antibalas
-  comprar_botiquin:
-    description: comprar un botiquín por 2 billetes en El Mercado o en el Hospital
-    target: none
-    who: {items: {dinero: 2}, not_conditions: [detenido, policia]}
-    where: [El Mercado, Hospital]
-    cost: {dinero: 2}
-    on_self: {items: {botiquin: 1}}
-    message: compra un botiquín
-  comprar_bebida:
-    description: comprar una bebida energética por 1 billete (El Mercado, El Paseo o El Club)
-    target: none
-    who: {items: {dinero: 1}, not_conditions: [detenido, policia]}
-    where: [El Mercado, El Paseo, El Club]
-    cost: {dinero: 1}
-    on_self: {items: {bebida_energetica: 1}}
-    message: compra una bebida energética
-  comprar_bate:
-    description: comprar un bate por 3 billetes en El Taller
-    target: none
-    who: {items: {dinero: 3}, not_conditions: [detenido, noqueado, policia]}
-    where: [El Taller]
-    cost: {dinero: 3}
-    on_self: {items: {bate: 1}}
-    message: compra un bate
   pagar_ronda:
     description: pagar una ronda en El Club por 4 billetes; la calle lo recuerda (da respeto)
     target: none
@@ -224,6 +212,32 @@ actions:
     check: {attribute: intelligence, dc: 10}
     message: monta una moto con piezas robadas
     fail_message: intenta montar una moto, pero le sobran tornillos
+  cobrar_proteccion:
+    description: cobrar «protección» a los negocios de un barrio de tu banda (El Club, El Mercado, El Paseo o El Taller); da dinero pero calienta la calle
+    target: none
+    who: {own_territory: true, not_conditions: [detenido, noqueado, policia]}
+    where: [El Club, El Mercado, El Paseo, El Taller]
+    chance: 0.7
+    check: {attribute: charisma, skill: intimidation, dc: 11}
+    on_self: {items: {dinero: 3}, energy: -0.1}
+    world: {golpe: true}
+    message: pasa por los negocios del barrio a cobrar la protección
+    fail_message: intenta cobrar la protección, pero los comerciantes le plantan cara
+  pedir_prestamo:
+    description: pedirle 5 billetes prestados a la prestamista del barrio; hay que devolverle 7 antes de un día o serás moroso
+    who: {not_conditions: [deudor, moroso, detenido, noqueado, policia]}
+    target_requires: {professions: [prestamista], items: {dinero: 5}}
+    on_target: {items: {dinero: -5}}
+    on_self: {items: {dinero: 5}, add_conditions: [deudor]}
+    message: le pide un préstamo a {target}
+  devolver_prestamo:
+    description: devolverle 7 billetes a la prestamista y saldar la deuda
+    who: {any_conditions: [deudor, moroso], items: {dinero: 7}}
+    target_requires: {professions: [prestamista]}
+    cost: {dinero: 7}
+    on_target: {items: {dinero: 7}}
+    on_self: {remove_conditions: [deudor, moroso]}
+    message: le devuelve el préstamo a {target}
   chivarse:
     description: dar un chivatazo a la policía sobre alguien de aquí (le buscarán)
     who: {not_conditions: [detenido, policia]}
@@ -248,8 +262,8 @@ actions:
     who: {conditions: [policia]}
     target_requires: {conditions: [buscado], not_conditions: [detenido, noqueado]}
     chance: 0.5
-    on_target: {add_conditions: [detenido], remove_conditions: [buscado]}
-    message: detiene a {target}
+    on_target: {add_conditions: [detenido], remove_conditions: [buscado], items: {dinero: -2}}
+    message: detiene a {target} y le pone una multa
     fail_message: intenta detener a {target}, que se escapa
 
 society:
@@ -260,6 +274,9 @@ society:
   heal_removes: [noqueado]
 
 territories: {every: 2, group_points: 3, siege: 2, contested_income: 0.5}
+
+# El dinero: la moneda de los mercados; cada 4 billetes en la caja común suman 1 punto a la banda.
+economy: {currency: dinero, group_wealth_points: 0.25}
 
 factions:
   Los Motoristas: {goal: "Que la ciudad se mueva sobre nuestras ruedas", leader: Toro, members: [Toro, Chispa, Grasa, Lupe],
@@ -292,6 +309,10 @@ scores:
     blindado: {description: "Llevar un chaleco puesto", points: 1, when: {carries: chaleco}}
     libre: {description: "Salir de la comisaría pagando", points: 1, repeat: true, when: {action: sobornar}}
     ronda: {description: "Pagar una ronda en El Club", points: 2, repeat: true, when: {action: pagar_ronda}}
+    rico: {description: "Llegar a 20 billetes", points: 3, when: {wealth: 20}}
+    comerciante: {description: "Vender tres veces en un mercado", points: 2, when: {action: sell, times: 3}}
+    palabra: {description: "Devolver un préstamo", points: 2, repeat: true, when: {action: devolver_prestamo}}
+    moroso: {description: "Quedarse de moroso con la Abuela Rosa", points: -3, when: {condition: moroso}}
     motero: {description: "Montar una moto en El Taller", points: 4, when: {action: montar_moto}}
     sobre_ruedas: {description: "Cada seis horas con moto propia", points: 2, repeat: true, when: {carries: moto, every: 3}}
 
@@ -329,7 +350,7 @@ rules:
   - description: La policía levanta el cordón del Club.
     when: {at: 32, global: {redada: {eq: true}}}
     once: true
-    then: {locations: {El Club: {closed: false}}, redada: false}
+    then: {locations: {El Club: {closed: false}}, markets: {El Puerto: {open: true}}, redada: false}
 
 events:
   scheduled:
@@ -358,6 +379,11 @@ events:
       description: Liquidación en una tienda de El Mercado. Chalecos antibalas a precio de saldo, o gratis si nadie mira.
       effects:
         items: {"location:El Mercado": {chaleco: 3}}
+    - tick: 12
+      type: shortage
+      description: Tras la primera noche de peleas faltan botiquines. Su precio se dispara en El Mercado y en el Hospital.
+      effects:
+        prices: {El Mercado: {botiquin: 2}, Hospital: {botiquin: 2}}
     - tick: 13
       type: rumor
       description: Corre la voz de que hay un chivato en una de las bandas.
@@ -388,6 +414,11 @@ events:
       description: Alguien ha dejado una mochila sospechosa en El Club. Dentro, un cartucho de dinamita.
       effects:
         items: {"location:El Club": {dinamita: 1}}
+    - tick: 24
+      type: ship
+      description: Llega un barco cargado de contrabando. En el mercado negro del Puerto la mercancía ya no vale nada.
+      effects:
+        prices: {El Puerto: {mercancia: 0.5}}
     - tick: 25
       type: armored
       description: Un furgón blindado se estrella en Las Afueras y deja billetes por la cuneta.
@@ -395,8 +426,8 @@ events:
         items: {"location:Las Afueras": {dinero: 10}}
     - tick: 28
       type: raid
-      description: Redada policial. Cierran El Club durante cuatro horas.
-      effects: {locations: {El Club: {closed: true}}, redada: true}
+      description: Redada policial. Cierran El Club durante cuatro horas y el mercado negro del Puerto no abre esta noche.
+      effects: {locations: {El Club: {closed: true}}, markets: {El Puerto: {open: false}}, redada: true}
     - tick: 30
       type: workshop
       description: El Taller recibe un pedido de piezas y bates nuevos. Nadie ha preguntado quién lo paga.

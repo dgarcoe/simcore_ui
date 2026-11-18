@@ -106,6 +106,7 @@ export class WorldScene extends Phaser.Scene {
   private placeMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
   private territoryMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
   private layerGfx?: Phaser.GameObjects.Graphics;
+  private marketMarks = new Map<string, { sig: string; parts: Phaser.GameObjects.GameObject[] }>();
   private layerTexts: Phaser.GameObjects.Text[] = [];
 
   constructor() {
@@ -124,6 +125,7 @@ export class WorldScene extends Phaser.Scene {
     this.placeMarks = new Map();
     this.layerGfx = undefined;
     this.layerTexts = [];
+    this.marketMarks = new Map();
   }
 
   create(): void {
@@ -470,7 +472,42 @@ export class WorldScene extends Phaser.Scene {
     this.updateStock(sim);
     this.updatePlaces(sim);
     this.updateTerritories(sim);
+    this.updateMarkets(sim);
     this.updatePrizes(sim);
+  }
+
+  /** Markets: a 💰 by the place's name; hovering it shows what it sells and buys, and the prices now. */
+  private updateMarkets(sim: SimState): void {
+    for (const [place, m] of Object.entries(sim.markets ?? {})) {
+      const z = this.zones.get(place);
+      const label = this.labels.get(place);
+      if (!z || !label) continue;
+      const sells = Object.entries(m.sells).map(([i, v]) => `${i.replace(/_/g, ' ')} ${v.price}${v.stock !== undefined ? ` (${v.stock})` : ''}`).join(' · ');
+      const buys = Object.entries(m.buys).map(([i, p]) => `${i.replace(/_/g, ' ')} ${p}`).join(' · ');
+      const text = `${m.open ? '' : 'CERRADO\n'}${sells ? `Vende: ${sells}` : ''}${sells && buys ? '\n' : ''}${buys ? `Compra: ${buys}` : ''}\n(en ${m.currency})`;
+      const sig = `${m.open}|${text}`;
+      const current = this.marketMarks.get(place);
+      if (current?.sig === sig) continue;
+      current?.parts.forEach((p) => p.destroy());
+      const x = label.x - label.displayWidth / 2 - 10;
+      const y = label.y - label.displayHeight / 2;
+      const badge = this.add
+        .text(x, y, '💰', { fontFamily: PIXEL_FONT, fontSize: '9px' })
+        .setResolution(4)
+        .setOrigin(0.5)
+        .setAlpha(m.open ? 1 : 0.4)
+        .setDepth(100001)
+        .setInteractive({ useHandCursor: true });
+      const tip = this.add
+        .text(x, y - 8, text, { fontFamily: PIXEL_FONT, fontSize: '6px', color: '#f4f4f4', backgroundColor: '#1a1c2c', padding: { x: 3, y: 2 }, lineSpacing: 2 })
+        .setResolution(4)
+        .setOrigin(0.5, 1)
+        .setDepth(200003)
+        .setVisible(false);
+      badge.on('pointerover', () => tip.setVisible(true));
+      badge.on('pointerout', () => tip.setVisible(false));
+      this.marketMarks.set(place, { sig, parts: [badge, tip] });
+    }
   }
 
   /** Territories: tinted with the color of the group that holds them, a pulsing veil if contested. */

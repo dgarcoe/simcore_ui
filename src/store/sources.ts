@@ -174,7 +174,7 @@ export function playReplay(file: ReplayFile, at?: { tick?: number; agent?: strin
     mode: 'replay',
     connected: true,
     scenarioDescription: file.scenario?.description ?? '',
-    replayTimeline: timelineOf(file.events),
+    replayTimeline: timelineOf(file.events, file.config?.economy?.currency ?? 'dinero'),
     replayEvents: file.events,
     replayMeta: { player: file.player, model: file.meta?.model, runId: file.meta?.id, demo: file.meta?.demo },
   });
@@ -258,7 +258,7 @@ export interface Timeline {
   days: Day[];
 }
 
-export function timelineOf(events: SimEvent[]): Timeline {
+export function timelineOf(events: SimEvent[], currency = 'dinero'): Timeline {
   const times: Record<number, string> = {};
   let ticks = 0;
   const moments: Moment[] = [];
@@ -271,7 +271,7 @@ export function timelineOf(events: SimEvent[]): Timeline {
     const m = scoreEvent(e);
     if (m && m.importance >= 0.5) moments.push(m);
   }
-  return { ticks, moments, times, series: seriesOf(events), days: daysOf(times) };
+  return { ticks, moments, times, series: seriesOf(events, currency), days: daysOf(times) };
 }
 
 /**

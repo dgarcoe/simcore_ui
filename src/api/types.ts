@@ -48,6 +48,7 @@ export type EventType =
   | 'territory_change'
   | 'decision_trace'
   | 'item_fuse'
+  | 'market_trade'
   | 'agent_knockout'
   | 'orders'
   | 'intermission';
@@ -215,6 +216,15 @@ export interface SimState {
   scores?: ScoresState;
   /** Who holds each territory (scenarios with territories). */
   territories?: Record<string, TerritoryState>;
+  /** Markets: open or not, prices now and what is left. */
+  markets?: Record<string, MarketState>;
+}
+
+export interface MarketState {
+  open: boolean;
+  currency: string;
+  sells: Record<string, { price: number; stock?: number }>;
+  buys: Record<string, number>;
 }
 
 /** Who holds a territory; rival groups in it, and one outnumbering the owner's members there. */
@@ -257,6 +267,6 @@ export interface SearchClue {
 }
 
 export interface SocietyState {
-  factions: Record<string, { goal: string; leader: string; members: string[]; rivals: string[]; color: string }>;
+  factions: Record<string, { goal: string; leader: string; members: string[]; rivals: string[]; color: string; stash?: Record<string, number> }>;
   votes: Array<{ question: string; options: string[]; place: string; until: number; votes: number }>;
 }

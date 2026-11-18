@@ -71,6 +71,16 @@ export function GeneralTab() {
           <input type="checkbox" checked={sim.exhaustion !== false} onChange={(e) => update((d) => void (e.target.checked ? delete d.simulation.exhaustion : (d.simulation.exhaustion = false)))} />
           Agotamiento (sin energía, a descansar)
         </label>
+        <label title="El objeto que hace de dinero: la moneda de los mercados, los logros de riqueza y el premio al Magnate">
+          Moneda
+          <select className="select" value={draft.economy?.currency ?? 'dinero'} onChange={(e) => update((d) => void ((d.economy ??= {}).currency = e.target.value))}>
+            {[...new Set(['dinero', ...Object.keys(draft.items ?? {})])].map((i) => <option key={i}>{i}</option>)}
+          </select>
+        </label>
+        <label title="Puntos que suma a un grupo cada unidad de moneda en su almacén común (0: no cuenta)">
+          Puntos por moneda en el almacén del grupo
+          <input className="input" type="number" min={0} step={0.05} style={{ width: 70 }} value={draft.economy?.group_wealth_points ?? 0} onChange={(e) => update((d) => void ((d.economy ??= {}).group_wealth_points = Number(e.target.value) || 0))} />
+        </label>
         {sim.exhaustion !== false && (
           <label title="Quien cae rendido despierta allí con energía (un hospital, su casa). Vacío: descansa donde cayó">
             Quien cae rendido despierta en

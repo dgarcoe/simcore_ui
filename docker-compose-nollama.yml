@@ -5,7 +5,7 @@ services:
       dockerfile: docker/simcore.Dockerfile
       args:
         SIMCORE_REPO: ${SIMCORE_REPO:-https://github.com/dgarcoe/simcore}
-        SIMCORE_REF: ${SIMCORE_REF:-ccca2bc90490f6ca12ca38142df51a6b237ba465}
+        SIMCORE_REF: ${SIMCORE_REF:-e6f0b7e18b109dd7a9329cf06f82a71c308aa1f2}
 
     env_file:
       - path: .env

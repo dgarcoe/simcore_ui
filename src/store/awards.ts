@@ -28,6 +28,8 @@ export const AWARDS: Record<string, { title: string; icon: string; what: (n: num
   schemer: { title: 'El Estratega', icon: '♟', what: (n) => `${n} ${n === 1 ? 'plan activado' : 'planes activados'}` },
   pacifist: { title: 'El Pacifista', icon: '🕊', what: () => 'no levantó la mano a nadie' },
   untouchable: { title: 'El Intocable', icon: '🛡', what: () => 'nadie le puso la mano encima' },
+  magnate: { title: 'El Magnate', icon: '💰', what: (n) => `acabó con ${n} de dinero` },
+  tycoon: { title: 'El Tiburón', icon: '🦈', what: (n) => `ganó ${n} vendiendo en los mercados` },
 };
 
 export function awardTitle(a: Award): { title: string; icon: string; detail: string } {
@@ -78,6 +80,8 @@ export function highlightText(h: Highlight): string {
       return `Se convierte en ${s(h.into)}`;
     case 'custom':
       return s(h.text) || s(h.name).replace(/_/g, ' ');
+    case 'deal':
+      return `Vende ${s(h.amount)} ${s(h.item)} por ${s(h.price)} ${s(h.currency)} en ${s(h.place)}`;
     default:
       return h.kind;
   }

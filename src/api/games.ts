@@ -4,7 +4,7 @@
 import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
 import type { OrdersOptions } from '../player/OrdersForm';
 import type { Award, Highlight } from '../store/awards';
-import type { SimEvent, TerritoryState } from './types';
+import type { MarketState, SimEvent, TerritoryState } from './types';
 
 export const EDITABLE_FIELDS: Array<[string, string]> = [
   ['name', 'Nombre'],
@@ -197,6 +197,7 @@ export interface LiveView {
     places: Array<{ name: string; position?: [number, number]; territory?: TerritoryState }>;
     groups: Record<string, string>;
     group_ranking?: Array<{ group: string; points: number }>;
+    markets?: Record<string, MarketState>;
   };
 }
 export const liveView = (c: string, token: string, since: number) => call<LiveView>(`/api/play/${code(c)}/live?since=${since}`, { token });

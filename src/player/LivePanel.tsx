@@ -108,6 +108,13 @@ export function LivePanel({ code, token, agent, onStatus }: { code: string; toke
             </p>
           )}
           {me.group && <p className="small">🏴 {me.group}</p>}
+          {me.location && world?.markets?.[me.location] && (
+            <p className="small">
+              💰 {world.markets[me.location].open ? 'Mercado aquí' : 'Mercado (cerrado ahora)'}:{' '}
+              {Object.entries(world.markets[me.location].sells).map(([i, v]) => `${i.replace(/_/g, ' ')} ${v.price}`).join(' · ')}
+              {Object.keys(world.markets[me.location].buys).length > 0 && ` · compra ${Object.entries(world.markets[me.location].buys).map(([i, p]) => `${i.replace(/_/g, ' ')} ${p}`).join(' · ')}`}
+            </p>
+          )}
           {items.length > 0 && <p className="small">🎒 {items.map(([k, n]) => `${k} ×${n}`).join(' · ')}</p>}
           {world?.group_ranking && (
             <p className="small dim">{cap(w.groups)}: {world.group_ranking.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>

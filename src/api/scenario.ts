@@ -89,6 +89,8 @@ export interface LocationConfig {
   territory?: boolean;
   /** Paid into the holding group's stash every `territories.every` ticks. */
   income?: Record<string, number>;
+  /** Agents here buy and sell; prices move with supply and demand. */
+  market?: MarketConfig;
 }
 
 export interface HazardConfig {
@@ -187,6 +189,8 @@ export interface AchievementWhen {
   captures?: boolean;
   /** Knocking someone out (or killing them) in a fight. */
   knocks_out?: boolean;
+  /** Carrying at least this much of economy.currency. */
+  wealth?: number;
   /** Being in a territory your group holds (with repeat: each `every` ticks). */
   in_territory?: boolean;
 }
@@ -252,7 +256,20 @@ export const STATS: Array<[Stat, string]> = [
   ['mood', 'Ánimo'],
 ];
 
+export interface MarketConfig {
+  currency?: string;
+  sells?: Record<string, number>;
+  buys?: Record<string, number>;
+  stock?: Record<string, number>;
+  /** [from, to] open hours, e.g. [20, 6]. */
+  hours?: number[];
+  elasticity?: number;
+  recovery?: number;
+}
+
 export interface Requirement {
+  /** Standing in a territory its group holds. */
+  own_territory?: boolean;
   conditions?: string[];
   /** At least one of these. */
   any_conditions?: string[];
@@ -334,6 +351,8 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'fuses', label: 'objetos con mecha, puñetazos, puntos por tumbar o lugar al agotarse' });
   if (Object.values(cfg.items ?? {}).some((i) => i.bonus && Object.keys(i.bonus).length))
     out.push({ feature: 'item_bonus', label: 'objetos que ayudan en las tiradas' });
+  if (cfg.environment.locations.some((l) => l.market) || cfg.economy || Object.values(cfg.scores?.achievements ?? {}).some((a) => a.when?.wealth))
+    out.push({ feature: 'economy', label: 'mercados, dinero y riqueza' });
   if (cfg.llm?.record_prompts) out.push({ feature: 'review', label: 'guardar los prompts de cada decisión' });
   return out;
 }
@@ -366,7 +385,7 @@ export interface ActionConfig {
   fail_message?: string;
 }
 
-export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline', 'whisper', 'invite', 'follow', 'find', 'attack', 'heal', 'found_group', 'join', 'leave', 'expel', 'call_vote', 'vote'];
+export const BUILTIN_ACTIONS = ['move', 'speak', 'trade', 'interact', 'wait', 'observe', 'work', 'rest', 'post', 'custom', 'give', 'take', 'drop', 'use', 'accept', 'decline', 'whisper', 'invite', 'follow', 'find', 'attack', 'heal', 'found_group', 'join', 'leave', 'expel', 'call_vote', 'vote', 'buy', 'sell'];
 
 export interface ScheduledEventConfig {
   tick: number;
@@ -420,6 +439,7 @@ export interface ScenarioConfig {
   routines?: Routines;
   scores?: ScoresConfig;
   territories?: { every?: number; group_points?: number; siege?: number; contested_income?: number };
+  economy?: { currency?: string; group_wealth_points?: number };
 }
 
 export const LOCATION_TYPES = [
@@ -874,6 +894,12 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
   const ko = cfg.society?.knockout;
   if (ko?.condition) need([ko.condition], 'El K.O.', 'society');
   if (ko?.place && !places.has(ko.place)) issues.push({ path: 'society', message: `Tras un K.O. se despierta en «${ko.place}», que no existe.` });
+  const money = cfg.economy?.currency ?? 'dinero';
+  for (const l of cfg.environment.locations) {
+    if (!l.market) continue;
+    for (const i of [...Object.keys(l.market.sells ?? {}), ...Object.keys(l.market.buys ?? {}), l.market.currency || money])
+      if (!cfg.items?.[i]) issues.push({ path: `environment.locations.${l.name}.market`, message: `El mercado de ${l.name} usa «${i}», que no está en los objetos.` });
+  }
   const tired = cfg.simulation.exhaustion_place;
   if (tired && !places.has(tired)) issues.push({ path: 'simulation.exhaustion_place', message: `Quien cae rendido despierta en «${tired}», que no existe.` });
   if ((cfg.rules ?? []).some((r) => allTests(r.when).some((w) => w.territories)) && !cfg.environment.locations.some((l) => l.territory))
@@ -892,7 +918,7 @@ export function referenceIssues(cfg: ScenarioConfig): ValidationIssue[] {
     if (Array.isArray(w.visited)) for (const p of w.visited) if (!places.has(p)) issues.push({ path: `scores.${k}`, message: `${where} visita «${p}», que no existe.` });
     if (w.carries && !cfg.items?.[w.carries]) issues.push({ path: `scores.${k}`, message: `${where} mira «${w.carries}», que no está en el catálogo de objetos.` });
     if (w.condition) need([w.condition], where, `scores.${k}`);
-    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without && !w.captures && !w.in_territory && !w.knocks_out)
+    if (!w.action && !w.visited && !w.carries && !w.condition && !w.alive_at_end && !w.without && !w.captures && !w.in_territory && !w.knocks_out && !w.wealth)
       issues.push({ path: `scores.${k}`, message: `${where} no dice qué lo consigue (when).` });
   }
   const agentNames = new Set(cfg.agents.map((a) => a.name));

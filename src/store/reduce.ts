@@ -656,6 +656,7 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         banner: { id: seq, tick: e.tick, kind: 'explosion', text, location: d.location },
       };
     }
+    case 'market_trade': // the agent's buy/sell action already tells it
     case 'decision_trace':
       return next; // reviewed in the agent's record, not in the feed
     default:

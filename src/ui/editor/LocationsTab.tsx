@@ -216,6 +216,24 @@ export function LocationsTab({ selected, onSelect }: Props) {
                   onChange={(r) => set((x) => void (Object.keys(r).length ? (x.income = r) : delete x.income))}
                 />
               )}
+              <label className="toggle" title="Aquí se compra y se vende con la moneda del escenario; los precios suben al comprar y bajan al vender">
+                <input type="checkbox" checked={!!l.market} onChange={(e) => set((x) => void (e.target.checked ? (x.market = { sells: {}, buys: {} }) : delete x.market))} />
+                Mercado
+              </label>
+              {l.market && (
+                <>
+                  <AmountsField label="Vende (objeto: precio)" value={l.market.sells} placeholder="chaleco: 5, botiquin: 2" onChange={(r) => set((x) => void (x.market!.sells = r))} />
+                  <AmountsField label="Compra (objeto: lo que paga)" value={l.market.buys} placeholder="mercancia: 3" onChange={(r) => set((x) => void (x.market!.buys = r))} />
+                  <AmountsField label="Existencias limitadas (vacío: no se agotan)" value={l.market.stock} placeholder="chaleco: 3" onChange={(r) => set((x) => void (Object.keys(r).length ? (x.market!.stock = r) : delete x.market!.stock))} />
+                  <label className="toggle" title="Abre solo entre estas horas (p. ej. de 20 a 6). Vacío: siempre abierto">
+                    Abre de
+                    <input className="input" type="number" min={0} max={24} style={{ width: 54 }} value={l.market.hours?.[0] ?? ''} placeholder="—" onChange={(e) => set((x) => void (e.target.value === '' ? delete x.market!.hours : (x.market!.hours = [Number(e.target.value), x.market!.hours?.[1] ?? 6])))} />
+                    a
+                    <input className="input" type="number" min={0} max={24} style={{ width: 54 }} value={l.market.hours?.[1] ?? ''} placeholder="—" onChange={(e) => set((x) => void (e.target.value === '' ? delete x.market!.hours : (x.market!.hours = [x.market!.hours?.[0] ?? 20, Number(e.target.value)])))} />
+                    h
+                  </label>
+                </>
+              )}
             </div>
             <textarea
               className="input"
