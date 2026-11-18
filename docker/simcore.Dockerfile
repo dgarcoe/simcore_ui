@@ -3,7 +3,7 @@
 FROM python:3.12-slim
 
 ARG SIMCORE_REPO=https://github.com/dgarcoe/simcore
-ARG SIMCORE_REF=0df38edec421759f29243db10bef27865fb30457
+ARG SIMCORE_REF=06c98aa5b02cdb4d759bfeb753c09753f98712c4
 ENV SIMCORE_REPO=$SIMCORE_REPO SIMCORE_REF=$SIMCORE_REF
 
 # Fetch the source tarball for the pinned ref (no git needed in the image).

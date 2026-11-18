@@ -239,6 +239,8 @@ Para usarlo con un grupo (en el trabajo, un taller…): cada persona configura s
 
 **Textos de los jugadores, a salvo.** Lo que escribe un jugador (órdenes, historia, metas, secretos, nombre) se limpia antes de llegar al prompt: se corta la frase entera de cualquier intento de dar instrucciones al modelo («ignora las reglas anteriores», «system prompt», «responde solo con JSON», etiquetas de chat…) y el agente lo lee entre «comillas» como los deseos de su jugador, nunca como reglas nuevas.
 
+**Bots para probar.** En «Gestionar», antes de lanzar, el DM puede añadir los bots que quiera (🤖, hasta llenar las plazas): jugadores inventados con una ficha y unas órdenes al azar dentro de lo que permite la partida (solo los campos editables, los grupos permitidos repartidos a partes iguales, el presupuesto de atributos y las habilidades), ya enviadas. Nadie los controla ni puede entrar con ellos. «Quitar los N bots» los borra de golpe mientras la partida no haya empezado. Sirve para ensayar una partida, medir tiempos con el modelo de verdad o completar una banda corta.
+
 **Muchos jugadores** (hasta 100 por partida): pon `llm.max_concurrency` cerca de `OLLAMA_NUM_PARALLEL` (o más alto con un modelo en la nube), y prefiere ticks de 2 horas y pocos días. Con más de 15 personas, cada agente solo ve en su prompt a la gente de su lugar, de su grupo y con la que tiene relación.
 
 ### Simulaciones guardadas y reproductor

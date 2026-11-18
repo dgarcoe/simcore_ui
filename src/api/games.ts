@@ -61,6 +61,8 @@ export interface GamePlayer {
   agent: Partial<AgentConfig>;
   submitted: boolean;
   joined: string;
+  /** Made up by the DM to try the game out (no one plays it). */
+  bot?: boolean;
 }
 
 export interface Game {
@@ -140,6 +142,9 @@ export const updateGame = (id: string, payload: Partial<Game>) => call<Game>(`/a
 export const deleteGame = (id: string) => call<{ deleted: boolean }>(`/api/games/${id}`, { method: 'DELETE' });
 export const editPlayer = (id: string, player: string, payload: { agent?: Partial<AgentConfig>; submitted?: boolean; remove?: boolean }) =>
   call<Game>(`/api/games/${id}/players/${player}`, { method: 'POST' }, payload);
+/** Made-up players with random agents within the template, to try a game out. */
+export const addBots = (id: string, count: number) => call<Game>(`/api/games/${id}/bots`, { method: 'POST' }, { count });
+export const removeBots = (id: string) => call<Game>(`/api/games/${id}/bots`, { method: 'DELETE' });
 export const launchGame = (id: string, opts: { demo: boolean; speed: number }) =>
   call<{ status: string; run_id: string | null; name: string }>(`/api/games/${id}/launch`, { method: 'POST' }, opts);
 

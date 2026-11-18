@@ -3,7 +3,9 @@ import {
   createGame,
   deleteGame,
   EDITABLE_FIELDS,
+  addBots,
   editPlayer,
+  removeBots,
   gameLink,
   listGames,
   pointsSpent,
@@ -144,7 +146,7 @@ function GameDetail({ game: g, demo, speed, act, onEdit }: { game: Game; demo: b
         <tbody>
           {g.players.map((p) => (
             <tr key={p.id}>
-              <td>{p.display_name}</td>
+              <td>{p.bot ? <span title="Bot del DM para probar la partida">🤖 {p.display_name}</span> : p.display_name}</td>
               <td>
                 <details>
                   <summary>
@@ -175,6 +177,7 @@ function GameDetail({ game: g, demo, speed, act, onEdit }: { game: Game; demo: b
           )}
         </tbody>
       </table>
+      {(g.status === 'open' || g.status === 'closed') && <BotsRow game={g} act={act} />}
       {g.status === 'intermission' && (
         <div className="day-pause">
           🌙 Fin de la jornada: cada jugador está leyendo su parte y puede cambiar sus órdenes.
@@ -210,6 +213,28 @@ function GameDetail({ game: g, demo, speed, act, onEdit }: { game: Game; demo: b
             <input type="checkbox" checked={shown.replay} onChange={(e) => publish('replay', e.target.checked)} /> la repetición completa
           </label>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** The DM fills empty seats with bots to try the game: random agents within the template. */
+function BotsRow({ game: g, act }: { game: Game; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const room = g.max_players - g.players.length;
+  const [count, setCount] = useState(Math.min(4, Math.max(1, room)));
+  const bots = g.players.filter((p) => p.bot).length;
+  return (
+    <div className="row wrap" title="Jugadores inventados con una ficha y unas órdenes al azar dentro de lo que permite la partida (repartidos entre los grupos). Nadie los controla.">
+      <span>🤖 Bots para probar:</span>
+      <input className="input" type="number" min={1} max={Math.max(1, room)} style={{ width: 64 }} value={count} aria-label="Cuántos bots" onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))} />
+      <button className="btn" disabled={room < 1} onClick={() => act(() => addBots(g.id, Math.min(count, room)))}>
+        Añadir
+      </button>
+      {room < 1 && <span className="dim small">no quedan plazas</span>}
+      {bots > 0 && (
+        <button className="btn" onClick={() => act(() => removeBots(g.id))}>
+          Quitar los {bots} bots
+        </button>
       )}
     </div>
   );
