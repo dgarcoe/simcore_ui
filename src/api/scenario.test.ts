@@ -481,6 +481,6 @@ describe('Los Santos', () => {
     expect(ends.some((r) => r.when?.territories?.gte === 5)).toBe(true);
     expect(ends.find((r) => r.winner === 'group')?.then).toMatchObject({ end: expect.stringContaining('{mvp}') });
     expect(cfg.agents.every((a) => a.orders?.style)).toBe(true);
-    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'recipes', 'game_systems', 'gangs', 'orders', 'fuses']);
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'recipes', 'game_systems', 'gangs', 'orders', 'fuses', 'item_bonus']);
   });
 });

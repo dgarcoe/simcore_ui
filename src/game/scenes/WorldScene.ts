@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { parseAction, targetsOf } from '../../api/parse';
 import type { SimEvent, SimState } from '../../api/types';
 import { bus } from '../../store/bus';
-import { fightHeat, hostileActions, pathOf } from '../../store/review';
+import { fightHeat, hostileActions, itemTrail, pathOf } from '../../store/review';
 import { useSim } from '../../store/simStore';
 import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
@@ -530,7 +530,7 @@ export class WorldScene extends Phaser.Scene {
     this.layerGfx = undefined;
     this.layerTexts.forEach((t) => t.destroy());
     this.layerTexts = [];
-    if (!replayEvents || (!layers.heat && !(layers.trail && selectedAgent))) return;
+    if (!replayEvents || (!layers.heat && !layers.item && !(layers.trail && selectedAgent))) return;
     const g = this.add.graphics().setDepth(99995);
     this.layerGfx = g;
     const centre = (place: string) => {
@@ -558,6 +558,31 @@ export class WorldScene extends Phaser.Scene {
             .setDepth(100002),
         );
       }
+    }
+    if (layers.item) {
+      const pts = itemTrail(replayEvents, layers.item, tick).places.map(centre).filter((p): p is { x: number; y: number } => !!p);
+      pts.forEach((p, i) => {
+        const next = pts[i + 1];
+        const alpha = 0.4 + (0.6 * (i + 1)) / pts.length;
+        if (next) {
+          g.lineStyle(6, 0x1a1c2c, alpha * 0.8);
+          g.lineBetween(p.x + 3, p.y + 3, next.x + 3, p.y + 3);
+          g.lineBetween(next.x + 3, p.y + 3, next.x + 3, next.y + 3);
+          g.lineStyle(4, 0xffcd75, alpha);
+          g.lineBetween(p.x + 3, p.y + 3, next.x + 3, p.y + 3);
+          g.lineBetween(next.x + 3, p.y + 3, next.x + 3, next.y + 3);
+        }
+        g.fillStyle(0xffcd75, alpha);
+        g.fillRect(p.x - 2, p.y - 2, 10, 10);
+      });
+      const last = pts.at(-1);
+      if (last)
+        this.layerTexts.push(
+          this.add
+            .text(last.x + 8, last.y + 6, `🔍 ${layers.item.replace(/_/g, ' ')}`, { fontFamily: PIXEL_FONT, fontSize: '7px', color: '#1a1c2c', backgroundColor: '#ffcd75', padding: { x: 2, y: 1 } })
+            .setResolution(4)
+            .setDepth(100002),
+        );
     }
     if (layers.trail && selectedAgent) {
       const path = pathOf(replayEvents, selectedAgent, tick);

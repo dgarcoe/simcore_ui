@@ -11,6 +11,8 @@ export function AgentRecord({ name }: { name: string }) {
   const tick = useSim((s) => s.sim?.clock.tick ?? 0);
   const orders = useSim((s) => s.scenarioConfig?.agents?.find((a) => a.name === name)?.orders);
   const [open, setOpen] = useState(true);
+  const layers = useSim((s) => s.layers);
+  const set = useSim((s) => s.set);
   const [onlyKey, setOnlyKey] = useState(false);
   const [trace, setTrace] = useState<number | null>(null);
   const nowRef = useRef<HTMLLIElement>(null);
@@ -31,7 +33,12 @@ export function AgentRecord({ name }: { name: string }) {
     <div className="player-block agent-record">
       <div className="row between">
         <h4>📼 Su partida</h4>
-        <button className="btn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Ocultar' : 'Ver'}</button>
+        <span className="row nowrap">
+          <button className={`btn ${layers.trail ? 'btn-accent' : ''}`} aria-pressed={layers.trail} title="Su camino hasta ahora en el mapa" onClick={() => set({ layers: { ...layers, trail: !layers.trail } })}>
+            👣 Rastro
+          </button>
+          <button className="btn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Ocultar' : 'Ver'}</button>
+        </span>
       </div>
       {open && (
         <>

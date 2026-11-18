@@ -38,7 +38,7 @@ export interface UIState extends SimSnapshot {
   /** The day whose summary is shown over the map (replays). */
   dayRecap: number | null;
   /** Map layers while reviewing: the selected agent's path, where the fights were. */
-  layers: { trail: boolean; heat: boolean };
+  layers: { trail: boolean; heat: boolean; item?: string | null };
 
   /** silent: update state without animating it (history catch-up). */
   ingest: (e: SimEvent, silent?: boolean) => void;

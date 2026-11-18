@@ -169,6 +169,8 @@ export interface ItemConfig {
   curse?: { condition: string; sticky?: boolean; broken_by?: string[]; description?: string };
   /** Lit when someone picks it up; goes off `ticks` later wherever it is (dynamite). */
   fuse?: { ticks?: number; on_holder?: Outcome; on_others?: Outcome; message?: string };
+  /** Helps whoever carries it with the dice: an attribute, a skill, an action or defense → +n. */
+  bonus?: Record<string, number>;
 }
 
 /** What earns (or loses) an achievement's points. */
@@ -330,6 +332,8 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'orders', label: 'órdenes de los jugadores o jornadas con pausa' });
   if (Object.values(cfg.items ?? {}).some((i) => i.fuse) || cfg.society?.fists || cfg.simulation.exhaustion_place || Object.values(cfg.scores?.achievements ?? {}).some((a) => a.when?.knocks_out))
     out.push({ feature: 'fuses', label: 'objetos con mecha, puñetazos, puntos por tumbar o lugar al agotarse' });
+  if (Object.values(cfg.items ?? {}).some((i) => i.bonus && Object.keys(i.bonus).length))
+    out.push({ feature: 'item_bonus', label: 'objetos que ayudan en las tiradas' });
   if (cfg.llm?.record_prompts) out.push({ feature: 'review', label: 'guardar los prompts de cada decisión' });
   return out;
 }

@@ -445,3 +445,79 @@ export function replayHash(link: ReplayLink): string {
   if (link.agent) q.set('agente', link.agent);
   return `#${q.toString()}`;
 }
+
+// ── Following an item: whose hands and which places it went through ──────
+
+export interface ItemStep {
+  tick: number;
+  text: string;
+  place: string;
+}
+
+const where = (s: string) => s.replace(/^(location|place):/, '');
+const isPlace = (s: string) => /^(location|place):/.test(s);
+
+/** An item's life in the run (up to a tick): where it appeared, who took, gave, stole, used or
+ * lost it, and the places it went through, also while someone carried it around. */
+export function itemTrail(events: SimEvent[], item: string, upTo = Infinity): { steps: ItemStep[]; places: string[] } {
+  const steps: ItemStep[] = [];
+  const places: string[] = [];
+  const holders = new Map<string, number>();
+  const at = (p: string) => {
+    if (p && places.at(-1) !== p) places.push(p);
+  };
+  const hold = (who: string, n: number) => {
+    const v = (holders.get(who) ?? 0) + n;
+    if (v > 1e-9) holders.set(who, v);
+    else holders.delete(who);
+  };
+  for (const e of events) {
+    if (e.tick > upTo) break;
+    const d = (e.data ?? {}) as Data;
+    if (e.type === 'tick_end') {
+      for (const a of Object.values(end(e).agents ?? {})) if (holders.has(a.name)) at(a.location);
+      continue;
+    }
+    if (e.type === 'item_fuse' && str(d.item) === item) {
+      steps.push({ tick: e.tick, text: `💥 estalla en ${str(d.location)}${str(d.agent) ? ` (lo llevaba ${str(d.agent)})` : ''}`, place: str(d.location) });
+      if (str(d.agent)) hold(str(d.agent), -1);
+      at(str(d.location));
+      continue;
+    }
+    if (e.type !== 'item_transfer' || str(d.item) !== item) continue;
+    const kind = str(d.kind);
+    if (kind === 'income' || kind === 'holder') continue;
+    const from = str(d.from);
+    const to = str(d.to);
+    const amount = Number(d.amount ?? 1) || 1;
+    const loc = str(d.location) || (isPlace(to) ? where(to) : isPlace(from) ? where(from) : '');
+    const n = amount === 1 ? '' : ` (${amount})`;
+    let text = '';
+    if (kind === 'take') text = `${to} lo coge${isPlace(from) ? ` en ${where(from)}` : ''}${n}`;
+    else if (kind === 'give') text = `${from} se lo da a ${to}${n}`;
+    else if (kind === 'steal') text = `${to} se lo roba a ${from}${n}`;
+    else if (kind === 'use') text = `${from} lo usa${to && to !== from ? ` con ${to}` : ''}`;
+    else if (kind === 'drop' || kind === 'dropped') text = `${from} lo deja en ${loc}${n}`;
+    else if (!from && isPlace(to)) text = `aparece en ${where(to)}${n}`;
+    else if (!from && to) text = `${to} lo consigue${n}`;
+    else if (from && !to) text = `${from} lo gasta o lo pierde${n}`;
+    else text = `${from || '—'} → ${to || '—'}${n}`;
+    if (from && !isPlace(from) && !from.startsWith('group:')) hold(from, -amount);
+    if (to && !isPlace(to) && !to.startsWith('group:') && kind !== 'use') hold(to, amount);
+    steps.push({ tick: e.tick, text, place: loc });
+    at(loc);
+  }
+  return { steps, places };
+}
+
+/** Items worth following in a run: the ones that changed hands, coveted and dangerous ones first. */
+export function trackableItems(events: SimEvent[], config?: { items?: Record<string, { visible?: boolean; fuse?: unknown; weapon?: unknown }> } | null): string[] {
+  const moved = new Map<string, number>();
+  for (const e of events)
+    if (e.type === 'item_transfer' && e.data.kind !== 'income' && e.data.kind !== 'holder') moved.set(str(e.data.item), (moved.get(str(e.data.item)) ?? 0) + 1);
+  const rank = (name: string) => {
+    const spec = config?.items?.[name];
+    return (spec?.visible ? 0 : spec?.fuse ? 1 : spec?.weapon ? 2 : 3) * 1000 - (moved.get(name) ?? 0);
+  };
+  return [...moved.keys()].filter(Boolean).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}

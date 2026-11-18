@@ -89,3 +89,19 @@ describe('nothing tied to one scenario', () => {
     expect(hostileActions({ actions: { sabotear: { target: 'agent', on_target: { health: -0.2 } }, saludar: { target: 'agent' } } })).toEqual(new Set(['sabotear']));
   });
 });
+
+describe('following an item', () => {
+  it('tells whose hands and which places the briefcase went through', async () => {
+    const { itemTrail, trackableItems } = await import('./review');
+    const items = trackableItems(events, file.config);
+    expect(items[0]).toBe('maletin'); // coveted items first
+    const { steps, places } = itemTrail(events, 'maletin');
+    expect(steps[0].text).toBe('aparece en Las Afueras');
+    expect(places[0]).toBe('Las Afueras');
+    // an item that changed hands: steps in order, through several places
+    const busy = items.map((i) => itemTrail(events, i)).find((t) => t.steps.length > 3)!;
+    expect(busy.steps.every((s, i) => i === 0 || s.tick >= busy.steps[i - 1].tick)).toBe(true);
+    expect(busy.steps.some((s) => / lo coge| se lo da a | se lo roba a /.test(s.text))).toBe(true);
+    expect(itemTrail(events, 'maletin', 0).steps).toEqual([]);
+  });
+});

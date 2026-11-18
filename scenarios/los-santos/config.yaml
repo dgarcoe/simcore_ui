@@ -49,7 +49,7 @@ environment:
     - {name: El Puerto, type: industrial, position: [2, 2], capacity: 30, territory: true, income: {mercancia: 2},
        stock: {mercancia: 2}}
     - {name: El Taller, type: industrial, position: [6, 2], capacity: 30, territory: true, income: {piezas: 2},
-       stock: {bate: 2}}
+       stock: {bate: 2, piezas: 2}}
     - {name: El Club, type: commercial, position: [10, 2], capacity: 30, territory: true, income: {dinero: 3}}
     - {name: El Mercado, type: commercial, position: [2, 6], capacity: 30, territory: true, income: {dinero: 2, comida: 2},
        stock: {comida: 6}}
@@ -70,6 +70,16 @@ items:
   botiquin: {description: botiquín, on_use: {health: 0.3}}
   bate: {description: bate de béisbol, consumable: false, weapon: {damage: 0.35, chance: 0.7}}
   chaleco: {description: chaleco antibalas de segunda mano, consumable: false, armor: 2}
+  bate_con_clavos: {description: bate con clavos hecho en El Taller, consumable: false, weapon: {damage: 0.5, chance: 0.75}}
+  nudillera: {description: puño americano, consumable: false, weapon: {damage: 0.3, chance: 0.75}, bonus: {intimidation: 1}}
+  moto:
+    description: moto montada en El Taller con piezas robadas; todo el mundo ve quién la lleva
+    consumable: false
+    visible: true
+    drops: true
+    bonus: {athletics: 2, defense: 1}
+  ganzua: {description: juego de ganzúas, consumable: false, bonus: {sleight_of_hand: 2, dar_un_palo: 2, atracar_negocio: 1}}
+  prismaticos: {description: prismáticos, consumable: false, bonus: {perception: 2, insight: 1}}
   bebida_energetica: {description: lata de bebida energética, on_use: {energy: 0.6, mood: 0.05}}
   dinamita:
     description: cartucho de dinamita; la mecha se enciende al cogerlo y estalla a las seis horas
@@ -156,6 +166,64 @@ actions:
     where: [Las Afueras]
     on_self: {items: {dinero: 4}}
     message: entrega la mercancía y cobra
+  comprar_chaleco:
+    description: comprar un chaleco antibalas por 5 billetes en El Mercado
+    target: none
+    who: {items: {dinero: 5}, not_conditions: [detenido, noqueado, policia]}
+    where: [El Mercado]
+    cost: {dinero: 5}
+    on_self: {items: {chaleco: 1}}
+    message: compra un chaleco antibalas
+  comprar_botiquin:
+    description: comprar un botiquín por 2 billetes en El Mercado o en el Hospital
+    target: none
+    who: {items: {dinero: 2}, not_conditions: [detenido, policia]}
+    where: [El Mercado, Hospital]
+    cost: {dinero: 2}
+    on_self: {items: {botiquin: 1}}
+    message: compra un botiquín
+  comprar_bebida:
+    description: comprar una bebida energética por 1 billete (El Mercado, El Paseo o El Club)
+    target: none
+    who: {items: {dinero: 1}, not_conditions: [detenido, policia]}
+    where: [El Mercado, El Paseo, El Club]
+    cost: {dinero: 1}
+    on_self: {items: {bebida_energetica: 1}}
+    message: compra una bebida energética
+  comprar_bate:
+    description: comprar un bate por 3 billetes en El Taller
+    target: none
+    who: {items: {dinero: 3}, not_conditions: [detenido, noqueado, policia]}
+    where: [El Taller]
+    cost: {dinero: 3}
+    on_self: {items: {bate: 1}}
+    message: compra un bate
+  pagar_ronda:
+    description: pagar una ronda en El Club por 4 billetes; la calle lo recuerda (da respeto)
+    target: none
+    who: {items: {dinero: 4}, not_conditions: [detenido, noqueado, policia]}
+    where: [El Club]
+    cost: {dinero: 4}
+    on_self: {mood: 0.2}
+    message: paga una ronda para todo El Club
+  montar_bate_con_clavos:
+    description: en El Taller, convertir un bate y 2 piezas en un bate con clavos (más daño)
+    target: none
+    who: {items: {bate: 1, piezas: 2}, not_conditions: [detenido, noqueado, policia]}
+    where: [El Taller]
+    cost: {bate: 1, piezas: 2}
+    on_self: {items: {bate_con_clavos: 1}}
+    message: clava unos clavos a su bate
+  montar_moto:
+    description: en El Taller, montar una moto con 4 piezas y 2 billetes (ayuda al pelear y escapar, y da respeto)
+    target: none
+    who: {items: {piezas: 4, dinero: 2}, not_conditions: [detenido, noqueado, policia]}
+    where: [El Taller]
+    cost: {piezas: 4, dinero: 2}
+    on_self: {items: {moto: 1}}
+    check: {attribute: intelligence, dc: 10}
+    message: monta una moto con piezas robadas
+    fail_message: intenta montar una moto, pero le sobran tornillos
   chivarse:
     description: dar un chivatazo a la policía sobre alguien de aquí (le buscarán)
     who: {not_conditions: [detenido, policia]}
@@ -223,6 +291,9 @@ scores:
     enfermero: {description: "Curar a alguien", points: 2, repeat: true, when: {action: heal}}
     blindado: {description: "Llevar un chaleco puesto", points: 1, when: {carries: chaleco}}
     libre: {description: "Salir de la comisaría pagando", points: 1, repeat: true, when: {action: sobornar}}
+    ronda: {description: "Pagar una ronda en El Club", points: 2, repeat: true, when: {action: pagar_ronda}}
+    motero: {description: "Montar una moto en El Taller", points: 4, when: {action: montar_moto}}
+    sobre_ruedas: {description: "Cada seis horas con moto propia", points: 2, repeat: true, when: {carries: moto, every: 3}}
 
 rules:
   - description: Amanece en Los Santos. El viejo jefe ha caído y las bandas salen a la calle.
@@ -272,6 +343,11 @@ events:
       description: Un camión con contrabando atraca de noche en El Puerto.
       effects:
         items: {"location:El Puerto": {mercancia: 6}}
+    - tick: 7
+      type: lockpicks
+      description: A un cerrajero le roban el maletín de herramientas en El Mercado. Las ganzúas acaban por el suelo.
+      effects:
+        items: {"location:El Mercado": {ganzua: 2}}
     - tick: 8
       type: omen
       description: Alguien jura haber visto la pistola del viejo jefe en El Polígono.
@@ -297,6 +373,11 @@ events:
       description: El maletín con el dinero del viejo jefe aparece en Las Afueras.
       effects:
         items: {"location:Las Afueras": {maletin: 1}}
+    - tick: 18
+      type: flea_market
+      description: Rastrillo en Las Torres. Entre trastos viejos hay prismáticos y puños americanos.
+      effects:
+        items: {"location:Las Torres": {prismaticos: 2, nudillera: 2}}
     - tick: 20
       type: supplies
       description: Llega un cargamento de botiquines al Hospital.

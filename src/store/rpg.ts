@@ -61,6 +61,9 @@ export interface DiceRoll {
   tick?: number;
   /** The action, speech or search it was for (set by the UI). */
   for?: string;
+  /** Carried items that helped (items.<x>.bonus) and how much in all. */
+  items?: string[];
+  item_bonus?: number;
 }
 
 export interface RpgSheet {
@@ -90,7 +93,8 @@ export function diceText(d: DiceRoll): string {
   const versus = d.against ? `${d.against.total} (${d.against.agent})` : `${d.dc ?? 10}`;
   const verdict = d.critical ? `💥 ¡crítico! ${ok}` : d.fumble ? `💀 ¡pifia! ${ko}` : d.success ? ok : ko;
   const self = d.check === 'heal' && !d.target ? 'se cura' : `${verb}${who}`;
-  return `${self}: ${sum} contra ${versus} — ${verdict}`;
+  const gear = d.item_bonus ? ` (${d.item_bonus > 0 ? '+' : '−'}${Math.abs(d.item_bonus)} por ${(d.items ?? []).join(' y ').replace(/_/g, ' ')})` : '';
+  return `${self}: ${sum}${gear} contra ${versus} — ${verdict}`;
 }
 
 export interface LevelUp {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { cap, useWords } from '../lib/words';
-import { CATEGORIES } from '../store/review';
+import { CATEGORIES, trackableItems } from '../store/review';
 import { useSim } from '../store/simStore';
 import { control, jumpMoment, momentLink, seekReplay, shownMoments, stepReplay } from '../store/sources';
 import type { Moment } from '../store/story';
@@ -32,6 +32,10 @@ export function ReplayBar() {
   const set = useSim((s) => s.set);
   const w = useWords();
   const player = useSim((s) => s.replayMeta?.player);
+  const events = useSim((s) => s.replayEvents);
+  const config = useSim((s) => s.scenarioConfig);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const items = useMemo(() => (events ? trackableItems(events, config) : []), [events]);
   const [hover, setHover] = useState<{ tick: number; text: string } | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
   const [chart, setChart] = useState<ChartMode | ''>('');
@@ -171,6 +175,20 @@ export function ReplayBar() {
           <button className={`chip-btn ${layers.heat ? 'on' : ''}`} aria-pressed={layers.heat} title="Dónde ha habido peleas hasta ahora" onClick={() => set({ layers: { ...layers, heat: !layers.heat } })}>
             🔥 Peleas
           </button>
+          {items.length > 0 && (
+            <select
+              className={`select small ${layers.item ? 'on' : ''}`}
+              aria-label="Rastrear un objeto"
+              title="Por qué manos y lugares ha pasado un objeto hasta ahora"
+              value={layers.item ?? ''}
+              onChange={(e) => set({ layers: { ...layers, item: e.target.value || null } })}
+            >
+              <option value="">🔍 Rastrear objeto…</option>
+              {items.map((i) => (
+                <option key={i} value={i}>{i.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          )}
           {!player && <button
             className="chip-btn"
             title="Copia un enlace a este momento (y al agente elegido)"

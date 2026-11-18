@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { itemsUsed, type ItemConfig } from '../../api/scenario';
+import { AmountsField } from './AmountsField';
 import { ChipPicker } from './ChipPicker';
 import { prune } from './RulesWidgets';
 import { useDraft } from './draft';
@@ -182,6 +183,12 @@ export function ItemsTab() {
               )}
             </div>
           </div>
+          <AmountsField
+            label="Ayuda en tiradas (llevarlo)"
+            value={it.bonus}
+            placeholder="sleight_of_hand: 2, dar_un_palo: 2, defense: 1"
+            onChange={(r) => setItem(key, (x) => void (Object.keys(r).length ? (x.bonus = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.max(-5, Math.min(5, Math.round(v)))]))) : delete x.bonus))}
+          />
           <label className="fx-row" title="Modo rol: suma a la defensa de quien lo lleva (10 + DES + armadura)">
             <span className="fx-label">Armadura</span>
             <input className="input" type="number" min={0} max={10} value={it.armor ?? 0} onChange={(e) => setItem(key, (x) => void (Number(e.target.value) > 0 ? (x.armor = Math.min(10, Number(e.target.value))) : delete x.armor))} />
