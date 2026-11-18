@@ -179,6 +179,7 @@ export interface LiveView {
     location?: string;
     status?: string;
     health?: number;
+    energy?: number;
     conditions?: string[];
     resources?: Record<string, number>;
     points?: number;

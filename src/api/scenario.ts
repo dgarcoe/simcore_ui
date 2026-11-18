@@ -383,6 +383,8 @@ export interface ScenarioConfig {
     rpg?: boolean;
     /** Pause at the end of each day (games with players: report and new orders). */
     pause_each_day?: boolean;
+    /** false: an agent with no energy left may go on acting (only a warning). */
+    exhaustion?: boolean;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {

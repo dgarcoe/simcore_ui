@@ -92,6 +92,15 @@ export function LivePanel({ code, token, agent, onStatus }: { code: string; toke
               </span>
             </p>
           )}
+          {typeof me.energy === 'number' && (
+            <p>
+              ⚡ Energía {Math.round(me.energy * 100)} %
+              <span className="bar" aria-hidden style={{ display: 'inline-block', width: 80, height: 6, marginLeft: 6, background: '#333c57' }}>
+                <span style={{ display: 'block', width: `${Math.round(me.energy * 100)}%`, height: '100%', background: me.energy > 0.3 ? '#41a6f6' : me.energy > 0.15 ? '#ffcd75' : '#b13e53' }} />
+              </span>
+              {me.energy <= 0.15 && <span className="bad-text small"> · agotado: si llega a 0 cae rendido</span>}
+            </p>
+          )}
           {me.conditions && me.conditions.length > 0 && <p className="small">Estado: {me.conditions.join(', ')}</p>}
           {me.points !== undefined && (
             <p>

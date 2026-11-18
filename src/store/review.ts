@@ -256,10 +256,10 @@ export function agentTrail(events: SimEvent[], name: string, times: Record<numbe
       case 'agent_move':
       case 'agent_speak':
         if (e.source === name) {
-          const failed = d.success === false || (d.action_type === 'attack' && d.hit === false);
+          const failed = d.success === false || (d.action_type === 'attack' && d.hit === false) || !!d.exhausted;
           row(e.tick).items.push({
-            icon: ACTION_ICON[str(d.action_type)] ?? '•',
-            text: str(d.action) || str(d.action_type),
+            icon: d.exhausted ? '😵' : (ACTION_ICON[str(d.action_type)] ?? '•'),
+            text: d.exhausted ? 'Cae rendido: sin energía, solo puede descansar' : str(d.action) || str(d.action_type),
             why: str(d.reasoning) || undefined,
             tone: failed ? 'bad' : undefined,
           });

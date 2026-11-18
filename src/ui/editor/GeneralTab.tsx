@@ -67,6 +67,10 @@ export function GeneralTab() {
           <input type="checkbox" checked={!!sim.pause_each_day} onChange={(e) => update((d) => void (e.target.checked ? (d.simulation.pause_each_day = true) : delete d.simulation.pause_each_day))} />
           Parar al final de cada día (jornadas)
         </label>
+        <label className="toggle" title="Con la energía agotada, el agente cae rendido y solo puede descansar ese turno (no se pregunta al LLM). Sin marcar, solo se le avisa en el prompt.">
+          <input type="checkbox" checked={sim.exhaustion !== false} onChange={(e) => update((d) => void (e.target.checked ? delete d.simulation.exhaustion : (d.simulation.exhaustion = false)))} />
+          Agotamiento (sin energía, a descansar)
+        </label>
         <label className="toggle" title="Guarda en la grabación lo que el modelo vio y respondió en cada decisión, para revisarlo en la ficha del agente al ver la repetición. Ocupa mucho: para depurar.">
           <input type="checkbox" checked={!!draft.llm?.record_prompts} onChange={(e) => update((d) => void (e.target.checked ? ((d.llm ??= {}).record_prompts = true) : delete d.llm?.record_prompts))} />
           Guardar los prompts (depuración)
