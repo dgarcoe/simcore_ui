@@ -231,6 +231,12 @@ Para usarlo con un grupo (en el trabajo, un taller…): cada persona configura s
 
 **Jornadas.** Con «Parar al final de cada día» (General, en el editor), la partida se para cada noche: el estado pasa a «entre jornadas», cada jugador ve su **parte del día** (sus puntos y su puesto, las bandas, los barrios, lo que vivió su agente y cómo siguió sus órdenes) y puede **cambiar sus órdenes** para el día siguiente; el DM pulsa «▶ Empezar la siguiente jornada». Al final, cada jugador ve el ganador, su puesto y cómo siguió su agente sus órdenes.
 
+**En directo.** Mientras la partida corre (y entre jornadas), cada jugador sigue a su agente desde su página, también en el móvil: dónde está, su salud, sus puntos y su puesto, lo que lleva, su banda y el marcador de bandas, un mini mapa con los barrios (de quién son, en disputa o en asedio) y lo que va viviendo, actualizado cada pocos segundos. Solo ve lo que su agente podría saber: sin pensamientos ajenos ni susurros entre otros.
+
+**Premios y momentos.** Al terminar, Simcore reparte títulos a quien más hizo algo: 🔨 El Martillo (más rivales tumbados), 🥊 Puños de Acero, 🩹 El Saco de Boxeo, 🧤 Manos Largas, 🗣 El Pico de Oro, 🧭 El Trotamundos, 🍀 La Flor en el Culo (críticos), 🐈‍⬛ El Gafe (pifias), 🔄 El Chaquetero, 😈 Le Pudo la Tentación (líneas rojas), ♟ El Estratega (planes), 🕊 El Pacifista y 🛡 El Intocable. Salen en la tarjeta de fin y, si el DM publica el resultado, en la página de cada jugador junto a **sus tres mejores momentos** (con «▶ verlo» si la repetición está publicada) y una **tarjeta para compartir** (imagen y texto). Los agentes que mueven las reglas (la policía…) no compiten.
+
+**Textos de los jugadores, a salvo.** Lo que escribe un jugador (órdenes, historia, metas, secretos, nombre) se limpia antes de llegar al prompt: se corta la frase entera de cualquier intento de dar instrucciones al modelo («ignora las reglas anteriores», «system prompt», «responde solo con JSON», etiquetas de chat…) y el agente lo lee entre «comillas» como los deseos de su jugador, nunca como reglas nuevas.
+
 **Muchos jugadores** (hasta 100 por partida): pon `llm.max_concurrency` cerca de `OLLAMA_NUM_PARALLEL` (o más alto con un modelo en la nube), y prefiere ticks de 2 horas y pocos días. Con más de 15 personas, cada agente solo ve en su prompt a la gente de su lugar, de su grupo y con la que tiene relación.
 
 ### Simulaciones guardadas y reproductor

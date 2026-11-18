@@ -2,6 +2,7 @@
 // game's code and configure their own agent. Mirrors simcore/server/games.py.
 
 import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
+import type { Award, Highlight } from '../store/awards';
 import type { SimEvent, TerritoryState } from './types';
 
 export const EDITABLE_FIELDS: Array<[string, string]> = [
@@ -105,6 +106,8 @@ export interface PlayerResults {
     groups?: Array<{ group: string; points: number }>;
   };
   diary?: { scenario: { name?: string }; events: SimEvent[] };
+  awards?: Award[];
+  highlights?: Highlight[];
   replay?: { scenario: { name?: string; description?: string }; config: ScenarioConfig; events: SimEvent[]; player?: string };
 }
 
@@ -163,6 +166,32 @@ export interface DayReport {
   diary: { scenario: { name?: string }; events: SimEvent[] };
 }
 export const dayReport = (c: string, token: string) => call<DayReport>(`/api/play/${code(c)}/report`, { token });
+/** What the player's agent lives while the game runs (from event `since` on). */
+export interface LiveView {
+  status: GameStatus;
+  next: number;
+  events: SimEvent[];
+  me?: {
+    name: string;
+    location?: string;
+    status?: string;
+    health?: number;
+    conditions?: string[];
+    resources?: Record<string, number>;
+    points?: number;
+    rank?: number;
+    players?: number;
+    group?: string;
+  };
+  world?: {
+    clock?: { tick: number; max_ticks: number; time: string };
+    places: Array<{ name: string; position?: [number, number]; territory?: TerritoryState }>;
+    groups: Record<string, string>;
+    group_ranking?: Array<{ group: string; points: number }>;
+  };
+}
+export const liveView = (c: string, token: string, since: number) => call<LiveView>(`/api/play/${code(c)}/live?since=${since}`, { token });
+
 export const saveOrders = (c: string, token: string, orders: Orders) =>
   call<{ orders: Orders }>(`/api/play/${code(c)}/orders`, { method: 'PUT', token }, { orders });
 

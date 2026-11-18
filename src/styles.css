@@ -2029,3 +2029,94 @@ table.players td {
   text-align: left;
   vertical-align: top;
 }
+
+/* ── Awards, highlights, live follow ─────────────────────────────────── */
+
+.awards ul {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+}
+
+.awards li {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.awards li.mine {
+  color: var(--accent);
+}
+
+.award-icon {
+  width: 1.4em;
+  text-align: center;
+}
+
+.highlights {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.highlights li {
+  padding: 3px 0;
+}
+
+.share-card {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0;
+  border: 2px solid var(--line);
+}
+
+.live-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .live-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.minimap {
+  width: 100%;
+  max-height: 260px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.live-feed {
+  max-height: 340px;
+  overflow: auto;
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.live-feed li {
+  padding: 2px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-feed li.new {
+  animation: live-in 1.2s ease-out;
+}
+
+@keyframes live-in {
+  from {
+    background: rgba(255, 63, 164, 0.25);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-feed li.new {
+    animation: none;
+  }
+}

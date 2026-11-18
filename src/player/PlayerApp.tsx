@@ -20,6 +20,10 @@ import type { SimEvent } from '../api/types';
 import { initialSnapshot, reduce } from '../store/reduce';
 import { useSim } from '../store/simStore';
 import { AgentForm } from './AgentForm';
+import { AwardsList } from '../ui/AwardsList';
+import { highlightText } from '../store/awards';
+import { LivePanel } from './LivePanel';
+import { ShareCard } from './ShareCard';
 import { OrdersForm } from './OrdersForm';
 
 // The map and the replay player load only if the DM publishes the replay.
@@ -112,11 +116,11 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
     }
   };
 
-  const watch = async () => {
+  const watch = async (tick?: number) => {
     if (!results?.replay) return;
     const { playReplay } = await import('../store/sources');
     setWatching(true);
-    playReplay({ ...results.replay, player: results.agent });
+    playReplay({ ...results.replay, player: results.agent }, tick !== undefined ? { tick } : undefined);
   };
 
   if (!game) {
@@ -150,7 +154,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
         <JoinCard game={game} onJoin={join} />
       ) : (
         <>
-          {results && <Results results={results} onWatch={watch} />}
+          {results && <Results results={results} game={game.title} onWatch={watch} />}
           {report && game.status === 'intermission' && (
             <DayCard
               report={report}
@@ -160,6 +164,9 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
                 setDraft((d) => ({ ...d, orders }));
               }}
             />
+          )}
+          {(game.status === 'running' || game.status === 'intermission') && me && (
+            <LivePanel code={code} token={token} agent={me.agent?.name || me.display_name} onStatus={(s) => s !== game.status && void refresh()} />
           )}
           <section className="card">
             <h2>Tu agente{me?.submitted ? ' · enviado ✓' : ''}</h2>
@@ -326,7 +333,7 @@ function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: bo
   );
 }
 
-function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => void }) {
+function Results({ results, game, onWatch }: { results: PlayerResults; game: string; onWatch: (tick?: number) => void }) {
   const lived = useMemo(() => (results.diary ? livedLines(results.diary.events, results.agent) : []), [results.diary, results.agent]);
   const r = results.result;
   const anything = results.result || results.diary || results.replay;
@@ -350,9 +357,26 @@ function Results({ results, onWatch }: { results: PlayerResults; onWatch: () => 
           </p>
         </>
       )}
+      <AwardsList awards={results.awards ?? []} me={results.agent} />
+      {results.highlights && results.highlights.length > 0 && (
+        <>
+          <strong>⭐ Tus momentos</strong>
+          <ol className="highlights">
+            {results.highlights.map((h, i) => (
+              <li key={i}>
+                <span className="tick">t{h.tick}</span> {highlightText(h)}
+                {results.replay && (
+                  <button className="link" style={{ marginLeft: 8 }} onClick={() => onWatch(h.tick)}>▶ verlo</button>
+                )}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {r && <ShareCard results={results} game={game} />}
       {results.replay && (
         <>
-          <button className="btn btn-accent" onClick={onWatch}>▶ Ver la repetición siguiendo a {results.agent}</button>
+          <button className="btn btn-accent" onClick={() => onWatch()}>▶ Ver la repetición siguiendo a {results.agent}</button>
           <p className="dim small">Con la ficha de tu agente (lo que hizo y por qué, sus puntos y tus órdenes), la gráfica de la partida y el parte de cada día. Las órdenes de los demás no se ven.</p>
         </>
       )}

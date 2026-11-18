@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as api from '../api/client';
 import { bus } from '../store/bus';
 import { useSim } from '../store/simStore';
+import { AwardsList } from './AwardsList';
 import { jumpMoment, seekReplay, startRun } from '../store/sources';
 
 /** Shown when a run finishes; live runs can ask Simcore for an LLM-written chronicle. */
@@ -14,6 +15,7 @@ export function EndCard() {
   const mvp = useSim((s) => s.endMvp);
   const scores = useSim((s) => s.finalScores ?? s.sim?.scores ?? null);
   const sim = useSim((s) => s.sim);
+  const awards = useSim((s) => s.endAwards);
   const scenarioName = useSim((s) => s.scenarioName);
   const player = useSim((s) => s.replayMeta?.player);
   const [replayError, setReplayError] = useState<string | null>(null);
@@ -92,6 +94,7 @@ export function EndCard() {
         </ol>
       )}
       {fallen.length > 0 && <p className="dim">✝ {fallen.join(', ')}</p>}
+      <AwardsList awards={awards} onPick={(n) => { useSim.getState().set({ selectedAgent: n }); bus.emit('focusAgent', n); }} />
       {(mode === 'live' || (mode === 'replay' && !player)) && !text && (
         <button className="btn btn-accent" disabled={loading} onClick={chronicle}>
           {loading ? 'Escribiendo…' : 'Generar crónica'}

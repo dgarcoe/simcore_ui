@@ -5,6 +5,7 @@ import { parseAction, parseInteraction, targetsOf, type ParsedAction } from '../
 import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Moment, type RelFrame } from './story';
 import { addDecision, closeTick, initialHealth, type LlmHealth } from './llmHealth';
 import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
+import type { Award, Highlight } from './awards';
 import type { Agent, EventType, SimEvent, SimState, ScoresState, TerritoryState } from '../api/types';
 
 export interface FeedItem {
@@ -149,6 +150,9 @@ export interface SimSnapshot {
   endWinner: string;
   /** The best individual score besides the winning group ({mvp}). */
   endMvp: string;
+  /** Titles for who did most of something, and each agent's top moments (simulation_end). */
+  endAwards: Award[];
+  endHighlights: Record<string, Highlight[]>;
   finalScores: ScoresState | null;
   /** Paused at the end of a day (pause_each_day), until the DM resumes. */
   intermission: number | null;
@@ -197,6 +201,8 @@ export function initialSnapshot(): SimSnapshot {
     endMessage: '',
     endWinner: '',
     endMvp: '',
+    endAwards: [],
+    endHighlights: {},
     finalScores: null,
     intermission: null,
     progress: { tick: 0, phase: 'idle', decided: [] },
@@ -353,6 +359,8 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
         endMessage: String(e.data.message ?? ''),
         endWinner: String(e.data.winner ?? ''),
         endMvp: String(e.data.mvp ?? ''),
+        endAwards: Array.isArray(e.data.awards) ? (e.data.awards as Award[]) : [],
+        endHighlights: (e.data.highlights as Record<string, Highlight[]> | undefined) ?? {},
         finalScores: (e.data.scores as ScoresState | undefined) ?? null,
         banner: { id: seq, tick: e.tick, kind: 'end', text, location: '' },
         feed: pushFeed(next.feed, feedItem(seq, e, `■ ${text}`)),
