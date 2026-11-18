@@ -10,6 +10,8 @@ export interface Moment {
   kind: string;
   agents: string[];
   place: string;
+  /** The scenario action behind it (custom actions). */
+  action?: string;
 }
 
 export interface Chapter {
@@ -118,7 +120,7 @@ export function scoreEvent(e: SimEvent): Moment | null {
       if (d.action_type === 'attack' && d.hit && !d.killed) return m(0.5, `${e.source} ataca a ${str(d.target)}`, [e.source, str(d.target)]);
       if (d.action_type === 'heal' && d.target) return m(0.4, `${e.source} cura a ${str(d.target)}`, [e.source, str(d.target)]);
       if (d.action_type === 'custom' && d.name && d.success !== false)
-        return m(d.target ? 0.5 : 0.35, `${e.source} ${str(d.action)}`, [e.source, str(d.target)]);
+        return { ...m(d.target ? 0.5 : 0.35, `${e.source} ${str(d.action)}`, [e.source, str(d.target)]), action: str(d.name) };
       return null;
     default:
       return null;

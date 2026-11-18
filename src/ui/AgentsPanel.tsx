@@ -4,6 +4,7 @@ import { isAlive } from '../store/reduce';
 import { ATTRIBUTES, SKILLS, diceText, modifier, signed, xpProgress, type DiceRoll, type RpgSheet } from '../store/rpg';
 import { useSim } from '../store/simStore';
 import type { ThemePack } from '../themes/types';
+import { cap, useWords } from '../lib/words';
 import { AgentRecord } from './AgentRecord';
 import { AgentActions, Conditions, Inventory, Mind, Needs, SpawnForm } from './AgentControls';
 import { Portrait } from './Portrait';
@@ -309,17 +310,18 @@ function Scoreboard({
   territories?: Record<string, TerritoryState>;
   onPick: (name: string) => void;
 }) {
+  const w = useWords();
   const held = (g: string) => Object.values(territories ?? {}).filter((t) => t.owner === g).length;
   return (
     <div className="scoreboard" aria-label="Marcador">
       {groups && groups.length > 0 && (
         <>
-          <strong>🏴 Bandas</strong>
+          <strong>🏴 {cap(w.groups)}</strong>
           <ol>
             {groups.slice(0, 8).map((g) => (
               <li key={g.group}>
                 {g.group} <span className={g.points < 0 ? 'bad-text' : ''}>{g.points}</span>
-                {territories && <span className="dim"> · {held(g.group)} barrios</span>}
+                {territories && <span className="dim"> · {held(g.group)} {w.territories}</span>}
               </li>
             ))}
           </ol>

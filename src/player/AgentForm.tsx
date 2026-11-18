@@ -1,7 +1,8 @@
 import type { AgentConfig } from '../api/scenario';
 import { FIXED_FIELDS, pointsSpent, type GameTemplate } from '../api/games';
 import { ATTRIBUTES, SKILLS, modifier, signed } from '../store/rpg';
-import { OrdersForm } from './OrdersForm';
+import { useWords } from '../lib/words';
+import { OrdersForm, type OrdersOptions } from './OrdersForm';
 
 const TRAITS: Array<[string, string, string]> = [
   ['openness', 'Apertura', 'curiosidad, imaginación'],
@@ -18,13 +19,16 @@ export function AgentForm({
   agent,
   template,
   readOnly,
+  options,
   onChange,
 }: {
   agent: Agent;
   template: GameTemplate;
   readOnly: boolean;
+  options?: OrdersOptions;
   onChange: (a: Agent) => void;
 }) {
+  const w = useWords();
   const can = (f: string) => template.editable.includes(f);
   const set = (patch: Agent) => onChange({ ...agent, ...patch });
   const fixed = (Array.isArray(template.fixed) ? template.fixed : Object.keys(template.fixed)).map((f) => FIXED_FIELDS[f] ?? f);
@@ -154,7 +158,7 @@ export function AgentForm({
       )}
       {can('faction') && (
         <label>
-          Tu banda
+          Tu {w.group}
           {template.factions?.length ? (
             <select className="select" value={agent.faction ?? ''} onChange={(e) => set({ faction: e.target.value })}>
               <option value="">(elige)</option>
@@ -170,7 +174,7 @@ export function AgentForm({
       {can('orders') && (
         <div className="player-block">
           <h4>Tus órdenes para ganar</h4>
-          <OrdersForm orders={agent.orders ?? {}} readOnly={readOnly} onChange={(orders) => set({ orders })} />
+          <OrdersForm orders={agent.orders ?? {}} readOnly={readOnly} options={options} onChange={(orders) => set({ orders })} />
         </div>
       )}
       {fixed.length > 0 && <p className="dim small">Lo decide el DM: {fixed.join(', ')}.</p>}

@@ -137,13 +137,23 @@ export function dayRecap(events: SimEvent[], moments: Moment[], day: Day): DayRe
 export const CATEGORIES: Array<[string, string]> = [
   ['fights', '⚔ Peleas'],
   ['deaths', '💀 Muertes'],
-  ['turf', '🏴 Barrios'],
+  ['turf', '🏴 Territorios'],
   ['items', '💰 Objetos'],
   ['groups', '👥 Grupos'],
   ['story', '📖 Historia'],
 ];
 
-export function categoryOf(m: Moment): string {
+/** The scenario's actions that hurt someone else: steal, kill, harm or put a condition on them. */
+export function hostileActions(cfg: { actions?: Record<string, { target?: string; on_target?: { steal?: string; kill?: boolean; health?: number; add_conditions?: string[] } }> } | null | undefined): Set<string> {
+  const out = new Set<string>();
+  for (const [name, a] of Object.entries(cfg?.actions ?? {})) {
+    const o = a.on_target;
+    if ((a.target === 'agent' || a.target === undefined) && o && (o.steal || o.kill || (o.health ?? 0) < 0 || o.add_conditions?.length)) out.add(name);
+  }
+  return out;
+}
+
+export function categoryOf(m: Moment, hostile: Set<string> = new Set()): string {
   switch (m.kind) {
     case 'agent_death':
       return 'deaths';
@@ -151,7 +161,7 @@ export function categoryOf(m: Moment): string {
     case 'dice_roll':
       return 'fights';
     case 'agent_action':
-      return /ataca|palo|atraca/.test(m.text) ? 'fights' : 'story';
+      return (m.action && hostile.has(m.action)) || / ataca a /.test(m.text) ? 'fights' : 'story';
     case 'territory_change':
       return 'turf';
     case 'item_transfer':
@@ -173,9 +183,9 @@ export interface MomentFilter {
   group?: string | null;
 }
 
-export function filterMoments(moments: Moment[], f: MomentFilter, members: string[] = []): Moment[] {
+export function filterMoments(moments: Moment[], f: MomentFilter, members: string[] = [], hostile: Set<string> = new Set()): Moment[] {
   return moments.filter((m) => {
-    if (f.hidden.includes(categoryOf(m))) return false;
+    if (f.hidden.includes(categoryOf(m, hostile))) return false;
     if (f.agent && !m.agents.includes(f.agent)) return false;
     if (f.group && !m.agents.some((a) => members.includes(a)) && !m.text.includes(f.group)) return false;
     return true;
@@ -322,7 +332,7 @@ export function pathOf(events: SimEvent[], name: string, upTo: number): string[]
 }
 
 /** Fights per place up to a tick: attacks, knockouts and deaths. */
-export function fightHeat(events: SimEvent[], upTo: number): Record<string, number> {
+export function fightHeat(events: SimEvent[], upTo: number, hostile: Set<string> = new Set()): Record<string, number> {
   const out: Record<string, number> = {};
   const add = (place: unknown) => {
     const p = str(place);
@@ -331,7 +341,7 @@ export function fightHeat(events: SimEvent[], upTo: number): Record<string, numb
   for (const e of events) {
     if (e.tick > upTo) break;
     const d = (e.data ?? {}) as Data;
-    if (e.type === 'agent_action' && (d.action_type === 'attack' || /palo|atraca|rob/.test(str(d.name)))) add(d.location);
+    if (e.type === 'agent_action' && (d.action_type === 'attack' || (d.success !== false && hostile.has(str(d.name))))) add(d.location);
     else if (e.type === 'agent_knockout' || e.type === 'agent_death') add(d.location);
   }
   return out;

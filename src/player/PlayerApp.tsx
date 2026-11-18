@@ -24,7 +24,8 @@ import { AwardsList } from '../ui/AwardsList';
 import { highlightText } from '../store/awards';
 import { LivePanel } from './LivePanel';
 import { ShareCard } from './ShareCard';
-import { OrdersForm } from './OrdersForm';
+import { cap, setPlayerWords, useWords } from '../lib/words';
+import { OrdersForm, type OrdersOptions } from './OrdersForm';
 
 // The map and the replay player load only if the DM publishes the replay.
 const App = lazy(() => import('../App').then((m) => ({ default: m.App })));
@@ -61,6 +62,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
   const refresh = useCallback(async () => {
     try {
       const g = await playView(code);
+      setPlayerWords(g.options?.words);
       setGame(g);
       setError(null);
       if (token) {
@@ -157,6 +159,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
           {results && <Results results={results} game={game.title} onWatch={watch} />}
           {report && game.status === 'intermission' && (
             <DayCard
+              options={playerOptions(game)}
               report={report}
               canOrder={game.template.editable.includes('orders')}
               onSave={async (orders) => {
@@ -170,7 +173,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
           )}
           <section className="card">
             <h2>Tu agente{me?.submitted ? ' · enviado ✓' : ''}</h2>
-            <AgentForm agent={draft} template={game.template} readOnly={!open} onChange={setDraft} />
+            <AgentForm agent={draft} template={game.template} readOnly={!open} options={playerOptions(game)} onChange={setDraft} />
             {open && (
               <div className="row">
                 <button className="btn" onClick={() => save()}>Guardar</button>
@@ -274,7 +277,8 @@ function OrdersReport({ events, agent }: { events: SimEvent[]; agent: string | u
   );
 }
 
-function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: boolean; onSave: (o: Orders) => Promise<void> }) {
+function DayCard({ report, canOrder, options, onSave }: { report: DayReport; canOrder: boolean; options: OrdersOptions; onSave: (o: Orders) => Promise<void> }) {
+  const w = useWords();
   const [orders, setOrders] = useState<Orders>(report.orders ?? {});
   const [status, setStatus] = useState<string | null>(null);
   const lived = useMemo(() => livedLines(report.diary.events, report.agent), [report]);
@@ -288,12 +292,12 @@ function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: bo
       )}
       {report.groups.length > 0 && (
         <p>
-          Bandas: {report.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}
+          {cap(w.groups)}: {report.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}
         </p>
       )}
       {Object.keys(report.territories).length > 0 && (
         <p className="small">
-          Barrios: {Object.entries(report.territories).map(([p, t]) => `${p}: ${t.owner || 'de nadie'}${t.siege ? ` (asedio de ${t.siege.by} ${t.siege.progress}/${t.siege.needed})` : t.contested ? ' (en disputa)' : ''}`).join(' · ')}
+          {cap(w.territories)}: {Object.entries(report.territories).map(([p, t]) => `${p}: ${t.owner || 'de nadie'}${t.siege ? ` (asedio de ${t.siege.by} ${t.siege.progress}/${t.siege.needed})` : t.contested ? ' (en disputa)' : ''}`).join(' · ')}
         </p>
       )}
       <details>
@@ -310,7 +314,7 @@ function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: bo
       {canOrder && (
         <>
           <h3>Tus órdenes para mañana</h3>
-          <OrdersForm orders={orders} onChange={setOrders} />
+          <OrdersForm orders={orders} options={options} onChange={setOrders} />
           <div className="row">
             <button
               className="btn btn-accent"
@@ -334,6 +338,7 @@ function DayCard({ report, canOrder, onSave }: { report: DayReport; canOrder: bo
 }
 
 function Results({ results, game, onWatch }: { results: PlayerResults; game: string; onWatch: (tick?: number) => void }) {
+  const w = useWords();
   const lived = useMemo(() => (results.diary ? livedLines(results.diary.events, results.agent) : []), [results.diary, results.agent]);
   const r = results.result;
   const anything = results.result || results.diary || results.replay;
@@ -350,7 +355,7 @@ function Results({ results, game, onWatch }: { results: PlayerResults; game: str
               Tú: <strong>{r.points} puntos</strong>, puesto {r.rank} de {r.players}.
             </p>
           )}
-          {r?.groups && <p className="small">Bandas: {r.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>}
+          {r?.groups && <p className="small">{cap(w.groups)}: {r.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>}
           <p>
             {results.agent}: {results.result.alive ? <strong className="ok-text">sigue en pie</strong> : <strong className="bad-text">no llegó al final</strong>}
             <span className="dim"> · {results.result.ticks} ticks</span>
@@ -396,4 +401,10 @@ function Results({ results, game, onWatch }: { results: PlayerResults; game: str
       )}
     </section>
   );
+}
+
+/** What the scenario offers a player for their orders (groups only if they can have one). */
+function playerOptions(game: PublicGame): OrdersOptions {
+  const o = game.options ?? {};
+  return { ...o, groups: o.groups ?? (game.template.editable.includes('faction') || !!game.template.factions?.length || !!o.territories) };
 }

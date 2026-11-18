@@ -82,9 +82,9 @@ export function CompareSection({ fixtures, runs }: { fixtures: Array<{ file: str
               <Row label="⭐ Más puntos" cells={result.map((r) => r.mvp || '—')} />
               <Row label="Decisiones útiles" cells={result.map((r) => `${pct(r)} de ${r.decisions}${r.parseErrors ? ` · ${r.parseErrors} respuestas ilegibles` : ''}`)} />
               <Row label="Acciones más usadas" cells={result.map((r) => r.actions.map(([a, n]) => `${a} ${n}`).join(' · '))} />
-              <Row label="Barrios que cambian de manos" cells={result.map((r) => String(r.captures))} />
+              <Row label="Territorios que cambian de manos" cells={result.map((r) => String(r.captures))} />
               <Row label="K.O. / muertes" cells={result.map((r) => `${r.knockouts} / ${r.deaths}`)} />
-              <Row label="Bandas" cells={result.map((r) => r.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ') || '—')} />
+              <Row label="Grupos" cells={result.map((r) => r.groups.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ') || '—')} />
               <Row label="Top 5" cells={result.map((r) => r.top.map((t) => `${t.agent} ${t.points}`).join(' · ') || '—')} />
               {styles.map((s) => (
                 <Row key={s} label={`Media de puntos: ${s}`} cells={result.map((r) => (r.styles[s] !== undefined ? String(r.styles[s]) : '—'))} />

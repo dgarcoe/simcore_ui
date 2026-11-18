@@ -226,7 +226,7 @@ function AgentSummary({ agent: a }: { agent: Game['players'][number]['agent'] })
       {a.secrets?.length ? (<><dt>Secretos</dt><dd>{a.secrets.join(' · ')}</dd></>) : null}
       {a.attributes && (<><dt>Atributos</dt><dd>{Object.entries(a.attributes).map(([k, v]) => `${k.slice(0, 3)} ${v}`).join(' · ')} ({pointsSpent(a.attributes)} pts)</dd></>)}
       {a.skills?.length ? (<><dt>Habilidades</dt><dd>{a.skills.map((s) => SKILLS[s] ?? s).join(', ')}</dd></>) : null}
-      {a.faction && (<><dt>Banda</dt><dd>{a.faction}</dd></>)}
+      {a.faction && (<><dt>Grupo</dt><dd>{a.faction}</dd></>)}
       {a.orders && Object.keys(a.orders).length > 0 && (<><dt>Órdenes</dt><dd>{ordersSummary(a.orders)}</dd></>)}
     </dl>
   );
@@ -307,7 +307,7 @@ function GameForm({ game, scenarios, onSave, onCancel }: { game: Partial<Game>; 
           )}
           {t.editable.includes('faction') && (
             <label>
-              Bandas que pueden elegir (vacío = cualquiera del escenario)
+              Grupos que pueden elegir (vacío = cualquiera del escenario)
               <span className="row wrap">
                 {scenarioGroups.map((f) => (
                   <label key={f} className="toggle">

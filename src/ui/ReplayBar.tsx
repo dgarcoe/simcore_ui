@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { cap, useWords } from '../lib/words';
 import { CATEGORIES } from '../store/review';
 import { useSim } from '../store/simStore';
 import { control, jumpMoment, momentLink, seekReplay, shownMoments, stepReplay } from '../store/sources';
@@ -29,6 +30,7 @@ export function ReplayBar() {
   const factions = useSim((s) => s.sim?.society?.factions);
   const layers = useSim((s) => s.layers);
   const set = useSim((s) => s.set);
+  const w = useWords();
   const player = useSim((s) => s.replayMeta?.player);
   const [hover, setHover] = useState<{ tick: number; text: string } | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
@@ -37,7 +39,7 @@ export function ReplayBar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const moments = useMemo(() => shownMoments(), [timeline, filter, factions]);
   if (!timeline || timeline.ticks <= 0) return null;
-  const modes = chartModes(timeline.series);
+  const modes = chartModes(timeline.series, w);
   const shownChart = chart || (modes[0]?.[0] ?? '');
   const max = timeline.ticks;
   const pct = (t: number) => `${(Math.min(max, Math.max(0, t)) / max) * 100}%`;
@@ -114,7 +116,7 @@ export function ReplayBar() {
                 aria-pressed={!off}
                 onClick={() => set({ momentFilter: { ...filter, hidden: off ? filter.hidden.filter((x) => x !== k) : [...filter.hidden, k] } })}
               >
-                {l}
+                {k === 'turf' ? `🏴 ${cap(w.territories)}` : l}
               </button>
             );
           })}
@@ -124,8 +126,8 @@ export function ReplayBar() {
             </button>
           )}
           {factions && Object.keys(factions).length > 0 && (
-            <select className="select small" aria-label="Solo una banda" value={filter.group ?? ''} onChange={(e) => set({ momentFilter: { ...filter, group: e.target.value || null, agent: null } })}>
-              <option value="">Todas las bandas</option>
+            <select className="select small" aria-label={`Solo un ${w.group}`} value={filter.group ?? ''} onChange={(e) => set({ momentFilter: { ...filter, group: e.target.value || null, agent: null } })}>
+              <option value="">{`Todos los ${w.groups}`}</option>
               {Object.keys(factions).map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}

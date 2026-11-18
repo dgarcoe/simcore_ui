@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cap, DEFAULT_WORDS, type Words } from '../lib/words';
 import type { Series } from '../store/review';
 
 export type ChartMode = 'turf' | 'groups' | 'people';
@@ -8,11 +9,11 @@ const W = 1000;
 const H = 84;
 
 /** Chart modes that have data in this run. */
-export function chartModes(series: Series): Array<[ChartMode, string]> {
+export function chartModes(series: Series, w: Words = DEFAULT_WORDS): Array<[ChartMode, string]> {
   const groups = Object.values(series.groups);
   const out: Array<[ChartMode, string]> = [];
-  if (groups.some((g) => g.territories.some((n) => n > 0))) out.push(['turf', 'Barrios por banda']);
-  if (groups.some((g) => g.points.some((n) => n !== 0))) out.push(['groups', 'Puntos por banda']);
+  if (groups.some((g) => g.territories.some((n) => n > 0))) out.push(['turf', `${cap(w.territories)} por ${w.group}`]);
+  if (groups.some((g) => g.points.some((n) => n !== 0))) out.push(['groups', `Puntos por ${w.group}`]);
   if (Object.keys(series.agents).length) out.push(['people', 'Puntos del top 5']);
   return out;
 }

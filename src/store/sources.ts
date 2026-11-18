@@ -7,7 +7,7 @@ import type { SimEvent, SimState } from '../api/types';
 import { bus } from './bus';
 import { useSim } from './simStore';
 import { scoreEvent, type Moment } from './story';
-import { daysOf, filterMoments, replayHash, seriesOf, type Day, type Series } from './review';
+import { daysOf, filterMoments, hostileActions, replayHash, seriesOf, type Day, type Series } from './review';
 
 let stopCurrent: (() => void) | null = null;
 let replay: Replay | null = null;
@@ -225,10 +225,10 @@ export function stepReplay(delta: number): void {
 
 /** Key moments shown on the timeline (its filters applied). */
 export function shownMoments(): Moment[] {
-  const { replayTimeline: timeline, momentFilter, sim } = useSim.getState();
+  const { replayTimeline: timeline, momentFilter, sim, scenarioConfig } = useSim.getState();
   if (!timeline) return [];
   const members = momentFilter.group ? (sim?.society?.factions?.[momentFilter.group]?.members ?? []) : [];
-  return filterMoments(timeline.moments, momentFilter, members);
+  return filterMoments(timeline.moments, momentFilter, members, hostileActions(scenarioConfig));
 }
 
 /** Current tick of the replay. */

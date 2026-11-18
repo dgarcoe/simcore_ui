@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { liveView, type LiveView } from '../api/games';
 import type { SimEvent } from '../api/types';
+import { cap, useWords } from '../lib/words';
 import { initialSnapshot, reduce } from '../store/reduce';
 
 const POLL_MS = 3000;
@@ -8,6 +9,7 @@ const KEEP = 1500;
 
 /** What the player's agent lives, as it happens: its state, where it is, and its diary. */
 export function LivePanel({ code, token, agent, onStatus }: { code: string; token: string; agent?: string; onStatus?: (s: string) => void }) {
+  const w = useWords();
   const [view, setView] = useState<LiveView | null>(null);
   const [events, setEvents] = useState<SimEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ export function LivePanel({ code, token, agent, onStatus }: { code: string; toke
           {me.group && <p className="small">🏴 {me.group}</p>}
           {items.length > 0 && <p className="small">🎒 {items.map(([k, n]) => `${k} ×${n}`).join(' · ')}</p>}
           {world?.group_ranking && (
-            <p className="small dim">Bandas: {world.group_ranking.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>
+            <p className="small dim">{cap(w.groups)}: {world.group_ranking.map((g, i) => `${i + 1}. ${g.group} (${g.points})`).join(' · ')}</p>
           )}
         </div>
         {world && <MiniMap world={world} here={me.location} />}

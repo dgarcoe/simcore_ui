@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { parseAction, targetsOf } from '../../api/parse';
 import type { SimEvent, SimState } from '../../api/types';
 import { bus } from '../../store/bus';
-import { fightHeat, pathOf } from '../../store/review';
+import { fightHeat, hostileActions, pathOf } from '../../store/review';
 import { useSim } from '../../store/simStore';
 import type { ThemePack } from '../../themes/types';
 import { paintMap, TILE } from '../art/paintMap';
@@ -524,7 +524,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Review layers: the selected agent's path so far and where the fights were. */
   private updateLayers(): void {
-    const { layers, selectedAgent, replayEvents, sim } = useSim.getState();
+    const { layers, selectedAgent, replayEvents, sim, scenarioConfig } = useSim.getState();
     const tick = sim?.clock.tick ?? 0;
     this.layerGfx?.destroy();
     this.layerGfx = undefined;
@@ -540,7 +540,7 @@ export class WorldScene extends Phaser.Scene {
       return { x: s.x * TILE + TILE / 2, y: s.y * TILE + TILE / 2 };
     };
     if (layers.heat) {
-      const heat = fightHeat(replayEvents, tick);
+      const heat = fightHeat(replayEvents, tick, hostileActions(scenarioConfig));
       const max = Math.max(1, ...Object.values(heat));
       for (const [place, n] of Object.entries(heat)) {
         const c = centre(place);

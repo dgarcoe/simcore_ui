@@ -37,6 +37,7 @@ environment:
   size: [14, 14]
   global_state:
     ui_theme: city
+    ui_words: {group: banda, groups: bandas, territory: barrio, territories: barrios}
     calor: 0
     golpe: false
     redada: false

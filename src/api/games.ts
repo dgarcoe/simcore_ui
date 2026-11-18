@@ -2,6 +2,7 @@
 // game's code and configure their own agent. Mirrors simcore/server/games.py.
 
 import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
+import type { OrdersOptions } from '../player/OrdersForm';
 import type { Award, Highlight } from '../store/awards';
 import type { SimEvent, TerritoryState } from './types';
 
@@ -87,6 +88,8 @@ export interface PublicGame {
   max_players: number;
   template: GameTemplate & { fixed: string[] };
   published: Publish;
+  /** From the scenario: its actions, prizes, whether it has territories, and its words. */
+  options?: OrdersOptions & { words?: Record<string, string> };
 }
 
 export interface PlayerResults {

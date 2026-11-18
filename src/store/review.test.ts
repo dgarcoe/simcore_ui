@@ -78,3 +78,13 @@ describe('links to a moment', () => {
     expect(parseReplayHash('#/jugar/ABC')).toBeNull();
   });
 });
+
+describe('nothing tied to one scenario', () => {
+  it('finds hostile actions from what they do, not their names', async () => {
+    const { hostileActions } = await import('./review');
+    const h = hostileActions(file.config);
+    expect(h.has('dar_un_palo')).toBe(true); // steals from its target
+    expect(h.has('pintada')).toBe(false);
+    expect(hostileActions({ actions: { sabotear: { target: 'agent', on_target: { health: -0.2 } }, saludar: { target: 'agent' } } })).toEqual(new Set(['sabotear']));
+  });
+});

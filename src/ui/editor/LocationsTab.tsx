@@ -204,13 +204,13 @@ export function LocationsTab({ selected, onSelect }: Props) {
                 placeholder="food: 2"
                 onChange={(r) => set((x) => void (Object.keys(r).length ? (x.produces = r) : delete x.produces))}
               />
-              <label className="toggle" title="Las bandas se lo disputan: vacío o sin defensores es de la banda con más gente aquí; con defensores hay que superarlos en número varios turnos seguidos. Da sus ingresos a la caja común de la banda que lo controla">
+              <label className="toggle" title="Los grupos se lo disputan: vacío o sin defensores es del grupo con más gente aquí; con defensores hay que superarlos en número varios turnos seguidos. Da sus ingresos a lo común del grupo que lo controla">
                 <input type="checkbox" checked={!!l.territory} onChange={(e) => set((x) => void (e.target.checked ? (x.territory = true) : (delete x.territory, delete x.income)))} />
-                Territorio (barrio que se disputan los grupos)
+                Territorio (lo que se disputan los grupos)
               </label>
               {l.territory && (
                 <AmountsField
-                  label="Ingresos para la banda que lo controla"
+                  label="Ingresos para el grupo que lo controla"
                   value={l.income}
                   placeholder="dinero: 2"
                   onChange={(r) => set((x) => void (Object.keys(r).length ? (x.income = r) : delete x.income))}
@@ -236,22 +236,42 @@ function TerritoryRules() {
   const [draft, update] = useDraft();
   const t = draft.territories ?? {};
   const set = (k: keyof NonNullable<ScenarioConfig['territories']>, v: number) => update((d) => void ((d.territories ??= {})[k] = v));
+  const words = (draft.environment.global_state?.ui_words ?? {}) as Record<string, string>;
+  // only the singular: the UI makes the plural (or keeps one the YAML already has, if it still fits)
+  const setWord = (k: 'group' | 'territory', v: string) =>
+    update((d) => {
+      const gs = (d.environment.global_state ??= {});
+      const next = { ...((gs.ui_words as Record<string, string> | undefined) ?? {}) };
+      delete next[k === 'group' ? 'groups' : 'territories'];
+      if (v.trim()) next[k] = v;
+      else delete next[k];
+      if (Object.keys(next).length) gs.ui_words = next;
+      else delete gs.ui_words;
+    });
   return (
     <div className="ed-grid">
-      <label title="Turnos seguidos que una banda rival tiene que superar en número a los defensores para quitarles el barrio (un empate lo conserva el dueño)">
-        Turnos de asedio para tomar un barrio defendido
+      <label title="Turnos seguidos que un grupo rival tiene que superar en número a los defensores para quitarles el territorio (un empate lo conserva el dueño)">
+        Turnos de asedio para tomar un territorio defendido
         <input className="input" type="number" min={1} value={t.siege ?? 2} onChange={(e) => set('siege', Math.max(1, Number(e.target.value) || 1))} />
       </label>
-      <label title="Parte de sus ingresos que paga un barrio mientras hay rivales dentro">
+      <label title="Parte de sus ingresos que paga un territorio mientras hay rivales dentro">
         Ingresos en disputa (%)
         <input className="input" type="number" min={0} max={100} value={Math.round((t.contested_income ?? 0.5) * 100)} onChange={(e) => set('contested_income', Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100)} />
       </label>
-      <label title="Cada cuántos turnos pagan los barrios">
+      <label title="Cada cuántos turnos pagan los territorios">
         Turnos entre ingresos
         <input className="input" type="number" min={1} value={t.every ?? 4} onChange={(e) => set('every', Math.max(1, Number(e.target.value) || 1))} />
       </label>
-      <label title="Puntos que suma a su banda cada barrio que controla">
-        Puntos por barrio para la banda
+      <label title="Cómo llama este escenario a sus grupos en la UI (banda, tripulación, casa…). Vacío: «grupo»">
+        Nombre de los grupos
+        <input className="input" placeholder="grupo" value={words.group ?? ''} onChange={(e) => setWord('group', e.target.value)} />
+      </label>
+      <label title="Cómo llama a los territorios (barrio, sector, feudo…). Vacío: «territorio»">
+        Nombre de los territorios
+        <input className="input" placeholder="territorio" value={words.territory ?? ''} onChange={(e) => setWord('territory', e.target.value)} />
+      </label>
+      <label title="Puntos que suma a su grupo cada territorio que controla">
+        Puntos por territorio para el grupo
         <input className="input" type="number" value={t.group_points ?? 0} onChange={(e) => set('group_points', Number(e.target.value) || 0)} />
       </label>
     </div>

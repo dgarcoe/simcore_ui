@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useWords } from '../lib/words';
 import { useSim } from '../store/simStore';
 
 export function Banner() {
   const banner = useSim((s) => s.banner);
+  const w = useWords();
   const [visible, setVisible] = useState<number | null>(null);
 
   useEffect(() => {
@@ -13,7 +15,7 @@ export function Banner() {
   }, [banner]);
 
   if (!banner || visible !== banner.id) return null;
-  const title = { injected: '¡ÚLTIMA HORA!', end: 'FIN', death: 'BAJA', arrival: 'LLEGADA', scheduled: 'SUCESO', transform: 'TRANSFORMACIÓN', vote: 'VOTACIÓN', level: 'EXPERIENCIA', territory: 'BARRIO', day: 'FIN DE LA JORNADA' }[banner.kind];
+  const title = { injected: '¡ÚLTIMA HORA!', end: 'FIN', death: 'BAJA', arrival: 'LLEGADA', scheduled: 'SUCESO', transform: 'TRANSFORMACIÓN', vote: 'VOTACIÓN', level: 'EXPERIENCIA', territory: w.territory.toUpperCase(), day: 'FIN DE LA JORNADA' }[banner.kind];
   return (
     <div className={`banner banner-${banner.kind}`} role="status" onClick={() => setVisible(null)}>
       <span className="banner-title">{title}</span>
