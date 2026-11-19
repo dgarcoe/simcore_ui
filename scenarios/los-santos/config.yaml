@@ -15,7 +15,7 @@
 # turn on `simulation.pause_each_day` so they get a report and change orders each night.
 # Full YAML reference: https://github.com/dgarcoe/simcore/blob/main/docs/scenario-reference.md
 simulation:
-  name: "Los Santos: guerra de barrios"
+  name: "GTA VII: Los SIAntos"
   description: El viejo jefe que mantenía la paz entre bandas ha caído. Durante tres días cada banda intentará
     quedarse con la ciudad barrio a barrio mientras cada uno busca hacerse un nombre. Nadie muere aquí, pero
     quien cae despierta en el hospital, y la policía detiene a quien está en busca y captura.
