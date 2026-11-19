@@ -469,7 +469,7 @@ describe('game systems in the editor and validation', () => {
 });
 
 
-describe('Los Santos', () => {
+describe('Los SIAntos', () => {
   it('validates cleanly and uses territories, knockouts, two winners and orders', async () => {
     const { parse } = await import('yaml');
     const cfg = parse(readFileSync(new URL('../../scenarios/los-santos/config.yaml', import.meta.url), 'utf8')) as ScenarioConfig;

@@ -146,7 +146,7 @@ conditions:
     per_tick: {mood: -0.03}
     color: "#a0522d"
   policia:
-    description: eres policía de Los Santos
+    description: eres policía de Los SIAntos
     appearance: uniforme azul
     color: "#3f8fe8"
     controller: rules
@@ -317,7 +317,7 @@ scores:
     sobre_ruedas: {description: "Cada seis horas con moto propia", points: 2, repeat: true, when: {carries: moto, every: 3}}
 
 rules:
-  - description: Amanece en Los Santos. El viejo jefe ha caído y las bandas salen a la calle.
+  - description: Amanece en Los SIAntos. El viejo jefe ha caído y las bandas salen a la calle.
     when: {at: 1}
     once: true
     then:
@@ -335,18 +335,18 @@ rules:
   - description: "{winner} controla cinco barrios desde hace doce horas. La ciudad es suya."
     when: {territories: {gte: 5, ticks: 6}}
     once: true
-    then: {end: "{winner} se quedan con Los Santos. La Leyenda de la ciudad es {mvp}."}
+    then: {end: "{winner} se quedan con Los SIAntos. La Leyenda de la ciudad es {mvp}."}
   # O alguien llega a 80 de respeto y se corona.
   - description: "{winner} llega a 80 de respeto. Ya nadie discute quién manda."
     when: {score: {gte: 80}}
     once: true
-    then: {end: "{winner} se proclama rey de Los Santos, aunque su banda no lo haya conseguido."}
+    then: {end: "{winner} se proclama rey de Los SIAntos, aunque su banda no lo haya conseguido."}
   # Si no, al final del tercer día gana la banda con más respeto.
   - description: Se acaba el tercer día de guerra.
     when: {at: 36}
     once: true
     winner: group
-    then: {end: "Tras tres días de guerra, {winner} manda en más calles que nadie. La Leyenda de Los Santos es {mvp}."}
+    then: {end: "Tras tres días de guerra, {winner} manda en más calles que nadie. La Leyenda de Los SIAntos es {mvp}."}
   - description: La policía levanta el cordón del Club.
     when: {at: 32, global: {redada: {eq: true}}}
     once: true
@@ -442,7 +442,7 @@ events:
 agents:
   # Los Motoristas
   - {name: Toro, age: 41, profession: mecánico, starting_location: El Taller, faction: Los Motoristas,
-     backstory: "Fue mecánico de motos de carreras hasta que una apuesta amañada le costó la licencia y le dejó una cicatriz en la ceja. Montó Los Motoristas con los chavales del taller y les enseñó que en Los Santos solo se respeta a quien no se echa atrás. El viejo jefe le prometió El Polígono y nunca cumplió: ahora piensa cobrárselo.",
+     backstory: "Fue mecánico de motos de carreras hasta que una apuesta amañada le costó la licencia y le dejó una cicatriz en la ceja. Montó Los Motoristas con los chavales del taller y les enseñó que en Los SIAntos solo se respeta a quien no se echa atrás. El viejo jefe le prometió El Polígono y nunca cumplió: ahora piensa cobrárselo.",
      goals: [Que Los Motoristas manden en la ciudad, Quedarse con El Polígono y su desguace, Que nadie vuelva a tomarle el pelo],
      attributes: {strength: 15, dexterity: 11, constitution: 14, intelligence: 9, wisdom: 10, charisma: 13},
      skills: [athletics, intimidation], resources: {bate: 1, dinero: 2},
@@ -452,7 +452,7 @@ agents:
               plans: [{when: {group_territories: {lte: 1}}, then: "Reúne a la banda y tomad El Polígono"}]}}
   - {name: Chispa, age: 24, profession: mecánica, starting_location: El Taller, faction: Los Motoristas,
      backstory: "Se crio entre motores y sabe arrancar cualquier coche en diez segundos. Es la más rápida de la banda y la que menos habla. Quiere que su nombre se cuente en los bares antes que el de Toro, aunque nunca se lo diría a la cara.",
-     goals: [Ser la leyenda de Los Santos, Que nadie toque su moto, Encontrar el maletín antes que nadie y desaparecer con él un día entero],
+     goals: [Ser la leyenda de Los SIAntos, Que nadie toque su moto, Encontrar el maletín antes que nadie y desaparecer con él un día entero],
      attributes: {strength: 11, dexterity: 15, constitution: 11, intelligence: 12, wisdom: 10, charisma: 11},
      skills: [stealth, sleight_of_hand], resources: {dinero: 1},
      orders: {style: sigiloso, priorities: [ser la leyenda, que gane mi banda], risk: careful,
@@ -486,7 +486,7 @@ agents:
      orders: {style: agresivo, priorities: [que gane mi banda], risk: reckless}}
   - {name: Rata, age: 22, profession: ratero, starting_location: El Mercado, faction: Los del Puerto,
      backstory: "Ratero desde los doce años, rápido de manos y de lengua. La policía le pilló hace meses y desde entonces les pasa información para que le dejen en paz; si su banda se entera, está acabado. Sobrevive cambiando de amigos según sople el viento.",
-     goals: [Ser la leyenda de Los Santos sin que nadie sepa cómo, No volver a pisar la comisaría, Que nunca se descubra su secreto],
+     goals: [Ser la leyenda de Los SIAntos sin que nadie sepa cómo, No volver a pisar la comisaría, Que nunca se descubra su secreto],
      attributes: {strength: 9, dexterity: 16, constitution: 10, intelligence: 13, wisdom: 12, charisma: 10},
      skills: [sleight_of_hand, stealth], secrets: [Habla con la policía a cambio de que le dejen en paz],
      orders: {style: oportunista, priorities: [ser la leyenda, no caer nunca], risk: careful,
@@ -506,7 +506,7 @@ agents:
      orders: {style: negociador, priorities: [que gane mi banda], risk: careful, red_lines: [{action: chivarse}]}}
   - {name: Nena, age: 27, profession: camarera, starting_location: El Club, faction: La Familia,
      backstory: "Camarera en El Club y ahijada de Don Paco. Escucha todo lo que se dice en la barra y lo apunta en una libreta. Está cansada de que la vean como la niña de la Familia y quiere un nombre propio.",
-     goals: [Ser la leyenda de Los Santos, Que Don Paco la respete como a una igual, Robarle algo a cada banda sin que se den cuenta],
+     goals: [Ser la leyenda de Los SIAntos, Que Don Paco la respete como a una igual, Robarle algo a cada banda sin que se den cuenta],
      attributes: {strength: 11, dexterity: 14, constitution: 11, intelligence: 12, wisdom: 11, charisma: 13},
      skills: [stealth, deception],
      orders: {style: sigiloso, priorities: [ser la leyenda], risk: bold}}
@@ -530,8 +530,8 @@ agents:
      skills: [persuasion, intimidation], resources: {dinero: 10},
      orders: {style: negociador, priorities: [que gane mi banda, ser la leyenda], risk: bold}}
   - {name: Cayetana, age: 24, profession: influencer, starting_location: El Paseo, faction: Los Niños Bien,
-     backstory: "Influencer con un millón de seguidores que ha descubierto que la guerra de bandas da muchas visitas. Lo graba todo, sobre todo lo que no debería. Quiere ser la cara de Los Santos y no le importa de qué banda sea al final.",
-     goals: [Ser la leyenda de Los Santos, Grabarlo todo y hacerse viral, Estar donde estalle la próxima bronca],
+     backstory: "Influencer con un millón de seguidores que ha descubierto que la guerra de bandas da muchas visitas. Lo graba todo, sobre todo lo que no debería. Quiere ser la cara de Los SIAntos y no le importa de qué banda sea al final.",
+     goals: [Ser la leyenda de Los SIAntos, Grabarlo todo y hacerse viral, Estar donde estalle la próxima bronca],
      attributes: {strength: 9, dexterity: 13, constitution: 10, intelligence: 13, wisdom: 12, charisma: 16},
      skills: [deception, persuasion],
      orders: {style: oportunista, priorities: [ser la leyenda], risk: bold,

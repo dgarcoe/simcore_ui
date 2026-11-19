@@ -8,7 +8,7 @@ const file = JSON.parse(readFileSync(new URL('../../public/fixtures/los-santos.j
 const events: SimEvent[] = file.events;
 const timeline = timelineOf(events);
 
-describe('reviewing Los Santos', () => {
+describe('reviewing Los SIAntos', () => {
   it('follows territories and points per group over time', () => {
     const s = seriesOf(events);
     expect(s.ticks.length).toBe(36);
@@ -61,7 +61,7 @@ describe('reviewing Los Santos', () => {
   });
 
   it('sums a run up to compare it with another', () => {
-    const s = summarizeRun('Los Santos', events, file.config);
+    const s = summarizeRun('Los SIAntos', events, file.config);
     expect(s.winner).toBe(file.events.at(-1).data.winner);
     expect(s.winner).toBeTruthy();
     expect(s.ticks).toBe(36);
