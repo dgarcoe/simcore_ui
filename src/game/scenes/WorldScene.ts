@@ -453,6 +453,7 @@ export class WorldScene extends Phaser.Scene {
       }
       view.setHealth(agent.state.health);
       view.setCondition(...this.conditionLook(sim, agent.state.conditions));
+      view.setRecovering(agent.recovering);
       // A new strong feeling shows as a little emote over the head.
       const emotion = agent.emotion ?? '';
       if (emotion !== (this.feelings.get(agent.name) ?? '')) {

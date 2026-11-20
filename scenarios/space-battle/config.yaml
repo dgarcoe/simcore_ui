@@ -9,6 +9,7 @@ simulation:
   seed: 3
   language: en
   exhaustion_place: Medical Station Hope   # where an exhausted agent wakes up
+  exhaustion_recovery: 1
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b

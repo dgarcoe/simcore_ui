@@ -84,6 +84,12 @@ export function LivePanel({ code, token, agent, onStatus }: { code: string; toke
             📍 <strong>{me.location || '—'}</strong>
             {me.status && me.status !== 'alive' ? <strong className="bad-text"> · {me.status === 'dead' ? 'ha muerto' : me.status}</strong> : null}
           </p>
+          {me.recovering && (
+            <p className="bad-text">
+              🏥 {me.recovering.why === 'knockout' ? 'En el hospital tras un K.O.' : 'Recuperándose del agotamiento'}: vuelve a la calle en {me.recovering.left}{' '}
+              {me.recovering.left === 1 ? 'turno' : 'turnos'}. Si alguien le cura, sale antes.
+            </p>
+          )}
           {health !== null && (
             <p>
               ❤ Salud {health} %

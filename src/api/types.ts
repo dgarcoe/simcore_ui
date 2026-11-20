@@ -140,6 +140,8 @@ export interface Agent {
   name: string;
   profession?: string;
   location: string;
+  /** Recovering in hospital (or after collapsing): turns left. */
+  recovering?: Recovering;
   status?: AgentStatus;
   personality: Personality;
   state: AgentState;
@@ -218,6 +220,12 @@ export interface SimState {
   territories?: Record<string, TerritoryState>;
   /** Markets: open or not, prices now and what is left. */
   markets?: Record<string, MarketState>;
+}
+
+/** Turns an agent still spends recovering (in hospital after a knockout, or after collapsing). */
+export interface Recovering {
+  left: number;
+  why: 'knockout' | 'exhaustion' | string;
 }
 
 export interface MarketState {

@@ -16,6 +16,7 @@ simulation:
   seed: 2
   language: es
   exhaustion_place: Camarotes   # quien cae rendido de cansancio despierta aquí
+  exhaustion_recovery: 1
   story: true
   chapter_every: 8
   planning: true

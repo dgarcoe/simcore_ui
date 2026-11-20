@@ -4,7 +4,7 @@
 import type { AgentConfig, Orders, ScenarioConfig } from './scenario';
 import type { OrdersOptions } from '../player/OrdersForm';
 import type { Award, Highlight } from '../store/awards';
-import type { MarketState, SimEvent, TerritoryState } from './types';
+import type { MarketState, Recovering, SimEvent, TerritoryState } from './types';
 
 export const EDITABLE_FIELDS: Array<[string, string]> = [
   ['name', 'Nombre'],
@@ -113,6 +113,7 @@ export interface PlayerResults {
   diary?: { scenario: { name?: string }; events: SimEvent[] };
   awards?: Award[];
   highlights?: Highlight[];
+  rivals?: { nemesis?: { agent: string; times: number }; victim?: { agent: string; times: number } };
   replay?: { scenario: { name?: string; description?: string }; config: ScenarioConfig; events: SimEvent[]; player?: string };
 }
 
@@ -185,6 +186,7 @@ export interface LiveView {
     status?: string;
     health?: number;
     energy?: number;
+    recovering?: Recovering;
     conditions?: string[];
     resources?: Record<string, number>;
     points?: number;

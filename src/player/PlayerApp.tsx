@@ -363,6 +363,20 @@ function Results({ results, game, onWatch }: { results: PlayerResults; game: str
         </>
       )}
       <AwardsList awards={results.awards ?? []} me={results.agent} />
+      {results.rivals && (results.rivals.nemesis || results.rivals.victim) && (
+        <p>
+          {results.rivals.nemesis && (
+            <>
+              😠 Tu némesis: <strong>{results.rivals.nemesis.agent}</strong> (te tumbó {results.rivals.nemesis.times} {results.rivals.nemesis.times === 1 ? 'vez' : 'veces'}){results.rivals.victim ? ' · ' : ''}
+            </>
+          )}
+          {results.rivals.victim && (
+            <>
+              🎯 Tu víctima favorita: <strong>{results.rivals.victim.agent}</strong> ({results.rivals.victim.times} {results.rivals.victim.times === 1 ? 'vez' : 'veces'})
+            </>
+          )}
+        </p>
+      )}
       {results.highlights && results.highlights.length > 0 && (
         <>
           <strong>⭐ Tus momentos</strong>

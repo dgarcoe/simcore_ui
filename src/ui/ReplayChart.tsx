@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cap, DEFAULT_WORDS, type Words } from '../lib/words';
 import type { Series } from '../store/review';
 
-export type ChartMode = 'turf' | 'groups' | 'people' | 'wealth' | 'rich';
+export type ChartMode = 'turf' | 'groups' | 'people' | 'wealth' | 'rich' | 'downs';
 
 const PEOPLE = ['#ffcd75', '#3fe8ff', '#ff3fa4', '#a7f070', '#b14fd6'];
 const W = 1000;
@@ -17,6 +17,7 @@ export function chartModes(series: Series, w: Words = DEFAULT_WORDS): Array<[Cha
   if (Object.keys(series.agents).length) out.push(['people', 'Puntos del top 5']);
   if (Object.keys(series.groupWealth ?? {}).length) out.push(['wealth', `Dinero por ${w.group}`]);
   if (Object.keys(series.richest ?? {}).length) out.push(['rich', 'Los 5 más ricos']);
+  if (Object.keys(series.groupDowns ?? {}).length) out.push(['downs', `Rivales tumbados por ${w.group}`]);
   return out;
 }
 
@@ -28,8 +29,8 @@ export function ReplayChart({ series, ticks, tick, mode, onSeek }: { series: Ser
   const lines: Array<{ name: string; color: string; values: number[] }> =
     mode === 'people' || mode === 'rich'
       ? Object.entries(mode === 'rich' ? series.richest : series.agents).map(([name, values], i) => ({ name, color: PEOPLE[i % PEOPLE.length], values }))
-      : mode === 'wealth'
-        ? Object.entries(series.groupWealth).map(([name, values], i) => ({ name, color: series.groups[name]?.color || PEOPLE[i % PEOPLE.length], values }))
+      : mode === 'wealth' || mode === 'downs'
+        ? Object.entries(mode === 'downs' ? series.groupDowns : series.groupWealth).map(([name, values], i) => ({ name, color: series.groups[name]?.color || PEOPLE[i % PEOPLE.length], values }))
         : groups.map(([name, g], i) => ({ name, color: g.color || PEOPLE[i % PEOPLE.length], values: mode === 'turf' ? g.territories : g.points }));
   const idx = (t: number) => {
     let best = 0;

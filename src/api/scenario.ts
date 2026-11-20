@@ -232,7 +232,7 @@ export interface SocietyConfig {
   group_perks?: boolean;
   /** false: nobody dies; whoever would die is knocked out (see knockout). */
   lethal?: boolean;
-  knockout?: { condition?: string; place?: string; health?: number };
+  knockout?: { condition?: string; place?: string; health?: number; recovery?: number };
   /** Attacking without a weapon: health it takes and chance of landing it. */
   fists?: { damage?: number; chance?: number };
   healers?: string[];
@@ -347,6 +347,8 @@ export function requiredFeatures(cfg: ScenarioConfig): Array<{ feature: string; 
     out.push({ feature: 'gangs', label: 'territorios, peleas sin muertes o banda y persona ganadoras' });
   if (cfg.agents.some((a) => a.orders) || cfg.simulation.pause_each_day)
     out.push({ feature: 'orders', label: 'órdenes de los jugadores o jornadas con pausa' });
+  if (cfg.society?.knockout?.recovery || cfg.simulation.exhaustion_recovery)
+    out.push({ feature: 'recovery', label: 'turnos de recuperación en el hospital' });
   if (Object.values(cfg.items ?? {}).some((i) => i.fuse) || cfg.society?.fists || cfg.simulation.exhaustion_place || Object.values(cfg.scores?.achievements ?? {}).some((a) => a.when?.knocks_out))
     out.push({ feature: 'fuses', label: 'objetos con mecha, puñetazos, puntos por tumbar o lugar al agotarse' });
   if (Object.values(cfg.items ?? {}).some((i) => i.bonus && Object.keys(i.bonus).length))
@@ -418,6 +420,8 @@ export interface ScenarioConfig {
     exhaustion?: boolean;
     /** Where a collapsed agent wakes up with energy back (a hospital); empty: where it fell. */
     exhaustion_place?: string;
+    /** More turns a collapsed agent spends recovering. */
+    exhaustion_recovery?: number;
   };
   llm?: { model?: string; temperature?: number; cache?: boolean; [k: string]: unknown };
   environment: {

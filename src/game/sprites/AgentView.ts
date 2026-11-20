@@ -139,6 +139,55 @@ export class AgentView {
     this.hp.setFillStyle(h > 0.6 ? 0x38b764 : h > 0.3 ? 0xffcd75 : 0xb13e53);
   }
 
+  private bed?: Phaser.GameObjects.Container;
+  private bedBadge?: Phaser.GameObjects.Text;
+  private blanket?: Phaser.GameObjects.Rectangle;
+  private recovering = false;
+
+  /** Recovering (in hospital after a knockout, or after collapsing): lying in a bed with a
+   * countdown of the turns left; null gets it back on its feet. */
+  setRecovering(rec: { left: number; why: string } | null | undefined): void {
+    if (this.status !== 'alive') return;
+    if (!rec) {
+      if (!this.recovering) return;
+      this.recovering = false;
+      this.bed?.setVisible(false);
+      this.blanket?.setVisible(false);
+      this.bedBadge?.setVisible(false);
+      this.sprite.setAngle(0).setY(0);
+      this.showEmote('sparkle');
+      return;
+    }
+    if (!this.bed) {
+      // the body lies from its feet (x 0) to its head (x ~15): a bed under it, a blanket over its legs
+      const frame = this.scene.add.rectangle(7, -3, 28, 13, 0x1a1c2c);
+      const sheet = this.scene.add.rectangle(7, -3, 26, 11, 0xf4f4f4);
+      const pillow = this.scene.add.rectangle(17, -3, 7, 8, 0xc0cbdc);
+      this.bed = this.scene.add.container(0, 0, [frame, sheet, pillow]);
+      this.container.addAt(this.bed, 1);
+      this.blanket = this.scene.add.rectangle(3, -3, 13, 10, this.why(rec.why)).setStrokeStyle(1, 0x1a1c2c);
+      this.container.add(this.blanket);
+      this.bedBadge = this.scene.add
+        .text(7, -12, '', { fontFamily: 'monospace', fontSize: '7px', color: '#1a1c2c', backgroundColor: '#f4f4f4', padding: { x: 2, y: 0 } })
+        .setResolution(4)
+        .setOrigin(0.5, 1);
+      this.container.add(this.bedBadge);
+    }
+    this.blanket!.setFillStyle(this.why(rec.why)).setVisible(true);
+    this.bed.setVisible(true);
+    this.bedBadge!.setText(`${rec.why === 'knockout' ? 'K.O.' : 'zZ'} ${rec.left}`).setVisible(true);
+    if (!this.recovering) {
+      this.recovering = true;
+      this.stop();
+      this.sprite.stop();
+      this.sprite.setTexture(this.texKey, 0).setAngle(90).setY(-3);
+    }
+  }
+
+  private why(kind: string): number {
+    return kind === 'knockout' ? 0xb13e53 : 0x41a6f6;
+  }
+
   /** Falls where it stands and stays there as a body. */
   die(animated: boolean): void {
     if (this.status === 'dead') return;

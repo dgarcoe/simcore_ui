@@ -12,6 +12,7 @@ simulation:
   seed: 2
   language: es
   exhaustion_place: Consultorio   # quien cae rendido de cansancio despierta aquí
+  exhaustion_recovery: 1
   planning: true
   plan_every: 8
 llm:

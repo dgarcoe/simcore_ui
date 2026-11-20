@@ -31,6 +31,7 @@ simulation:
   seed: 22
   language: es
   exhaustion_place: Hospital   # quien cae rendido de cansancio despierta aquí
+  exhaustion_recovery: 1
   story: true
   rpg: true  # role-playing rules: attributes, d20 checks, experience and levels
   chapter_every: 24

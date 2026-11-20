@@ -31,6 +31,7 @@ simulation:
   awareness: local
   pause_each_day: false   # true en partidas con jugadores: parte y órdenes nuevas cada noche
   exhaustion_place: Hospital   # quien cae rendido de cansancio despierta en el hospital
+  exhaustion_recovery: 1
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
@@ -268,7 +269,7 @@ actions:
 
 society:
   lethal: false
-  knockout: {condition: noqueado, place: Hospital, health: 0.4}
+  knockout: {condition: noqueado, place: Hospital, health: 0.4, recovery: 2}   # 4 horas en la cama del hospital
   fists: {damage: 0.2, chance: 0.65}   # un puñetazo duele
   healers: [médic, enfermer, sanitari]
   heal_removes: [noqueado]

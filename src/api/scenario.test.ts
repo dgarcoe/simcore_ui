@@ -434,7 +434,7 @@ describe('coveted items', () => {
     expect(cfg.items?.daga_negra.curse).toMatchObject({ condition: 'sed_de_sangre', sticky: true, broken_by: ['agua_bendita', 'exorcizar'] });
     expect(cfg.actions?.desvalijar.on_target?.steal).toBe('one');
     // an older Simcore would ignore `holds` and end the run at once: the UI must refuse it
-    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'game_systems', 'fuses']);
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'game_systems', 'recovery', 'fuses']);
     expect(requiredFeatures(emptyScenario())).toEqual([]);
     const forge = { ...emptyScenario(), actions: { reparar: { target: 'none' as const, where: ['Faro'] } } };
     expect(requiredFeatures(forge).map((f) => f.feature)).toEqual(['recipes']);
@@ -481,6 +481,6 @@ describe('Los SIAntos', () => {
     expect(ends.some((r) => r.when?.territories?.gte === 5)).toBe(true);
     expect(ends.find((r) => r.winner === 'group')?.then).toMatchObject({ end: expect.stringContaining('{mvp}') });
     expect(cfg.agents.every((a) => a.orders?.style)).toBe(true);
-    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'recipes', 'game_systems', 'gangs', 'orders', 'fuses', 'item_bonus', 'economy']);
+    expect(requiredFeatures(cfg).map((f) => f.feature)).toEqual(['artifacts', 'recipes', 'game_systems', 'gangs', 'orders', 'recovery', 'fuses', 'item_bonus', 'economy']);
   });
 });

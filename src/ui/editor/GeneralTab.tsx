@@ -82,6 +82,12 @@ export function GeneralTab() {
           <input className="input" type="number" min={0} step={0.05} style={{ width: 70 }} value={draft.economy?.group_wealth_points ?? 0} onChange={(e) => update((d) => void ((d.economy ??= {}).group_wealth_points = Number(e.target.value) || 0))} />
         </label>
         {sim.exhaustion !== false && (
+          <label title="Turnos más que pasa recuperándose quien cae rendido, fuera de juego">
+            Turnos de recuperación al caer rendido
+            <input className="input" type="number" min={0} style={{ width: 60 }} value={sim.exhaustion_recovery ?? 0} onChange={(e) => update((d) => void (Number(e.target.value) > 0 ? (d.simulation.exhaustion_recovery = Number(e.target.value)) : delete d.simulation.exhaustion_recovery))} />
+          </label>
+        )}
+        {sim.exhaustion !== false && (
           <label title="Quien cae rendido despierta allí con energía (un hospital, su casa). Vacío: descansa donde cayó">
             Quien cae rendido despierta en
             <select className="select" value={sim.exhaustion_place ?? ''} onChange={(e) => update((d) => void (e.target.value ? (d.simulation.exhaustion_place = e.target.value) : delete d.simulation.exhaustion_place))}>

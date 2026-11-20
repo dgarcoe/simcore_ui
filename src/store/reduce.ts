@@ -6,6 +6,7 @@ import { FRAME_LIMIT, MOMENT_LIMIT, relFrame, scoreEvent, type Chapter, type Mom
 import { addDecision, closeTick, initialHealth, type LlmHealth } from './llmHealth';
 import { diceText, levelText, type DiceRoll, type LevelUp } from './rpg';
 import type { Award, Highlight } from './awards';
+import { emptyCasualties, tallyCasualties, type Casualties } from './casualties';
 import type { Agent, EventType, SimEvent, SimState, ScoresState, TerritoryState } from '../api/types';
 
 export interface FeedItem {
@@ -153,6 +154,8 @@ export interface SimSnapshot {
   /** Titles for who did most of something, and each agent's top moments (simulation_end). */
   endAwards: Award[];
   endHighlights: Record<string, Highlight[]>;
+  /** Who downed whom, how, and turns in hospital. */
+  casualties: Casualties;
   finalScores: ScoresState | null;
   /** Paused at the end of a day (pause_each_day), until the DM resumes. */
   intermission: number | null;
@@ -203,6 +206,7 @@ export function initialSnapshot(): SimSnapshot {
     endMvp: '',
     endAwards: [],
     endHighlights: {},
+    casualties: emptyCasualties(),
     finalScores: null,
     intermission: null,
     progress: { tick: 0, phase: 'idle', decided: [] },
@@ -278,8 +282,11 @@ export function isStale(s: SimSnapshot, e: SimEvent): boolean {
 
 /** Returns null when the event is a duplicate or a leftover and must be ignored. */
 export function reduce(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
-  const next = reduceEvent(s, e);
-  return next && linkRolls(s, next, e);
+  const reduced = reduceEvent(s, e);
+  if (!reduced) return null;
+  const casualties = tallyCasualties(reduced.casualties ?? emptyCasualties(), e);
+  const next = casualties === reduced.casualties ? reduced : { ...reduced, casualties };
+  return linkRolls(s, next, e);
 }
 
 const ROLL_CAUSES = new Set(['agent_action', 'agent_speak', 'agent_search']);

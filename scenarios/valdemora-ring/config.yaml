@@ -20,6 +20,7 @@ simulation:
   seed: 4
   language: es
   exhaustion_place: Taberna del pueblo   # quien cae rendido de cansancio despierta aquí
+  exhaustion_recovery: 1
   rpg: true
   story: true
   chapter_every: 12

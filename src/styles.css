@@ -2144,3 +2144,58 @@ table.players td {
 .item-trail li.future {
   opacity: 0.45;
 }
+
+/* ── Casualties ──────────────────────────────────────────────────────── */
+
+.casualties section {
+  margin-bottom: 14px;
+}
+
+.tally {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.tally th,
+.tally td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.tally th:first-child,
+.tally td:first-child {
+  text-align: left;
+}
+
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--ink);
+}
+
+ul.plain {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.causes li {
+  display: grid;
+  grid-template-columns: minmax(0, 8em) minmax(0, 1fr) 2.5em;
+  gap: 6px;
+  align-items: center;
+}
+
+.causes .bar {
+  height: 8px;
+  background: var(--ink);
+}
+
+.causes .bar span {
+  display: block;
+  height: 100%;
+  background: #ef7d57;
+}

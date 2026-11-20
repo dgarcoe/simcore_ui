@@ -26,6 +26,8 @@ export interface Series {
   /** Money (economy.currency) of each group (members + common stash) and of the richest at the end. */
   groupWealth: Record<string, number[]>;
   richest: Record<string, number[]>;
+  /** Rivals each group has knocked out or killed so far (running total), by tick. */
+  groupDowns: Record<string, number[]>;
 }
 
 const TOP_AGENTS = 5;
@@ -67,13 +69,39 @@ export function seriesOf(events: SimEvent[], currency = 'dinero'): Series {
     .slice(0, TOP_AGENTS)
     .map(([n]) => n);
   const agents = Object.fromEntries(top.map((n) => [n, points.map((p) => p[n] ?? 0)]));
+  // knockouts and deaths each group caused, running total at each tick end
+  const groupDowns: Record<string, number[]> = {};
+  const downs: Record<string, number> = {};
+  let member: Record<string, string> = {};
+  let i = -1;
+  for (const e of events) {
+    if (e.type === 'tick_end') {
+      i++;
+      member = {};
+      for (const [g, f] of Object.entries(end(e).society?.factions ?? {})) for (const m of f.members ?? []) member[m] = g;
+      for (const g of Object.keys(end(e).society?.factions ?? {})) (groupDowns[g] ??= new Array(ends.length).fill(0))[i] = downs[g] ?? 0;
+      continue;
+    }
+    if (e.type !== 'agent_knockout' && e.type !== 'agent_death') continue;
+    const d = (e.data ?? {}) as Data;
+    const by = str(d.by) || (/^(.+?) with the /.exec(str(d.cause))?.[1] ?? '');
+    const g = member[by];
+    if (g && by !== str(d.agent)) downs[g] = (downs[g] ?? 0) + 1;
+  }
   const lastMoney = money.at(-1) ?? {};
   const rich = Object.entries(lastMoney)
     .sort((a, b) => b[1] - a[1])
     .slice(0, TOP_AGENTS)
     .map(([n]) => n);
   const richest = Object.fromEntries(rich.map((n) => [n, money.map((m) => Math.round(m[n] ?? 0))]));
-  return { ticks, groups, agents, groupWealth: Object.values(groupWealth).some((v) => v.some(Boolean)) ? groupWealth : {}, richest };
+  return {
+    ticks,
+    groups,
+    agents,
+    groupWealth: Object.values(groupWealth).some((v) => v.some(Boolean)) ? groupWealth : {},
+    richest,
+    groupDowns: Object.values(groupDowns).some((v) => v.some(Boolean)) ? groupDowns : {},
+  };
 }
 
 // ── Days ─────────────────────────────────────────────────────────────────

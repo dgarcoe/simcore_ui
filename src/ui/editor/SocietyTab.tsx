@@ -126,6 +126,10 @@ export function SocietyTab() {
               {draft.environment.locations.map((l) => <option key={l.name}>{l.name}</option>)}
             </select>
           </label>
+          <label title="Turnos que pasa allí recuperándose, fuera de juego (solo descansa). Si alguien le cura, sale un turno antes">
+            Turnos de recuperación
+            <input className="input" type="number" min={0} style={{ width: 60 }} value={society.knockout?.recovery ?? 0} onChange={(e) => update((d) => void (d.society!.knockout = { ...d.society!.knockout, recovery: Math.max(0, Number(e.target.value) || 0) || undefined }))} />
+          </label>
         </div>
       )}
       <div className="row wrap" title="Atacar sin arma: cuánta salud quita un puñetazo y qué probabilidad tiene de entrar">

@@ -6,6 +6,7 @@ import { useSim } from './simStore';
 import { jumpMoment, playReplay, seekReplay, stepReplay, timelineOf, type ReplayFile } from './sources';
 
 const file = JSON.parse(readFileSync(new URL('../../public/fixtures/zombie-siege.json', import.meta.url), 'utf8')) as ReplayFile;
+const LAST = file.events.at(-1)!.tick;
 
 /** The state after watching the whole replay up to the end of `tick`. */
 function watched(tick: number): SimSnapshot {
@@ -42,17 +43,17 @@ describe('replay player', () => {
     same(12);
     stepReplay(1);
     same(13);
-    seekReplay(90);
-    same(90);
+    seekReplay(LAST - 14);
+    same(LAST - 14);
     expect(useSim.getState().scenarioConfig?.simulation.name).toBe('El asedio de San Lorenzo'); // kept after jumping back
-    seekReplay(104);
+    seekReplay(LAST);
     expect(useSim.getState().status).toBe('ended'); // the ending comes with the last tick
-    expect(useSim.getState().endMessage).toMatch(/helicóptero/);
+    expect(useSim.getState().endMessage).toBe(String(file.events.at(-1)!.data.message));
   });
 
   it('knows the whole run: ticks, clock and key moments, and jumps between moments', () => {
     const t = useSim.getState().replayTimeline!;
-    expect(t.ticks).toBe(104);
+    expect(t.ticks).toBe(LAST);
     expect(t.times[24]).toMatch(/Day 2|Día 2/);
     expect(t.moments.some((m) => m.kind === 'agent_death')).toBe(true);
     seekReplay(0);

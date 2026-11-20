@@ -9,6 +9,7 @@ simulation:
   seed: 5
   language: en
   exhaustion_place: Break Room   # where an exhausted agent wakes up
+  exhaustion_recovery: 1
 llm:
   model: ollama/qwen2.5:7b
   reflection_model: ollama/qwen2.5:7b
