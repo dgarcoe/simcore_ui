@@ -78,6 +78,7 @@ export function LlmHealthPanel({ health, model, demo, lastError, onClose }: { he
             {health.refused > 0 && <> · <span className="warn-text">{health.refused} rechazadas</span></>}
             {health.invalid > 0 && <> · <span className="bad-text">{health.invalid} ilegibles</span></>}
             {health.failed > 0 && <> · <span className="bad-text">{health.failed} fallos de conexión</span></>}
+            {(health.truncated ?? 0) > 0 && <> · <span className="warn-text" title="La respuesta llegó cortada por llm.max_tokens">{health.truncated} cortadas</span></>}
           </p>
           <div className="health-bars" title="Últimos ticks: decisiones útiles (verde) y que no sirvieron (rojo)">
             {recent.map((t) => (

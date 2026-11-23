@@ -68,3 +68,17 @@ describe('health of a whole run', () => {
     expect(h.recent.length).toBe(10);
   });
 });
+
+describe('new-style refusals and cut answers', () => {
+  it('reads "Couldn\'t do it (…)" even when the action has a colon inside', () => {
+    expect(classifyDecision('Couldn\'t do it (says to Bob: "hola"): Bob is not here. x')).toMatchObject({ kind: 'refused', reason: 'absent' });
+    expect(classifyDecision("Couldn't do it (gives Ana 1 comida): I don't have 1 comida.")).toMatchObject({ kind: 'refused', reason: 'item' });
+  });
+  it('counts truncated answers', () => {
+    let h = initialHealth();
+    h = addDecision(h, 'fine', 'Ana', 1, true);
+    h = addDecision(h, 'fine', 'Ana', 1);
+    expect(h.truncated).toBe(1);
+    expect(h.ok).toBe(2);
+  });
+});

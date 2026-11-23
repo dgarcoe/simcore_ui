@@ -276,6 +276,25 @@ const ACTION_ICON: Record<string, string> = {
 };
 
 /** Everything that happened to one agent, tick by tick: what it did and why, rolls, points, orders. */
+/** Simcore's refusal note in Spanish: "Couldn't do it (gives Ana 1 comida): I don't have…". */
+export function refusalEs(why: string): string {
+  const m = /^Couldn't do it \((.*?)\): ([\s\S]*)$/.exec(why) ?? /^Couldn't (.+?): ([\s\S]*)$/.exec(why);
+  return m ? `No pudo (${m[1]}): ${m[2]}` : why;
+}
+
+function dealText(deal: Data): string {
+  const give = deal.item ? `${str(deal.amount) || 1} ${str(deal.item)}` : '';
+  const ask = deal.ask_item ? `${str(deal.ask_amount) || 1} ${str(deal.ask_item)}` : '';
+  return give && ask ? `${give} a cambio de ${ask}` : give ? `${give} sin pedir nada` : `le pide ${ask}`;
+}
+
+const EFFECT_TEXT: Record<string, (who: string) => [string, string, 'good' | 'bad' | undefined]> = {
+  deal: (who) => ['✔', `${who} acepta el trato`, 'good'],
+  deal_failed: (who) => ['✖', `${who} se deja convencer, pero el trato no se puede cerrar`, 'bad'],
+  fled: (who) => ['🏃', `${who} huye asustado`, 'good'],
+  angered: (who) => ['😠', `${who} no se deja intimidar y se enfada`, 'bad'],
+};
+
 export function agentTrail(events: SimEvent[], name: string, times: Record<number, string> = {}): TrailTick[] {
   const rows = new Map<number, TrailTick>();
   let place = '';
@@ -306,13 +325,33 @@ export function agentTrail(events: SimEvent[], name: string, times: Record<numbe
       case 'agent_move':
       case 'agent_speak':
         if (e.source === name) {
-          const failed = d.success === false || (d.action_type === 'attack' && d.hit === false) || !!d.exhausted;
+          const refused = /^Couldn't /.test(str(d.reasoning));
+          const failed = refused || d.success === false || (d.action_type === 'attack' && d.hit === false) || !!d.exhausted;
           row(e.tick).items.push({
-            icon: d.exhausted ? '😵' : (ACTION_ICON[str(d.action_type)] ?? '•'),
-            text: d.exhausted ? 'Cae rendido: sin energía, solo puede descansar' : str(d.action) || str(d.action_type),
-            why: str(d.reasoning) || undefined,
+            icon: d.exhausted ? '😵' : d.fled ? '🏃' : (ACTION_ICON[str(d.action_type)] ?? '•'),
+            text: d.exhausted ? 'Cae rendido: sin energía, solo puede descansar' : d.fled ? `Huye de ${str(d.fled)} a ${str(d.target)}` : str(d.action) || str(d.action_type),
+            why: refusalEs(str(d.reasoning)) || undefined,
             tone: failed ? 'bad' : undefined,
           });
+          const deal = d.deal as Data | undefined;
+          if (deal) row(e.tick).items.push({ icon: '🤝', text: `Trato de palabra a ${str(deal.to)}: ${dealText(deal)}` });
+          if (d.deal_refused) row(e.tick).items.push({ icon: '⚠', text: `Promete un trato que no puede cumplir (${str(d.deal_refused)})`, tone: 'bad' });
+          const effect = d.speech_effect as Data | undefined;
+          if (effect && EFFECT_TEXT[str(effect.effect)]) {
+            const [icon, text, tone] = EFFECT_TEXT[str(effect.effect)](str(effect.target));
+            row(e.tick).items.push({ icon, text, tone });
+          }
+          if (d.truncated) row(e.tick).items.push({ icon: '✂', text: 'Su respuesta llegó cortada (límite de tokens del LLM)', tone: 'bad' });
+        } else if (
+          (d.speech_effect as Data | undefined)?.target === name &&
+          ['deal', 'angered'].includes(str((d.speech_effect as Data).effect))
+        ) {
+          const effect = d.speech_effect as Data;
+          row(e.tick).items.push(
+            effect.effect === 'deal'
+              ? { icon: '🤝', text: `${e.source} le convence: acepta su trato (${dealText((d.deal ?? {}) as Data)})` }
+              : { icon: '😠', text: `${e.source} intenta intimidarle; no se deja y se enfada` },
+          );
         } else if (str(d.target) === name && (d.action_type === 'attack' || d.action_type === 'custom' || d.action_type === 'speak')) {
           row(e.tick).items.push({ icon: d.action_type === 'speak' ? '👂' : '⚠', text: `${e.source}: ${str(d.action)}`, tone: d.action_type === 'speak' ? undefined : 'bad' });
         }
@@ -321,8 +360,8 @@ export function agentTrail(events: SimEvent[], name: string, times: Record<numbe
         if (mine)
           row(e.tick).items.push({
             icon: '🎲',
-            text: `${str(d.check).replace(/_/g, ' ')}: ${str(d.total)}${d.target ? ` contra ${str(d.target)}` : ''}`,
-            tone: d.critical ? 'good' : d.fumble ? 'bad' : undefined,
+            text: diceText(d),
+            tone: d.critical || d.success === true ? 'good' : d.fumble || d.success === false ? 'bad' : undefined,
           });
         break;
       case 'score_change':
@@ -341,7 +380,10 @@ export function agentTrail(events: SimEvent[], name: string, times: Record<numbe
         if (mine) row(e.tick).items.push({ icon: '💀', text: `Muere${d.cause ? ` (${str(d.cause)})` : ''}`, tone: 'bad' });
         break;
       case 'item_transfer':
-        if (str(d.to) === name || str(d.from) === name) {
+        if (d.kind === 'holder') {
+          // the coveted item changing hands: the take/trade that moved it has its own line
+          if (str(d.to) === name) row(e.tick).items.push({ icon: '👑', text: `Se hace con ${str(d.item)} (el objeto codiciado)`, tone: 'good' });
+        } else if (str(d.to) === name || str(d.from) === name) {
           const gets = str(d.to) === name;
           const other = gets ? str(d.from) : str(d.to);
           const verb = d.kind === 'steal' ? (gets ? 'roba' : 'le roban') : gets ? 'recibe' : 'da';
@@ -360,6 +402,15 @@ export function agentTrail(events: SimEvent[], name: string, times: Record<numbe
     }
   }
   return [...rows.values()].filter((r) => r.items.length || r.trace).sort((a, b) => a.tick - b.tick);
+}
+
+/** "cobrar proteccion: 6 contra 11 ✗" — the roll, what it had to beat and whether it did. */
+export function diceText(d: Data): string {
+  const against = d.against as Data | undefined;
+  const beat = against ? `${str(against.total)} de ${str(against.agent)}` : d.dc !== undefined ? `CD ${str(d.dc)}` : '';
+  const mark = d.critical ? ' ✓ crítico' : d.fumble ? ' ✗ pifia' : d.success === true ? ' ✓' : d.success === false ? ' ✗' : '';
+  const on = !against && d.target ? ` (a ${str(d.target)})` : '';
+  return `${str(d.check).replace(/_/g, ' ')}${on}: ${str(d.total)}${beat ? ` contra ${beat}` : ''}${mark}`;
 }
 
 /** Whether the recording kept the prompts of the decisions. */

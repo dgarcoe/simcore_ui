@@ -38,6 +38,8 @@ llm:
   cache: true
   temperature: 0.6
   max_concurrency: 4   # cerca de OLLAMA_NUM_PARALLEL; súbelo con un modelo en la nube
+  max_tokens: 900      # discursos y tratos completos, sin cortes
+  num_ctx: 12288       # el prompt crece hacia el final (puntos, mercados, tratos)
 
 environment:
   type: grid

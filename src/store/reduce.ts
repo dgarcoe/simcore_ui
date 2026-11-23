@@ -626,6 +626,10 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
     case 'agent_post': {
       const action = parseAction(e.data.action);
       const reasoning = String(e.data.reasoning ?? '');
+      if (e.data.fled) {
+        // Ran away from a threat: forced, not a decision of its own.
+        return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, `huye de ${String(e.data.fled)} a ${String(e.data.target ?? '')}`), action }) };
+      }
       if (e.data.follow) {
         // Moved by following someone: not a decision of its own.
         return { ...next, feed: pushFeed(next.feed, { ...feedItem(seq, e, `${String(e.data.action ?? '')} (following ${String(e.data.follow)})`), action }) };
@@ -633,7 +637,7 @@ function reduceEvent(s: SimSnapshot, e: SimEvent): SimSnapshot | null {
       next = {
         ...next,
         llm: llmAfterDecision(s.llm, e),
-        feed: pushFeed(next.feed, { ...feedItem(seq, e, e.data.action_type === 'attack' ? attackText(e.data) : String(e.data.action ?? '')), action, reasoning: reasoning || undefined }),
+        feed: pushFeed(next.feed, { ...feedItem(seq, e, e.data.action_type === 'attack' ? attackText(e.data) : `${String(e.data.action ?? '')}${speechEffect(e.data)}`), action, reasoning: reasoning || undefined }),
         reasoning: { ...s.reasoning, [e.source]: { tick: e.tick, action: String(e.data.action ?? ''), text: reasoning } },
         progress: s.progress.decided.includes(e.source)
           ? s.progress
@@ -683,6 +687,27 @@ export function attackText(d: Record<string, unknown>): string {
   return `${head}: acierta (−${Math.round(Number(d.damage ?? 0) * 100)} % de salud)`;
 }
 
+const SPEECH_EFFECT: Record<string, string> = {
+  deal: 'acepta el trato',
+  deal_failed: 'se deja convencer, pero el trato no se cierra',
+  fled: 'huye asustado',
+  angered: 'no se deja intimidar y se enfada',
+};
+
+/** " → 🤝 Bob acepta el trato": what a persuading or threatening line achieved. */
+function speechEffect(d: Record<string, unknown>): string {
+  const deal = d.deal as Record<string, unknown> | undefined;
+  const fx = d.speech_effect as Record<string, unknown> | undefined;
+  const parts: string[] = [];
+  if (deal) {
+    const give = deal.item ? `${String(deal.amount ?? 1)} ${String(deal.item)}` : '';
+    const ask = deal.ask_item ? `${String(deal.ask_amount ?? 1)} ${String(deal.ask_item)}` : '';
+    parts.push(`🤝 ofrece ${give && ask ? `${give} por ${ask}` : give || `a cambio de ${ask}`}`);
+  }
+  if (fx && SPEECH_EFFECT[String(fx.effect)]) parts.push(`${String(fx.target)} ${SPEECH_EFFECT[String(fx.effect)]}`);
+  return parts.length ? ` → ${parts.join('; ')}` : '';
+}
+
 function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {
   const reasoning = String(e.data.reasoning ?? '');
   const failed = LLM_ERROR.test(reasoning);
@@ -697,7 +722,7 @@ function llmAfterDecision(llm: LlmStatus, e: SimEvent): LlmStatus {
     lastError: failed ? reasoning.replace(LLM_ERROR, '') : llm.lastError,
     lastParseError: unparsable ? reasoning.replace(PARSE_ERROR, '') : llm.lastParseError,
     lastErrorTick: failed || unparsable ? e.tick : llm.lastErrorTick,
-    health: addDecision(llm.health, reasoning, e.source, e.tick),
+    health: addDecision(llm.health, reasoning, e.source, e.tick, !!e.data.truncated),
   };
 }
 

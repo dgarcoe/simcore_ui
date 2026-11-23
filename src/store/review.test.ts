@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { SimEvent } from '../api/types';
-import { agentTrail, dayRecap, daysOf, fightHeat, filterMoments, parseReplayHash, pathOf, replayHash, seriesOf, summarizeRun } from './review';
+import { agentTrail, dayRecap, daysOf, diceText, fightHeat, filterMoments, parseReplayHash, pathOf, refusalEs, replayHash, seriesOf, summarizeRun } from './review';
 import { timelineOf } from './sources';
 
 const file = JSON.parse(readFileSync(new URL('../../public/fixtures/los-santos.json', import.meta.url), 'utf8'));
@@ -114,5 +114,34 @@ describe('money', () => {
     expect(Object.keys(s.richest).length).toBeGreaterThan(0);
     const trades = events.filter((e) => e.type === 'market_trade');
     expect(trades.length).toBeGreaterThan(0);
+  });
+});
+
+describe('agent record: deals, dice and refusals', () => {
+  const ev = (type: string, tick: number, source: string, data: Record<string, unknown>): SimEvent => ({ type, tick, source, data, timestamp: 0 }) as unknown as SimEvent;
+
+  it('words a refusal in Spanish, old and new style', () => {
+    expect(refusalEs("Couldn't do it (declines the offer from Nena): Nena has no offer for me. x")).toBe('No pudo (declines the offer from Nena): Nena has no offer for me. x');
+    expect(refusalEs("Couldn't takes 2 tablones: there is none")).toBe('No pudo (takes 2 tablones): there is none');
+    expect(refusalEs('I want it')).toBe('I want it');
+  });
+
+  it('says what the dice had to beat and whether they did', () => {
+    expect(diceText({ check: 'cobrar_proteccion', total: 6, dc: 11, success: false })).toBe('cobrar proteccion: 6 contra CD 11 ✗');
+    expect(diceText({ check: 'persuade', total: 15, against: { agent: 'Bob', total: 9 }, success: true, target: 'Bob' })).toBe('persuade: 15 contra 9 de Bob ✓');
+  });
+
+  it('shows the spoken deal and its effect once, and the coveted item without a duplicate', () => {
+    const events = [
+      ev('agent_speak', 3, 'Ana', { action_type: 'speak', action: 'says to Bob: "toma"', target: 'Bob', deal: { to: 'Bob', item: 'chaleco', amount: 1, ask_item: 'dinero', ask_amount: 3 }, speech_effect: { effect: 'deal', target: 'Bob', intent: 'persuade' } }),
+      ev('item_transfer', 4, 'Ana', { kind: 'take', item: 'maletin', amount: 1, from: 'location:Puerto', to: 'Ana' }),
+      ev('item_transfer', 4, 'Ana', { kind: 'holder', item: 'maletin', amount: 1, from: '', to: 'Ana' }),
+    ];
+    const ana = agentTrail(events, 'Ana').flatMap((r) => r.items.map((i) => i.text));
+    expect(ana).toContain('Trato de palabra a Bob: 1 chaleco a cambio de 3 dinero');
+    expect(ana).toContain('Bob acepta el trato');
+    expect(ana.filter((t) => t.includes('maletin'))).toEqual(['recibe 1 maletin', 'Se hace con maletin (el objeto codiciado)']);
+    const bob = agentTrail(events, 'Bob').flatMap((r) => r.items.map((i) => i.text));
+    expect(bob).toEqual(['Ana le convence: acepta su trato (1 chaleco a cambio de 3 dinero)']);
   });
 });

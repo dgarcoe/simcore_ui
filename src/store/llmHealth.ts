@@ -17,7 +17,7 @@ export interface Classified {
 const LLM_ERROR = /^(LLM error|LLM failed after \d+ attempts):\s*/;
 const PARSE_ERROR = /^Parse error:\s*/;
 const INVENTED = /is not a valid action|free text is not one of the actions/;
-const REFUSED = /^(Couldn't .+?|Could not move to .+?|Target not present at this location)(?::\s*|$)/;
+const REFUSED = /^(Couldn't do it \(.*?\)|Couldn't .+?|Could not move to .+?|Target not present at this location)(?::\s*|$)/;
 // Agents moved by rules (a horde): "<condition>: goes for Ana", "…: roams".
 const RULES = /(?:^|\. )[\p{L}\w-]+: (goes for |drawn to where people are|roams|lingers)/u;
 
@@ -66,6 +66,8 @@ export interface LlmHealth {
   refused: number;
   invalid: number;
   failed: number;
+  /** Answers cut off by max_tokens (they may still be usable). */
+  truncated?: number;
   reasons: Partial<Record<RefusalReason, { count: number; example: string; agent: string; tick: number }>>;
   /** Decisions that weren't usable, by agent. */
   badBy: Record<string, number>;
@@ -80,9 +82,10 @@ export function initialHealth(): LlmHealth {
   return { ok: 0, refused: 0, invalid: 0, failed: 0, reasons: {}, badBy: {}, current: { tick: -1, ok: 0, bad: 0 }, recent: [] };
 }
 
-export function addDecision(h: LlmHealth, reasoning: string, agent: string, tick: number): LlmHealth {
+export function addDecision(h: LlmHealth, reasoning: string, agent: string, tick: number, truncated = false): LlmHealth {
   const c = classifyDecision(reasoning);
   if (c.kind === 'rules') return h;
+  if (truncated) h = { ...h, truncated: (h.truncated ?? 0) + 1 };
   const good = c.kind === 'ok';
   const roll = h.current.tick === tick || h.current.tick < 0 ? h : closeTick(h);
   const current = { tick, ok: roll.current.ok + (good ? 1 : 0), bad: roll.current.bad + (good ? 0 : 1) };
@@ -123,6 +126,8 @@ export function healthAdvice(h: LlmHealth, model: string, errorHint: string, par
   const out: string[] = [];
   if (h.failed / n >= 0.1) out.push(errorHint);
   if (h.invalid / n >= 0.15) out.push(parseHint);
+  if ((h.truncated ?? 0) / n >= 0.1)
+    out.push('Muchas respuestas llegan cortadas por el límite de tokens: sube `llm.max_tokens` en el escenario (p. ej. 900) o pide textos más cortos.');
   if (h.refused / n >= 0.25) {
     const [top] = topReasons(h);
     if (top) out.push(REASON_TIP[top[0]]);
