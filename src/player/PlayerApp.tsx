@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   dayReport,
+  appBase,
   gameLink,
   joinGame,
   myAgent,
@@ -55,7 +56,7 @@ export function PlayerApp({ code, linkToken }: { code: string; linkToken: string
   useEffect(() => {
     if (linkToken) {
       saveToken(code, linkToken);
-      history.replaceState(null, '', `#/jugar/${code}`);
+      history.replaceState(null, '', /\/jugar\//.test(location.pathname) ? location.pathname : `#/jugar/${code}`);
     }
   }, [code, linkToken]);
 
@@ -220,7 +221,7 @@ function JoinCard({ game, onJoin }: { game: PublicGame; onJoin: (name: string) =
 
 function PersonalLink({ code, token }: { code: string; token: string }) {
   const [copied, setCopied] = useState(false);
-  const link = gameLink(location.origin + location.pathname.replace(/\/$/, ''), code, token);
+  const link = gameLink(appBase(), code, token);
   return (
     <details className="personal-link">
       <summary>Tu enlace personal para volver desde otro dispositivo</summary>

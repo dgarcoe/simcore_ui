@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parsePlayHash } from './api/games';
+import { parsePlayLink } from './api/games';
 import { parseReplayHash } from './store/review';
 import { DmGate } from './ui/DmGate';
 import './styles.css';
@@ -19,7 +19,7 @@ async function fontsReady(): Promise<void> {
 
 void fontsReady().then(async () => {
   // Players open #/jugar/<code>: their own small app, without the map or the DM's API.
-  const play = parsePlayHash(location.hash);
+  const play = parsePlayLink(location);
   const root = createRoot(document.getElementById('root')!);
   if (play) {
     const { PlayerApp } = await import('./player/PlayerApp');
@@ -54,7 +54,7 @@ void fontsReady().then(async () => {
   if (!play) void openLink();
   // Switching between a game link and the DM's screen needs a fresh start.
   window.addEventListener('hashchange', () => {
-    if (!!parsePlayHash(location.hash) !== !!play) location.reload();
+    if (!!parsePlayLink(location) !== !!play) location.reload();
     else if (!play) void openLink();
   });
 });

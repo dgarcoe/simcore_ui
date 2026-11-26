@@ -11,7 +11,7 @@ interface Option {
 type Loaded = { events: SimEvent[]; config?: Parameters<typeof summarizeRun>[2]; meta?: { model?: string; demo?: boolean } };
 
 async function load(key: string): Promise<Loaded> {
-  if (key.startsWith('f:')) return (await (await fetch(`fixtures/${key.slice(2)}`)).json()) as Loaded;
+  if (key.startsWith('f:')) return (await (await fetch(`/fixtures/${key.slice(2)}`)).json()) as Loaded;
   return (await api.fetchRun(key.slice(2))) as unknown as Loaded;
 }
 

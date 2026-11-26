@@ -6,6 +6,8 @@ import {
   addBots,
   editPlayer,
   removeBots,
+  appBase,
+  authMe,
   gameLink,
   listGames,
   pointsSpent,
@@ -47,6 +49,11 @@ export function GamesSection({ scenarios, demo, speed }: { scenarios: ScenarioRe
   const [open, setOpen] = useState<string | null>(null);
 
   const [unsupported, setUnsupported] = useState(false);
+  // Without SIMCORE_DM_PASSWORD anyone reaching the address is a DM, players included.
+  const [unprotected, setUnprotected] = useState(false);
+  useEffect(() => {
+    authMe().then((me) => setUnprotected(!me.required)).catch(() => {});
+  }, []);
   const reload = () =>
     listGames()
       .then(setGames)
@@ -80,6 +87,13 @@ export function GamesSection({ scenarios, demo, speed }: { scenarios: ScenarioRe
       <p className="dim">
         Cada jugador abre el enlace de la partida, se une con su nombre y configura su agente sin ver los de los demás ni la simulación.
       </p>
+      {unprotected && (
+        <p className="warn">
+          🔓 Simcore no tiene contraseña de DM: quien abra la dirección principal (o quite <code>/jugar/…</code> de su enlace) entra como DM y ve
+          la simulación y los agentes de todos. Para partidas con jugadores, pon <code>SIMCORE_DM_PASSWORD=…</code> en el <code>.env</code> y
+          reinicia (<code>docker compose up -d</code>): entonces la dirección principal pide contraseña y los enlaces de jugador solo abren su partida.
+        </p>
+      )}
       {error && <p className="warn">{error}</p>}
       {editing && (
         <GameForm
@@ -97,7 +111,7 @@ export function GamesSection({ scenarios, demo, speed }: { scenarios: ScenarioRe
       )}
       <ul className="scenario-list">
         {(games ?? []).map((g) => {
-          const link = gameLink(location.origin + location.pathname.replace(/\/$/, ''), g.code);
+          const link = gameLink(appBase(), g.code);
           const ready = g.players.filter((p) => p.submitted).length;
           return (
             <li key={g.id} className="game-row">

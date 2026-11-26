@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { gameLink, joinGame, myAgent, parsePlayHash, pointsSpent, saveMyAgent } from './games';
+import { appBase, gameLink, joinGame, myAgent, parsePlayHash, parsePlayLink, pointsSpent, saveMyAgent } from './games';
 
 describe('games with players', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -8,7 +8,12 @@ describe('games with players', () => {
     expect(parsePlayHash('#/jugar/k7qf-2m4p')).toEqual({ code: 'K7QF-2M4P', token: null });
     expect(parsePlayHash('#/jugar/K7QF-2M4P?yo=abc%2Bd')).toEqual({ code: 'K7QF-2M4P', token: 'abc+d' });
     expect(parsePlayHash('#/')).toBeNull();
-    expect(gameLink('https://sim.local', 'K7QF-2M4P', 'abc+d')).toBe('https://sim.local/#/jugar/K7QF-2M4P?yo=abc%2Bd');
+    expect(gameLink('https://sim.local', 'K7QF-2M4P', 'abc+d')).toBe('https://sim.local/jugar/K7QF-2M4P?yo=abc%2Bd');
+    expect(parsePlayLink({ pathname: '/jugar/k7qf-2m4p', search: '?yo=abc%2Bd', hash: '' })).toEqual({ code: 'K7QF-2M4P', token: 'abc+d' });
+    expect(parsePlayLink({ pathname: '/', search: '', hash: '#/jugar/K7QF-2M4P' })).toEqual({ code: 'K7QF-2M4P', token: null });
+    expect(parsePlayLink({ pathname: '/', search: '', hash: '' })).toBeNull();
+    expect(appBase({ origin: 'https://sim.local', pathname: '/jugar/K7QF-2M4P' })).toBe('https://sim.local');
+    expect(appBase({ origin: 'https://sim.local', pathname: '/sim/' })).toBe('https://sim.local/sim');
   });
 
   it('counts attribute points above 10 (lowering one gives one back)', () => {

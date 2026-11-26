@@ -44,7 +44,7 @@ export function StartScreen() {
       })
       .catch(() => {});
     api.listRuns().then(setRuns).catch(() => {});
-    fetch('fixtures/index.json')
+    fetch('/fixtures/index.json')
       .then((r) => r.json())
       .then(setFixtures)
       .catch(() => {});

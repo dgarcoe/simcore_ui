@@ -217,8 +217,23 @@ export function parsePlayHash(hash: string): { code: string; token: string | nul
   return { code: m[1].toUpperCase(), token };
 }
 
+/**
+ * A player's link, from the address: `/jugar/K7QF-2M4P?yo=…` (a real path: chat apps and mail
+ * filters that drop the `#…` can't turn it into the DM's page), or the older `#/jugar/…`.
+ */
+export function parsePlayLink(loc: { pathname: string; search: string; hash: string }): { code: string; token: string | null } | null {
+  const m = /\/jugar\/([A-Za-z0-9-]+)\/?$/.exec(loc.pathname);
+  if (m) return { code: m[1].toUpperCase(), token: new URLSearchParams(loc.search).get('yo') };
+  return parsePlayHash(loc.hash);
+}
+
+/** Where the app lives (origin and path, without a player's /jugar/… part). */
+export function appBase(loc: { origin: string; pathname: string } = location): string {
+  return loc.origin + loc.pathname.replace(/\/jugar\/.*$/, '').replace(/\/$/, '');
+}
+
 export function gameLink(origin: string, gameCode: string, token?: string): string {
-  return `${origin}/#/jugar/${gameCode}${token ? `?yo=${encodeURIComponent(token)}` : ''}`;
+  return `${origin}/jugar/${gameCode}${token ? `?yo=${encodeURIComponent(token)}` : ''}`;
 }
 
 const TOKEN_KEY = (c: string) => `simcore:player:${c.toUpperCase()}`;
